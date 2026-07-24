@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bhachunda Solar Land Database</title>
+    <style>
+        :root {
+            --bg-base: #F4F7F6;
+            --bg-gradient: linear-gradient(135deg, #EBF2EE 0%, #F4F7F6 100%);
+            --surface: #FFFFFF;
+            --surface-hover: #FAFCFB;
+            --forest-green: #1B4332;
+            --accent-green: #2D6A4F;
+            --mint-glow: rgba(45, 106, 79, 0.15);
+            --border-light: rgba(0, 0, 0, 0.06);
+            --text-main: #2D3748;
+            --text-muted: #718096;
+            --danger: #E53E3E;
+            --warning-bg: #FFFDF5;
+            --warning-border: #F5E6AD;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background: var(--bg-base);
+            background-image: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-light);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            gap: 10px;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand-logo {
+            height: 32px;
+            width: auto;
+            object-fit: contain;
+            display: block;
+        }
+
+        header h1 { 
+            margin: 0; 
+            font-size: clamp(1.05rem, 4vw, 1.35rem);
+            font-weight: 700;
+            color: var(--forest-green);
+            line-height: 1.2;
+        }
+
+        .btn-home {
+            background: transparent;
+            color: var(--forest-green);
+            border: 1px solid rgba(27, 67, 50, 0.3);
+            padding: 0.4rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-home:hover {
+            background: var(--forest-green);
+            color: #FFFFFF;
+        }
+
+        .admin-panel {
+            background: #E8F5E9;
+            padding: 0.4rem 0.9rem;
+            border-radius: 30px;
+            border: 1px solid rgba(45, 106, 79, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem 1rem;
+            flex: 1;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: var(--surface);
+            border: 1px solid var(--border-light);
+            padding: 1.25rem;
+            border-radius: 14px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+        }
+
+        .metric-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+        }
+
+        .metric-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--forest-green);
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border-light);
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.03);
+            margin-bottom: 2rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+            font-size: 0.82rem;
+            color: var(--text-main);
+        }
+
+        input, select, textarea {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            color: var(--text-main);
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-green);
+            background: #FFFFFF;
+            box-shadow: 0 0 0 3px var(--mint-glow);
+        }
+
+        button {
+            background: var(--forest-green);
+            color: #FFFFFF;
+            padding: 0.85rem 2.2rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        button:hover {
+            background: var(--accent-green);
+        }
+
+        .btn-danger {
+            background: #FFF5F5;
+            color: var(--danger);
+            border: 1px solid #FED7D7;
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: #FFF;
+        }
+
+        .action-bar-layout {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            margin-bottom: 1.5rem; 
+            gap: 1rem;
+        }
+
+        .filter-controls-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-wrapper {
+            position: relative;
+            min-width: 250px;
+        }
+
+        .search-wrapper input {
+            padding-left: 2.5rem;
+        }
+
+        .search-wrapper::before {
+            content: "🔍";
+            position: absolute;
+            left: 0.9rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.95rem;
+            opacity: 0.6;
+        }
+
+        .export-btn-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-export {
+            background: #EBF2EE;
+            color: var(--forest-green);
+            border: 1px solid rgba(27, 67, 50, 0.2);
+            padding: 0.65rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-export:hover {
+            background: var(--forest-green);
+            color: #FFFFFF;
+        }
+
+        .btn-pdf {
+            background: #FFF5F5;
+            color: #C53030;
+            border: 1px solid rgba(197, 48, 48, 0.2);
+        }
+
+        .btn-pdf:hover {
+            background: #C53030;
+            color: #FFFFFF;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 14px;
+            border: 1px solid var(--border-light);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            background: #FFFFFF;
+        }
+
+        th, td {
+            padding: 1rem 0.8rem;
+            text-align: left;
+            vertical-align: middle;
+            border-bottom: 1px solid #F1F5F9;
+            white-space: nowrap;
+        }
+
+        th {
+            background-color: #F8FAFC;
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: 0.72rem;
+            letter-spacing: 0.5px;
+            position: relative;
+        }
+
+        .th-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .th-title {
+            text-transform: uppercase;
+        }
+
+        .excel-select {
+            background: #FFFFFF;
+            border: 1px solid #CBD5E0;
+            border-radius: 4px;
+            padding: 2px 4px;
+            font-size: 0.7rem;
+            font-weight: normal;
+            color: var(--text-main);
+            width: 100%;
+            min-width: 90px;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        .single-line-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 160px;
+            display: block;
+        }
+
+        .flex-badge-container {
+            display: inline-flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        tr.payment-pending {
+            background-color: var(--warning-bg);
+        }
+        tr.payment-pending td {
+            border-bottom: 1px solid var(--warning-border);
+        }
+
+        .status-pill {
+            padding: 0.35rem 0.6rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            border-radius: 6px;
+            text-transform: uppercase;
+            display: inline-block;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .status-pill.pending {
+            background: #FFF3CD;
+            color: #856404;
+            border: 1px solid #FFEBAA;
+        }
+        .status-pill.settled {
+            background: #D4EDDA;
+            color: #155724;
+            border: 1px solid #C3E6CB;
+        }
+
+        .badge {
+            padding: 0.25rem 0.45rem;
+            border-radius: 4px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            display: inline-block;
+            text-align: center;
+        }
+        .badge-yes { background: #E8F5E9; color: #2E7D32; }
+        .badge-no { background: #FFEBEE; color: #C62828; }
+
+        .drive-btn, .action-inline-btn {
+            background: #EDF2F7;
+            color: #4A5568;
+            text-decoration: none;
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid #E2E8F0;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        .drive-btn:hover, .action-inline-btn:hover {
+            background: var(--forest-green);
+            color: #FFFFFF;
+            border-color: var(--forest-green);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-box {
+            background: #FFF;
+            padding: 1.5rem;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 650px;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.15);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-box h3 { margin-top: 0; color: var(--forest-green); border-bottom: 2px solid #E2E8F0; padding-bottom: 0.5rem; font-size: 1.1rem; }
+        .modal-data-row { display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px dashed #EDF2F7; font-size: 0.88rem; gap: 10px; }
+        .modal-data-row strong { color: #4A5568; flex-shrink: 0; }
+        .modal-close-btn { background: #4A5568; color: #FFF; margin-top: 1.5rem; width: 100%; text-align: center; }
+
+        .admin-only { display: none !important; }
+        body.is-admin .admin-only { display: inherit !important; }
+        body.is-admin table .admin-only { display: table-cell !important; }
+
+        footer {
+            background: #FFFFFF;
+            border-top: 1px solid var(--border-light);
+            padding: 1.25rem 1.5rem;
+            margin-top: auto;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.01);
+        }
+
+        .footer-content {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        /* HARD-SHRINK LANDSCAPE PRINT VIEW CONTEXT CONFIGURATION */
+        @page {
+            size: landscape;
+            margin: 4mm;
+        }
+
+        @media print {
+            body { 
+                background: #FFF; 
+                color: #000; 
+                font-size: 7.5pt; 
+                min-height: auto;
+            }
+            
+            header, .admin-panel, .btn-home, #adminFormCard, .action-bar-layout, th.admin-only, td.admin-only, footer, .excel-select { 
+                display: none !important; 
+            }
+            
+            .container { 
+                max-width: 100% !important; 
+                padding: 0 !important; 
+                margin: 0 !important; 
+                width: 100% !important;
+            }
+            
+            .metrics-row {
+                margin-bottom: 1rem !important;
+                grid-template-columns: repeat(3, 1fr) !important;
+            }
+
+            .metric-card {
+                padding: 0.5rem !important;
+                border: 1px solid #DDD !important;
+            }
+
+            .metric-value {
+                font-size: 1.1rem !important;
+            }
+
+            .card { 
+                border: none !important; 
+                box-shadow: none !important; 
+                padding: 0 !important; 
+                margin: 0 !important;
+            }
+            
+            .table-responsive { 
+                overflow: visible !important; 
+                border: none !important; 
+                width: 100% !important;
+            }
+            
+            table { 
+                width: 100% !important; 
+                border: 1px solid #999 !important; 
+                table-layout: fixed !important;
+                page-break-inside: auto;
+            }
+            
+            tr { 
+                page-break-inside: avoid !important; 
+                page-break-after: auto; 
+                background: #FFF !important; 
+            }
+            
+            th, td { 
+                border: 1px solid #CCC !important; 
+                padding: 4px 3px !important; 
+                white-space: normal !important; 
+                word-wrap: break-word !important;
+                overflow: hidden !important;
+                color: #000 !important; 
+                font-size: 7pt !important;
+            }
+            
+            th { 
+                background: #F2F2F2 !important; 
+                font-weight: bold !important;
+            }
+
+            th:nth-child(1), td:nth-child(1) { width: 8%; } 
+            th:nth-child(2), td:nth-child(2) { width: 9%; } 
+            th:nth-child(3), td:nth-child(3) { width: 7%; } 
+            th:nth-child(4), td:nth-child(4) { width: 6%; } 
+            th:nth-child(5), td:nth-child(5) { width: 7%; } 
+            th:nth-child(6), td:nth-child(6) { width: 22%; } 
+            th:nth-child(7), td:nth-child(7) { display: none !important; } 
+            th:nth-child(8), td:nth-child(8) { width: 9%; } 
+            th:nth-child(9), td:nth-child(9) { width: 8%; } 
+            th:nth-child(10), td:nth-child(10) { width: 8%; } 
+            th:nth-child(11), td:nth-child(11) { width: 16%; } 
+            th:nth-child(12), td:nth-child(12) { display: none !important; } 
+            
+            .status-pill { 
+                border: 1px solid #666 !important; 
+                background: transparent !important; 
+                color: #000 !important; 
+                padding: 1px 3px !important; 
+                font-size: 6.5pt !important;
+            }
+            
+            .badge {
+                background: transparent !important;
+                color: #000 !important;
+                border: 1px solid #999 !important;
+                padding: 1px 2px !important;
+            }
+
+            .single-line-text { 
+                max-width: none !important; 
+                overflow: visible !important; 
+                white-space: normal !important; 
+                display: block !important;
+            }
+        }
+
+        @media screen and (max-width: 992px) {
+            .action-bar-layout { flex-direction: column; align-items: stretch; }
+            .filter-controls-group { flex-direction: column; align-items: stretch; }
+            .search-wrapper { min-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-brand">
+            <img src="logo.png" alt="Bhachunda Solar Logo" class="brand-logo" onerror="this.style.display='none'">
+            <h1>Bhachunda Solar Land Database</h1>
+            <a href="home.html" class="btn-home">🏠 Return Home</a>
+        </div>
+        <div class="admin-panel">
+            <label style="margin:0; color:var(--forest-green); font-weight:600; font-size: 0.85rem; cursor:pointer;" for="adminToggle">🔒 Admin Gateway Mode</label>
+            <input type="checkbox" id="adminToggle" style="width:auto; cursor:pointer;">
+        </div>
+    </header>
+
+    <div class="container">
+        <div style="margin-bottom: 1.5rem;">
+            <h2 style="margin:0; color: var(--forest-green); font-size: 1.4rem;">Control Portal Registry</h2>
+            <p style="margin: 0.2rem 0 0 0; color: var(--text-muted); font-size: 0.88rem;">Real-time responsive dashboard database.</p>
+        </div>
+
+        <div class="metrics-row">
+            <div class="metric-card">
+                <div class="metric-label">Target Village Sectors</div>
+                <div class="metric-value">2 Sites</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Total Survey Records</div>
+                <div class="metric-value" id="totalSurveysCount">0 Logs</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Acquired Footprint Size</div>
+                <div class="metric-value" id="totalAreaMetric">0.00 Ac</div>
+            </div>
+        </div>
+
+        <!-- ADMINISTRATIVE INSERT CARD -->
+        <div id="adminFormCard" class="card admin-only" style="border-top: 4px solid var(--forest-green);">
+            <h2 style="margin-top:0; color:var(--forest-green); font-size: 1.2rem; margin-bottom: 1.2rem;">🌱 Log Land Acquisition Entry</h2>
+            <form id="landForm">
+                <input type="hidden" id="editDocId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Village Sector</label>
+                        <select id="village" required>
+                            <option value="" disabled selected>Choose location...</option>
+                            <option value="Bhavanipar">Bhavanipar</option>
+                            <option value="Bitta">Bitta</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Survey Number</label>
+                        <input type="text" id="surveyNumber" required placeholder="e.g. 104/P">
+                    </div>
+                    <div class="form-group">
+                        <label>Khata Number</label>
+                        <input type="text" id="khataNumber" required placeholder="e.g. 88">
+                    </div>
+                    <div class="form-group">
+                        <label>Hectare Are (H.Q.Ar)</label>
+                        <input type="number" step="any" id="hqAr">
+                    </div>
+                    <div class="form-group">
+                        <label>Acres (Acer Guntha)</label>
+                        <input type="number" step="any" id="acerGuntha">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>Registered Farmer Stakeholder Names</label>
+                        <textarea id="farmerName" rows="2" required placeholder="Type all names here..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>PAN Available?</label>
+                        <select id="pan"><option value="YES">YES</option><option value="NO">NO</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Aadhaar Card Document?</label>
+                        <select id="adhar"><option value="YES">YES</option><option value="NO">NO</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cancelled Bank Cheque?</label>
+                        <select id="cancelCheque"><option value="YES">YES</option><option value="NO">NO</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Project Consent Letter?</label>
+                        <select id="consent"><option value="YES">YES</option><option value="NO">NO</option></select>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Token Amount Paid (INR)</label>
+                        <input type="number" id="tokenPayment" placeholder="₹ Value">
+                    </div>
+                    <div class="form-group">
+                        <label>Token Payment Date</label>
+                        <input type="date" id="tokenDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Token Transaction UTR Reference</label>
+                        <input type="text" id="tokenUtr" placeholder="UTR ID">
+                    </div>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Lease Execution Date</label>
+                        <input type="date" id="leaseDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Lease Execution Amount</label>
+                        <input type="number" id="leasePayment" placeholder="₹ Value">
+                    </div>
+                    <div class="form-group">
+                        <label>Lease Banking UTR Identifier</label>
+                        <input type="text" id="leaseUtr" placeholder="Lease UTR Reference">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label>Connected Google Drive Records Vault Link</label>
+                        <input type="url" id="driveLink" required placeholder="https://drive.google.com/drive/folders/...">
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label style="color: #B7791F;">⚠️ Administrative Remarks / Pending Documents Tracking Note</label>
+                        <textarea id="remarks" rows="2" placeholder="e.g., Landowner signature missing..."></textarea>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 1.5rem;">
+                    <button type="submit" id="submitBtn">Save Registry Entry</button>
+                    <button type="button" class="btn-danger" id="cancelEditBtn" style="display:none; margin-left:10px;">Cancel Modification</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- MASTER RECORD INVENTORY TABLE -->
+        <div class="card">
+            <div class="action-bar-layout">
+                <h2 style="margin:0; color:var(--forest-green); font-size: 1.2rem;">📊 Inventory Master Record</h2>
+                <div class="filter-controls-group">
+                    <div class="search-wrapper">
+                        <input type="text" id="searchBox" style="margin: 0;" placeholder="Global keyword search...">
+                    </div>
+                    <div class="export-btn-group">
+                        <button id="exportCsvBtn" class="btn-export">📊 Excel (CSV)</button>
+                        <button id="exportPdfBtn" class="btn-export btn-pdf">🖨️ Print / PDF Report</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="masterDataTable">
+                    <thead>
+                        <tr>
+                            <th>
+                                <div class="th-container">
+                                    <span class="th-title">Logged On</span>
+                                    <select id="colFilterLogged" class="excel-select"><option value="">(All)</option></select>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="th-container">
+                                    <span class="th-title">Village</span>
+                                    <select id="colFilterVillage" class="excel-select"><option value="">(All)</option></select>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="th-container">
+                                    <span class="th-title">Survey Ref</span>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="th-container">
+                                    <span class="th-title">Khata ID</span>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="th-container">
+                                    <span class="th-title">Area</span>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="th-container">
+                                    <span class="th-title">Title Deed Holders</span>
+                                </div>
+                            </th>
+                            <th><div class="th-container"><span class="th-title">Dossier Profile</span></div></th>
+                            <th>
+                                <div class="th-container">
+                                    <span class="th-title">Compliance</span>
+                                    <select id="colFilterCompliance" class="excel-select">
+                                        <option value="">(All)</option>
+                                        <option value="Secure">100% Secure</option>
+                                        <option value="Incomplete">Incomplete</option>
+                                    </select>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="th-container">
+                                    <span class="th-title">Token Status</span>
+                                    <select id="colFilterToken" class="excel-select">
+                                        <option value="">(All)</option>
+                                        <option value="SETTLED">SETTLED</option>
+                                        <option value="PENDING">PENDING</option>
+                                    </select>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="th-container">
+                                    <span class="th-title">Lease Status</span>
+                                    <select id="colFilterLease" class="excel-select">
+                                        <option value="">(All)</option>
+                                        <option value="SETTLED">SETTLED</option>
+                                        <option value="PENDING">PENDING</option>
+                                    </select>
+                                </div>
+                            </th>
+                            <th>
+                                <div class="th-container">
+                                    <span class="th-title">Missing Notes</span>
+                                    <select id="colFilterMissing" class="excel-select"><option value="">(All)</option></select>
+                                </div>
+                            </th>
+                            <th><div class="th-container"><span class="th-title">Central Vault</span></div></th>
+                            <th class="admin-only"><div class="th-container"><span class="th-title">System Actions</span></div></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="13" style="text-align: center; color: var(--text-muted);">Configuring active database pipeline context...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- DETAILS DOSSIER MODAL -->
+    <div id="detailsModal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 id="modalTitle">Survey Record Dossier</h3>
+            <div id="modalContent"></div>
+            <button class="modal-close-btn" id="closeModalBtn">Close File Dossier</button>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div>© 2026 Bhachunda Solar Land Project Operations Registry. All Rights Reserved.</div>
+            <div class="footer-status">
+                <span class="footer-pulse"></span>
+                <span>Live Database Engine Active</span>
+            </div>
+        </div>
+    </footer>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            addDoc, 
+            updateDoc, 
+            deleteDoc, 
+            onSnapshot, 
+            query, 
+            where, 
+            getDocs 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAPHjoSFl3eytfcRJdoZRteD-mqoHCK6vg",
+            authDomain: "bhachunda-solar.firebaseapp.com",
+            projectId: "bhachunda-solar",
+            storageBucket: "bhachunda-solar.firebasestorage.app",
+            messagingSenderId: "830070673428",
+            appId: "1:830070673428:web:fb356c218cb56c60e3d701"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const ref = collection(db, "bhachunda_solar");
+
+        const adminToggle = document.getElementById("adminToggle");
+        let masterRecords = [];
+
+        // Global Gate state management
+        adminToggle.addEventListener('change', (e) => {
+            if(e.target.checked) {
+                document.body.classList.add('is-admin');
+            } else {
+                document.body.classList.remove('is-admin');
+            }
+        });
+
+        // Track data pipeline via live snapshots
+        onSnapshot(ref, (snapshot) => {
+            masterRecords = [];
+            snapshot.forEach((doc) => {
+                masterRecords.push({ id: doc.id, ...doc.data() });
+            });
+            // Sort records chronologically by creation time
+            masterRecords.sort((a,b) => new Date(b.createdTimestamp || 0) - new Date(a.createdTimestamp || 0));
+            
+            buildDynamicFilters(masterRecords);
+            renderTableData();
+            calculateMetrics(masterRecords);
+        }, (error) => {
+            console.error("Pipeline breakdown error: ", error);
+        });
+
+        // Form handler context (Create / Update)
+        const landForm = document.getElementById("landForm");
+        landForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            
+            const docId = document.getElementById("editDocId").value;
+            const payload = {
+                village: document.getElementById("village").value,
+                surveyNumber: document.getElementById("surveyNumber").value,
+                khataNumber: document.getElementById("khataNumber").value,
+                hqAr: parseFloat(document.getElementById("hqAr").value) || 0,
+                acerGuntha: parseFloat(document.getElementById("acerGuntha").value) || 0,
+                farmerName: document.getElementById("farmerName").value,
+                pan: document.getElementById("pan").value,
+                adhar: document.getElementById("adhar").value,
+                cancelCheque: document.getElementById("cancelCheque").value,
+                consent: document.getElementById("consent").value,
+                tokenPayment: parseFloat(document.getElementById("tokenPayment").value) || 0,
+                tokenDate: document.getElementById("tokenDate").value || "",
+                tokenUtr: document.getElementById("tokenUtr").value || "",
+                leaseDate: document.getElementById("leaseDate").value || "",
+                leasePayment: parseFloat(document.getElementById("leasePayment").value) || 0,
+                leaseUtr: document.getElementById("leaseUtr").value || "",
+                driveLink: document.getElementById("driveLink").value,
+                remarks: document.getElementById("remarks").value || ""
+            };
+
+            try {
+                if(docId) {
+                    await updateDoc(doc(db, "bhachunda_solar", docId), payload);
+                } else {
+                    payload.createdTimestamp = new Date().toISOString();
+                    await addDoc(ref, payload);
+                }
+                resetEntryContext();
+            } catch (err) {
+                alert("Transaction failure inside DB: " + err.message);
+            }
+        });
+
+        window.triggerEditContext = function(id) {
+            const match = masterRecords.find(r => r.id === id);
+            if(!match) return;
+
+            document.getElementById("editDocId").value = match.id;
+            document.getElementById("village").value = match.village || "";
+            document.getElementById("surveyNumber").value = match.surveyNumber || "";
+            document.getElementById("khataNumber").value = match.khataNumber || "";
+            document.getElementById("hqAr").value = match.hqAr || "";
+            document.getElementById("acerGuntha").value = match.acerGuntha || "";
+            document.getElementById("farmerName").value = match.farmerName || "";
+            document.getElementById("pan").value = match.pan || "NO";
+            document.getElementById("adhar").value = match.adhar || "NO";
+            document.getElementById("cancelCheque").value = match.cancelCheque || "NO";
+            document.getElementById("consent").value = match.consent || "NO";
+            document.getElementById("tokenPayment").value = match.tokenPayment || "";
+            document.getElementById("tokenDate").value = match.tokenDate || "";
+            document.getElementById("tokenUtr").value = match.tokenUtr || "";
+            document.getElementById("leaseDate").value = match.leaseDate || "";
+            document.getElementById("leasePayment").value = match.leasePayment || "";
+            document.getElementById("leaseUtr").value = match.leaseUtr || "";
+            document.getElementById("driveLink").value = match.driveLink || "";
+            document.getElementById("remarks").value = match.remarks || "";
+
+            document.getElementById("submitBtn").textContent = "Update Registry Entry";
+            document.getElementById("cancelEditBtn").style.display = "inline-block";
+            window.scrollTo({ top: document.getElementById("adminFormCard").offsetTop - 80, behavior: 'smooth' });
+        };
+
+        document.getElementById("cancelEditBtn").addEventListener("click", resetEntryContext);
+
+        function resetEntryContext() {
+            landForm.reset();
+            document.getElementById("editDocId").value = "";
+            document.getElementById("submitBtn").textContent = "Save Registry Entry";
+            document.getElementById("cancelEditBtn").style.display = "none";
+        }
+
+        window.triggerDeleteContext = async function(id) {
+            if(confirm("Confirm irreversible deletion of this land survey profile?")) {
+                try {
+                    await deleteDoc(doc(db, "bhachunda_solar", id));
+                } catch(e) {
+                    alert("Execution block error: " + e.message);
+                }
+            }
+        };
+
+        // Metrics engine
+        function calculateMetrics(data) {
+            document.getElementById("totalSurveysCount").textContent = `${data.length} Logs`;
+            let runningArea = 0;
+            data.forEach(r => {
+                runningArea += parseFloat(r.acerGuntha) || 0;
+            });
+            document.getElementById("totalAreaMetric").textContent = `${runningArea.toFixed(2)} Ac`;
+        }
+
+        // Build unique filters list dynamically
+        function buildDynamicFilters(data) {
+            const loggedSelector = document.getElementById("colFilterLogged");
+            const villageSelector = document.getElementById("colFilterVillage");
+            const missingSelector = document.getElementById("colFilterMissing");
+
+            const savedLogged = loggedSelector.value;
+            const savedVillage = villageSelector.value;
+            const savedMissing = missingSelector.value;
+
+            loggedSelector.innerHTML = '<option value="">(All)</option>';
+            villageSelector.innerHTML = '<option value="">(All)</option>';
+            missingSelector.innerHTML = '<option value="">(All)</option>';
+
+            let dates = new Set();
+            let villages = new Set();
+            let missingNotes = new Set();
+
+            data.forEach(r => {
+                if(r.createdTimestamp) dates.add(r.createdTimestamp.split('T')[0]);
+                if(r.village) villages.add(r.village);
+                if(r.remarks) missingNotes.add(r.remarks.trim());
+            });
+
+            Array.from(dates).sort().forEach(d => loggedSelector.innerHTML += `<option value="${d}">${d}</option>`);
+            Array.from(villages).sort().forEach(v => villageSelector.innerHTML += `<option value="${v}">${v}</option>`);
+            Array.from(missingNotes).sort().forEach(m => {
+                const clean = m.length > 20 ? m.substring(0,20)+"..." : m;
+                missingSelector.innerHTML += `<option value="${m}">${clean}</option>`;
+            });
+
+            loggedSelector.value = dates.has(savedLogged) ? savedLogged : "";
+            villageSelector.value = villages.has(savedVillage) ? savedVillage : "";
+            missingSelector.value = missingNotes.has(savedMissing) ? savedMissing : "";
+        }
+
+        // Search and drop-down matching array evaluation logic
+        function renderTableData() {
+            const searchVal = document.getElementById("searchBox").value.toLowerCase();
+            const fLogged = document.getElementById("colFilterLogged").value;
+            const fVillage = document.getElementById("colFilterVillage").value;
+            const fCompliance = document.getElementById("colFilterCompliance").value;
+            const fToken = document.getElementById("colFilterToken").value;
+            const fLease = document.getElementById("colFilterLease").value;
+            const fMissing = document.getElementById("colFilterMissing").value;
+
+            const targetTbody = document.getElementById("tableBody");
+            targetTbody.innerHTML = "";
+
+            const matches = masterRecords.filter(r => {
+                // Global text mapping
+                const matchGlobal = !searchVal || [
+                    r.village, r.surveyNumber, r.khataNumber, r.farmerName, r.remarks, r.tokenUtr, r.leaseUtr
+                ].some(field => String(field || "").toLowerCase().includes(searchVal));
+
+                // Document specific evaluation
+                const isSecure = (r.pan === "YES" && r.adhar === "YES" && r.cancelCheque === "YES" && r.consent === "YES");
+                const tokenStatus = (parseFloat(r.tokenPayment) > 0 && r.tokenDate && r.tokenUtr) ? "SETTLED" : "PENDING";
+                const leaseStatus = (parseFloat(r.leasePayment) > 0 && r.leaseDate && r.leaseUtr) ? "SETTLED" : "PENDING";
+
+                const matchLogged = !fLogged || (r.createdTimestamp && r.createdTimestamp.startsWith(fLogged));
+                const matchVillage = !fVillage || r.village === fVillage;
+                const matchCompliance = !fCompliance || (fCompliance === "Secure" ? isSecure : !isSecure);
+                const matchToken = !fToken || tokenStatus === fToken;
+                const matchLease = !fLease || leaseStatus === fLease;
+                const matchMissing = !fMissing || r.remarks === fMissing;
+
+                return matchGlobal && matchLogged && matchVillage && matchCompliance && matchToken && matchLease && matchMissing;
+            });
+
+            if(matches.length === 0) {
+                targetTbody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-muted);">No records discovered match active criteria configuration.</td></tr>`;
+                return;
+            }
+
+            matches.forEach(r => {
+                const isSecure = (r.pan === "YES" && r.adhar === "YES" && r.cancelCheque === "YES" && r.consent === "YES");
+                const compliStr = isSecure ? "Secure" : "Incomplete";
+                const tStatus = (parseFloat(r.tokenPayment) > 0 && r.tokenDate && r.tokenUtr) ? "SETTLED" : "PENDING";
+                const lStatus = (parseFloat(r.leasePayment) > 0 && r.leaseDate && r.leaseUtr) ? "SETTLED" : "PENDING";
+                
+                const createdDate = r.createdTimestamp ? r.createdTimestamp.split('T')[0] : "N/A";
+
+                const tr = document.createElement("tr");
+                if(tStatus === "PENDING" || lStatus === "PENDING") {
+                    tr.classList.add("payment-pending");
+                }
+
+                tr.innerHTML = `
+                    <td>${createdDate}</td>
+                    <td><strong>${r.village || ""}</strong></td>
+                    <td>${r.surveyNumber || ""}</td>
+                    <td>${r.khataNumber || ""}</td>
+                    <td>${r.acerGuntha || "0"} Ac</td>
+                    <td><span class="single-line-text" title="${r.farmerName || ''}">${r.farmerName || ""}</span></td>
+                    <td><button class="action-inline-btn" onclick="openFileDossier('${r.id}')">📄 Open File</button></td>
+                    <td><span class="status-pill ${isSecure ? 'settled':'pending'}">${compliStr}</span></td>
+                    <td><span class="status-pill ${tStatus === 'SETTLED' ? 'settled':'pending'}">${tStatus}</span></td>
+                    <td><span class="status-pill ${lStatus === 'SETTLED' ? 'settled':'pending'}">${lStatus}</span></td>
+                    <td><span class="single-line-text" style="max-width:120px; color:var(--danger);" title="${r.remarks || ''}">${r.remarks || ""}</span></td>
+                    <td><a href="${r.driveLink || '#'}" target="_blank" class="drive-btn">📁 Drive</a></td>
+                    <td class="admin-only">
+                        <button class="action-inline-btn" style="color:var(--accent-green);" onclick="triggerEditContext('${r.id}')">✏️</button>
+                        <button class="action-inline-btn" style="color:var(--danger);" onclick="triggerDeleteContext('${r.id}')">🗑️</button>
+                    </td>
+                `;
+                targetTbody.appendChild(tr);
+            });
+        }
+
+        // Attach listeners to control filters
+        document.getElementById("searchBox").addEventListener("input", renderTableData);
+        document.getElementById("colFilterLogged").addEventListener("change", renderTableData);
+        document.getElementById("colFilterVillage").addEventListener("change", renderTableData);
+        document.getElementById("colFilterCompliance").addEventListener("change", renderTableData);
+        document.getElementById("colFilterToken").addEventListener("change", renderTableData);
+        document.getElementById("colFilterLease").addEventListener("change", renderTableData);
+        document.getElementById("colFilterMissing").addEventListener("change", renderTableData);
+
+        // Dossier view setup
+        window.openFileDossier = function(id) {
+            const match = masterRecords.find(r => r.id === id);
+            if(!match) return;
+
+            document.getElementById("modalTitle").textContent = `Survey Registry Entry Profile: ${match.surveyNumber || 'N/A'}`;
+            
+            let htmlStr = `
+                <div class="modal-data-row"><strong>Village Sector:</strong> <span>${match.village || 'N/A'}</span></div>
+                <div class="modal-data-row"><strong>Survey Reference:</strong> <span>${match.surveyNumber || 'N/A'}</span></div>
+                <div class="modal-data-row"><strong>Khata Tracker ID:</strong> <span>${match.khataNumber || 'N/A'}</span></div>
+                <div class="modal-data-row"><strong>Hectare Size Metrics:</strong> <span>${match.hqAr || '0'} H.Q.Ar</span></div>
+                <div class="modal-data-row"><strong>Acres Size Metrics:</strong> <span>${match.acerGuntha || '0'} Ac</span></div>
+                <div class="modal-data-row"><strong>Stakeholder Names:</strong> <span style="text-align:right;">${match.farmerName || 'N/A'}</span></div>
+                
+                <h4 style="margin:1rem 0 0.5rem 0; color:var(--forest-green); border-bottom:1px solid #EEE;">Compliance Checks Documents status</h4>
+                <div class="modal-data-row"><strong>PAN Registry Available:</strong> <span class="badge ${match.pan==='YES'?'badge-yes':'badge-no'}">${match.pan || 'NO'}</span></div>
+                <div class="modal-data-row"><strong>Aadhaar Database Profile:</strong> <span class="badge ${match.adhar==='YES'?'badge-yes':'badge-no'}">${match.adhar || 'NO'}</span></div>
+                <div class="modal-data-row"><strong>Cancelled Cheque Node:</strong> <span class="badge ${match.cancelCheque==='YES'?'badge-yes':'badge-no'}">${match.cancelCheque || 'NO'}</span></div>
+                <div class="modal-data-row"><strong>Signed Authorization Consent:</strong> <span class="badge ${match.consent==='YES'?'badge-yes':'badge-no'}">${match.consent || 'NO'}</span></div>
+                
+                <h4 style="margin:1rem 0 0.5rem 0; color:var(--forest-green); border-bottom:1px solid #EEE;">Financial Trackers</h4>
+                <div class="modal-data-row"><strong>Token Amount Transferred:</strong> <span>₹ ${match.tokenPayment || '0'}</span></div>
+                <div class="modal-data-row"><strong>Token Clearance Date:</strong> <span>${match.tokenDate || 'N/A'}</span></div>
+                <div class="modal-data-row"><strong>Token Bank Reference UTR:</strong> <span>${match.tokenUtr || 'N/A'}</span></div>
+                <div class="modal-data-row"><strong>Lease Amount Transferred:</strong> <span>₹ ${match.leasePayment || '0'}</span></div>
+                <div class="modal-data-row"><strong>Lease Clearance Date:</strong> <span>${match.leaseDate || 'N/A'}</span></div>
+                <div class="modal-data-row"><strong>Lease Bank Reference UTR:</strong> <span>${match.leaseUtr || 'N/A'}</span></div>
+                
+                <h4 style="margin:1rem 0 0.5rem 0; color:var(--forest-green); border-bottom:1px solid #EEE;">Operational Constraints / Tracking Notes</h4>
+                <div style="padding:0.6rem 0; font-size:0.88rem; color:var(--danger); line-height:1.4; white-space:pre-wrap;">${match.remarks || 'No issues tracked against this record index context.'}</div>
+            `;
+            
+            document.getElementById("modalContent").innerHTML = htmlStr;
+            document.getElementById("detailsModal").style.display = "flex";
+        };
+
+        document.getElementById("closeModalBtn").addEventListener("click", () => {
+            document.getElementById("detailsModal").style.display = "none";
+        });
+
+        // Universal CSV compilation routine
+        document.getElementById("exportCsvBtn").addEventListener("click", () => {
+            if(masterRecords.length === 0) return alert("Zero records mapped inside system context buffer.");
+            
+            let rows = [
+                ["System ID", "Logged Date", "Village Sector", "Survey Ref", "Khata ID", "Hectare", "Acres", "Farmer Stakeholders", "PAN Status", "Adhar Status", "Cheque Status", "Consent Status", "Token Value", "Token Date", "Token UTR", "Lease Value", "Lease Date", "Lease UTR", "Vault Link", "Remarks Summary"]
+            ];
+
+            masterRecords.forEach(r => {
+                rows.push([
+                    r.id,
+                    r.createdTimestamp ? r.createdTimestamp.split('T')[0] : "",
+                    r.village || "",
+                    r.surveyNumber || "",
+                    r.khataNumber || "",
+                    r.hqAr || 0,
+                    r.acerGuntha || 0,
+                    `"${(r.farmerName || '').replace(/"/g, '""')}"`,
+                    r.pan || "NO",
+                    r.adhar || "NO",
+                    r.cancelCheque || "NO",
+                    r.consent || "NO",
+                    r.tokenPayment || 0,
+                    r.tokenDate || "",
+                    r.tokenUtr || "",
+                    r.leasePayment || 0,
+                    r.leaseDate || "",
+                    r.leaseUtr || "",
+                    r.driveLink || "",
+                    `"${(r.remarks || '').replace(/"/g, '""')}"`
+                ]);
+            });
+
+            let content = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+            let encodedUri = encodeURI(content);
+            let link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `BHACHUNDA_SOLAR_MASTER_INVENTORY_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Trigger native print process context
+        document.getElementById("exportPdfBtn").addEventListener("click", () => {
+            window.print();
+        });
+    </script>
+</body>
+</html>

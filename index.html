@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bachunda Sub Station Solar Project</title>
+    
+    <!-- FAVICON INTEGRATION -->
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+
+    <style>
+        :root {
+            --navy-blue: #0C2340;
+            --brand-green: #2E7D32;
+            --text-muted: #5A7184;
+            --btn-green: #388E3C;
+            --btn-blue: #1E40AF;
+            --btn-gold: #D97706;
+            --footer-bg: #1B4332;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #FFFFFF;
+            color: var(--navy-blue);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 1. MASTER HEADER LAYER WITH CENTERED LOGO */
+        header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+        }
+
+        .logo-badge {
+            background: #FFFFFF;
+            padding: 15px 30px 20px 30px;
+            border-bottom-left-radius: 24px;
+            border-bottom-right-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            width: 180px;
+            text-align: center;
+        }
+
+        .logo-badge img {
+            width: 100%;
+            height: auto;
+            max-height: 105px;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .top-nav-bar {
+            position: absolute;
+            top: 25px;
+            left: 5%;
+            z-index: 11;
+        }
+
+        .home-link {
+            color: var(--brand-green);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            position: relative;
+        }
+
+        .home-link::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 20px;
+            height: 2.5px;
+            background-color: var(--brand-green);
+        }
+
+        /* 2. BACKGROUND BANNER WRAPPER */
+        .hero-banner-container {
+            width: 100%;
+            min-height: 75vh;
+            background: linear-gradient(to right, rgba(255,255,255,0.95) 25%, rgba(255,255,255,0.2) 60%), url('banner.jpg') center center / cover no-repeat;
+            display: flex;
+            align-items: center;
+            padding: 160px 5% 60px 5%;
+            box-sizing: border-box;
+        }
+
+        .hero-text-block {
+            max-width: 520px;
+            z-index: 2;
+        }
+
+        .clean-energy-tag {
+            color: var(--brand-green);
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 15px;
+        }
+
+        .hero-text-block h1 {
+            font-size: clamp(2.2rem, 4.5vw, 3.2rem);
+            font-weight: 800;
+            line-height: 1.15;
+            color: var(--navy-blue);
+            margin: 0 0 20px 0;
+        }
+
+        .hero-text-block h1 span {
+            color: var(--brand-green);
+            display: block;
+            margin-top: 4px;
+        }
+
+        .hero-text-block p {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        /* 3. FLOATING INTERACTION METRIC GRID */
+        .portal-grid-container {
+            max-width: 960px;
+            width: 100%;
+            margin: -90px auto 60px auto;
+            padding: 0 25px;
+            box-sizing: border-box;
+            z-index: 5;
+            position: relative;
+        }
+
+        .layout-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 30px;
+            justify-content: center;
+        }
+
+        .ui-card {
+            background: #FFFFFF;
+            border-radius: 24px;
+            padding: 35px 30px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.06);
+            border: 1px solid rgba(0, 0, 0, 0.03);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 250px;
+            box-sizing: border-box;
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease;
+        }
+
+        .ui-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 25px 50px rgba(12, 35, 64, 0.12);
+        }
+
+        .card-top-identity {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
+        .icon-wrapper {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .db-theme .icon-wrapper { background-color: #E8F5E9; color: var(--brand-green); }
+        .calc-theme .icon-wrapper { background-color: #FFFDE7; color: #E6A100; }
+
+        .card-inner-text h3 {
+            margin: 0 0 8px 0;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--navy-blue);
+        }
+
+        .card-inner-text p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .card-action-btn {
+            width: 100%;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: #FFFFFF;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-sizing: border-box;
+            margin-top: 25px;
+        }
+
+        .bg-green-action { background-color: var(--btn-green); }
+        .bg-gold-action { background-color: var(--btn-gold); }
+
+        /* 4. FOOTER */
+        footer {
+            background-color: var(--footer-bg) !important;
+            color: #FFFFFF !important;
+            padding: 30px 40px;
+            box-sizing: border-box;
+            margin-top: auto;
+            width: 100%;
+        }
+
+        .footer-max-bounds {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .footer-pill-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #FFFFFF !important;
+        }
+
+        .pill-graphic { font-size: 1.3rem; }
+
+        .dev-signature-row {
+            max-width: 1200px;
+            margin: 20px auto 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.75) !important;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .hero-banner-container { min-height: auto; padding: 180px 20px 130px 20px; }
+            .portal-grid-container { margin-top: -50px; }
+            .footer-max-bounds, .dev-signature-row { flex-direction: column; align-items: flex-start; gap: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-nav-bar">
+        <a href="#" class="home-link">Home</a>
+    </div>
+
+    <header>
+        <div class="logo-badge">
+            <img src="logo.png" alt="Bachunda Logo">
+        </div>
+    </header>
+
+    <div class="hero-banner-container">
+        <div class="hero-text-block">
+            <div class="clean-energy-tag">Clean Energy. Brighter Tomorrow. —</div>
+            <h1>Powering Progress, <span>Sustaining Futures</span></h1>
+            <p>Bachunda Sub Station Solar Project is a step towards a greener, stronger and self-reliant tomorrow. Harnessing the power of the sun for communities and generations to come.</p>
+        </div>
+    </div>
+
+    <div class="portal-grid-container">
+        <div class="layout-grid">
+            
+            <!-- DATABASE CARD -->
+            <div class="ui-card db-theme">
+                <div class="card-top-identity">
+                    <div class="icon-wrapper">📂</div>
+                    <div class="card-inner-text">
+                        <h3>Database</h3>
+                        <p>Access and manage project data, land records and important documents.</p>
+                    </div>
+                </div>
+                <!-- Updated internal relative link -->
+                <a href="database.html" class="card-action-btn bg-green-action">Go to Database &nbsp;➔</a>
+            </div>
+
+            <!-- LEASE RENT CALCULATOR CARD -->
+            <div class="ui-card calc-theme">
+                <div class="card-top-identity">
+                    <div class="icon-wrapper">🧮</div>
+                    <div class="card-inner-text">
+                        <h3>Lease Rent Calculator</h3>
+                        <p>Calculate lease / rent for your land with our easy to use calculator.</p>
+                    </div>
+                </div>
+                <a href="https://nakulkpadi.github.io/LeaseRent-Pro/" class="card-action-btn bg-gold-action">Open Calculator &nbsp;➔</a>
+            </div>
+
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-max-bounds">
+            <div class="footer-pill-item"><span class="pill-graphic">🌱</span> Clean Energy</div>
+            <div class="footer-pill-item"><span class="pill-graphic">⚡</span> Reliable Power</div>
+            <div class="footer-pill-item"><span class="pill-graphic">👥</span> Community First</div>
+            <div class="footer-pill-item"><span class="pill-graphic">🌐</span> Sustainable Future</div>
+        </div>
+        <div class="dev-signature-row">
+            <span>© 2026 Bachunda Sub Station Solar Project. All Rights Reserved.</span>
+            <span>Designed & Engineered by: <strong>Nakul Kapdi</strong></span>
+        </div>
+    </footer>
+
+</body>
+</html>
