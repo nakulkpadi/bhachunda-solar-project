@@ -437,11 +437,13 @@
         .modal-box h3 { margin-top: 0; color: var(--forest-green); border-bottom: 2px solid #E2E8F0; padding-bottom: 0.5rem; font-size: 1.1rem; }
         .modal-data-row { display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px dashed #EDF2F7; font-size: 0.88rem; gap: 10px; }
         .modal-data-row strong { color: #4A5568; flex-shrink: 0; }
-        .modal-close-btn { background: #4A5568; color: #FFF; margin-top: 1.5rem; width: 100%; text-align: center; }
+        .modal-close-btn { background: #4A5568; color: #FFF; margin-top: 1.5rem; width: 100%; text-align: center; border: none; padding: 0.8rem; border-radius: 8px; cursor: pointer; }
 
+        /* Admin Gateway CSS classes toggle setup */
         .admin-only { display: none !important; }
-        body.is-admin .admin-only { display: inherit !important; }
-        body.is-admin table .admin-only { display: table-cell !important; }
+        body.is-admin .admin-only { display: block !important; }
+        body.is-admin th.admin-only { display: table-cell !important; }
+        body.is-admin td.admin-only { display: table-cell !important; }
 
         footer {
             background: #FFFFFF;
@@ -463,7 +465,6 @@
             color: var(--text-muted);
         }
 
-        /* HARD-SHRINK LANDSCAPE PRINT VIEW CONTEXT CONFIGURATION */
         @page {
             size: landscape;
             margin: 4mm;
@@ -592,7 +593,8 @@
         <div class="header-brand">
             <img src="logo.png" alt="Bhachunda Solar Logo" class="brand-logo" onerror="this.style.display='none'">
             <h1>Bhachunda Solar Land Database</h1>
-            <a href="home.html" class="btn-home">🏠 Return Home</a>
+            <!-- Fixed navigation route to root endpoint file -->
+            <a href="index.html" class="btn-home">🏠 Return Home</a>
         </div>
         <div class="admin-panel">
             <label style="margin:0; color:var(--forest-green); font-weight:600; font-size: 0.85rem; cursor:pointer;" for="adminToggle">🔒 Admin Gateway Mode</label>
@@ -842,8 +844,8 @@
     <footer>
         <div class="footer-content">
             <div>© 2026 Bhachunda Solar Land Project Operations Registry. All Rights Reserved.</div>
-            <div class="footer-status">
-                <span class="footer-pulse"></span>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="width: 8px; height: 8px; background: #2E7D32; border-radius: 50%; display: inline-block;"></span>
                 <span>Live Database Engine Active</span>
             </div>
         </div>
@@ -858,10 +860,7 @@
             addDoc, 
             updateDoc, 
             deleteDoc, 
-            onSnapshot, 
-            query, 
-            where, 
-            getDocs 
+            onSnapshot
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -878,337 +877,310 @@
         const ref = collection(db, "bhachunda_solar");
 
         const adminToggle = document.getElementById("adminToggle");
+        const tableBody = document.getElementById("tableBody");
+        const landForm = document.getElementById("landForm");
+        const submitBtn = document.getElementById("submitBtn");
+        const editDocId = document.getElementById("editDocId");
+        const cancelEditBtn = document.getElementById("cancelEditBtn");
+        
         let masterRecords = [];
 
-        // Global Gate state management
-        adminToggle.addEventListener('change', (e) => {
+        // Admin view toggle handler
+        adminToggle.addEventListener("change", (e) => {
             if(e.target.checked) {
-                document.body.classList.add('is-admin');
+                document.body.classList.add("is-admin");
             } else {
-                document.body.classList.remove('is-admin');
+                document.body.classList.remove("is-admin");
+                resetForm();
             }
         });
 
-        // Track data pipeline via live snapshots
+        // Realtime sync pipeline initialization
         onSnapshot(ref, (snapshot) => {
             masterRecords = [];
             snapshot.forEach((doc) => {
                 masterRecords.push({ id: doc.id, ...doc.data() });
             });
-            // Sort records chronologically by creation time
-            masterRecords.sort((a,b) => new Date(b.createdTimestamp || 0) - new Date(a.createdTimestamp || 0));
-            
-            buildDynamicFilters(masterRecords);
-            renderTableData();
-            calculateMetrics(masterRecords);
+            // Sort database chronologically by log creation date
+            masterRecords.sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+            renderDashboard(masterRecords);
+            populateFilters(masterRecords);
         }, (error) => {
-            console.error("Pipeline breakdown error: ", error);
+            console.error("Database sync pipe failed:", error);
+            tableBody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--danger);">Failed to sync with data stream. Check credentials.</td></tr>`;
         });
 
-        // Form handler context (Create / Update)
-        const landForm = document.getElementById("landForm");
+        // Dashboard renderer
+        function renderDashboard(records) {
+            tableBody.innerHTML = "";
+            let totalArea = 0;
+
+            if(records.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-muted);">No entries found matching criteria.</td></tr>`;
+                document.getElementById("totalSurveysCount").innerText = "0 Logs";
+                document.getElementById("totalAreaMetric").innerText = "0.00 Ac";
+                return;
+            }
+
+            records.forEach((row) => {
+                const area = parseFloat(row.acerGuntha) || 0;
+                totalArea += area;
+
+                const isSecure = (row.pan === "YES" && row.adhar === "YES" && row.cancelCheque === "YES" && row.consent === "YES");
+                const complianceBadge = isSecure ? '<span class="badge badge-yes">SECURE</span>' : '<span class="badge badge-no">INCOMPLETE</span>';
+                
+                const tokenStatus = row.tokenPayment && row.tokenUtr ? '<span class="status-pill settled">SETTLED</span>' : '<span class="status-pill pending">PENDING</span>';
+                const leaseStatus = row.leasePayment && row.leaseUtr ? '<span class="status-pill settled">SETTLED</span>' : '<span class="status-pill pending">PENDING</span>';
+
+                const tr = document.createElement("tr");
+                if (!row.tokenPayment || !row.leasePayment) tr.classList.add("payment-pending");
+
+                tr.innerHTML = `
+                    <td>${row.timestamp ? new Date(row.timestamp).toLocaleDateString() : 'N/A'}</td>
+                    <td><strong>${row.village || ''}</strong></td>
+                    <td>${row.surveyNumber || ''}</td>
+                    <td>${row.khataNumber || ''}</td>
+                    <td>${area.toFixed(2)} Ac</td>
+                    <td><span class="single-line-text" title="${row.farmerName || ''}">${row.farmerName || ''}</span></td>
+                    <td><button class="action-inline-btn view-dossier-btn" data-id="${row.id}">📄 View File</button></td>
+                    <td>${complianceBadge}</td>
+                    <td>${tokenStatus}</td>
+                    <td>${leaseStatus}</td>
+                    <td><span class="single-line-text" style="color:var(--danger);" title="${row.remarks || ''}">${row.remarks || 'None'}</span></td>
+                    <td><a href="${row.driveLink || '#'}" target="_blank" class="drive-btn">📁 Vault Link</a></td>
+                    <td class="admin-only">
+                        <button class="action-inline-btn edit-btn" data-id="${row.id}" style="background:#EBF2EE; color:var(--accent-green);">✏️</button>
+                        <button class="action-inline-btn delete-btn" data-id="${row.id}" style="background:#FFF5F5; color:var(--danger);">🗑️</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+
+            document.getElementById("totalSurveysCount").innerText = `${records.length} Logs`;
+            document.getElementById("totalAreaMetric").innerText = `${totalArea.toFixed(2)} Ac`;
+            bindActionButtons();
+        }
+
+        // Action binding for dynamic DOM nodes
+        function bindActionButtons() {
+            document.querySelectorAll(".view-dossier-btn").forEach(btn => {
+                btn.addEventListener("click", () => openDossierModal(btn.getAttribute("data-id")));
+            });
+            document.querySelectorAll(".edit-btn").forEach(btn => {
+                btn.addEventListener("click", () => loadRecordToForm(btn.getAttribute("data-id")));
+            });
+            document.querySelectorAll(".delete-btn").forEach(btn => {
+                btn.addEventListener("click", () => deleteRecord(btn.getAttribute("data-id")));
+            });
+        }
+
+        // Modal management logic
+        const detailsModal = document.getElementById("detailsModal");
+        const modalContent = document.getElementById("modalContent");
+        document.getElementById("closeModalBtn").addEventListener("click", () => detailsModal.style.display = "none");
+
+        function openDossierModal(id) {
+            const data = masterRecords.find(r => r.id === id);
+            if(!data) return;
+            
+            modalContent.innerHTML = `
+                <div class="modal-data-row"><strong>Village Sector:</strong> <span>${data.village || ''}</span></div>
+                <div class="modal-data-row"><strong>Survey Ref Number:</strong> <span>${data.surveyNumber || ''}</span></div>
+                <div class="modal-data-row"><strong>Khata Identifier:</strong> <span>${data.khataNumber || ''}</span></div>
+                <div class="modal-data-row"><strong>Metric Footprint:</strong> <span>${data.hqAr || '0'} H.Q.Ar / ${data.acerGuntha || '0'} Acres</span></div>
+                <div class="modal-data-row"><strong>Registered Stakeholders:</strong> <span>${data.farmerName || ''}</span></div>
+                <div class="modal-data-row"><strong>PAN Document Check:</strong> <span>${data.pan || 'NO'}</span></div>
+                <div class="modal-data-row"><strong>Aadhaar Document Check:</strong> <span>${data.adhar || 'NO'}</span></div>
+                <div class="modal-data-row"><strong>Cancelled Cheque Status:</strong> <span>${data.cancelCheque || 'NO'}</span></div>
+                <div class="modal-data-row"><strong>Project Consent Letter:</strong> <span>${data.consent || 'NO'}</span></div>
+                <div class="modal-data-row"><strong>Token Payment Details:</strong> <span>₹${data.tokenPayment || '0'} (${data.tokenDate || 'N/A'}) - UTR: ${data.tokenUtr || 'N/A'}</span></div>
+                <div class="modal-data-row"><strong>Lease Execution Status:</strong> <span>₹${data.leasePayment || '0'} (${data.leaseDate || 'N/A'}) - UTR: ${data.leaseUtr || 'N/A'}</span></div>
+                <div class="modal-data-row"><strong>Remarks/Notes:</strong> <span style="color:var(--danger);">${data.remarks || 'None'}</span></div>
+            `;
+            detailsModal.style.display = "flex";
+        }
+
+        // Form Submit handler for Write/Modify operations
         landForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             
-            const docId = document.getElementById("editDocId").value;
             const payload = {
                 village: document.getElementById("village").value,
                 surveyNumber: document.getElementById("surveyNumber").value,
                 khataNumber: document.getElementById("khataNumber").value,
-                hqAr: parseFloat(document.getElementById("hqAr").value) || 0,
-                acerGuntha: parseFloat(document.getElementById("acerGuntha").value) || 0,
+                hqAr: document.getElementById("hqAr").value,
+                acerGuntha: document.getElementById("acerGuntha").value,
                 farmerName: document.getElementById("farmerName").value,
                 pan: document.getElementById("pan").value,
                 adhar: document.getElementById("adhar").value,
                 cancelCheque: document.getElementById("cancelCheque").value,
                 consent: document.getElementById("consent").value,
-                tokenPayment: parseFloat(document.getElementById("tokenPayment").value) || 0,
-                tokenDate: document.getElementById("tokenDate").value || "",
-                tokenUtr: document.getElementById("tokenUtr").value || "",
-                leaseDate: document.getElementById("leaseDate").value || "",
-                leasePayment: parseFloat(document.getElementById("leasePayment").value) || 0,
-                leaseUtr: document.getElementById("leaseUtr").value || "",
+                tokenPayment: document.getElementById("tokenPayment").value,
+                tokenDate: document.getElementById("tokenDate").value,
+                tokenUtr: document.getElementById("tokenUtr").value,
+                leaseDate: document.getElementById("leaseDate").value,
+                leasePayment: document.getElementById("leasePayment").value,
+                leaseUtr: document.getElementById("leaseUtr").value,
                 driveLink: document.getElementById("driveLink").value,
-                remarks: document.getElementById("remarks").value || ""
+                remarks: document.getElementById("remarks").value,
+                timestamp: new Date().toISOString()
             };
 
             try {
-                if(docId) {
-                    await updateDoc(doc(db, "bhachunda_solar", docId), payload);
+                if(editDocId.value) {
+                    await updateDoc(doc(db, "bhachunda_solar", editDocId.value), payload);
+                    alert("Registry document reference updated successfully.");
                 } else {
-                    payload.createdTimestamp = new Date().toISOString();
                     await addDoc(ref, payload);
+                    alert("New transaction successfully written to Firestore collection.");
                 }
-                resetEntryContext();
+                resetForm();
             } catch (err) {
-                alert("Transaction failure inside DB: " + err.message);
+                console.error("Write assertion crash:", err);
+                alert("Database transactional rejection: " + err.message);
             }
         });
 
-        window.triggerEditContext = function(id) {
-            const match = masterRecords.find(r => r.id === id);
-            if(!match) return;
+        function loadRecordToForm(id) {
+            const data = masterRecords.find(r => r.id === id);
+            if(!data) return;
 
-            document.getElementById("editDocId").value = match.id;
-            document.getElementById("village").value = match.village || "";
-            document.getElementById("surveyNumber").value = match.surveyNumber || "";
-            document.getElementById("khataNumber").value = match.khataNumber || "";
-            document.getElementById("hqAr").value = match.hqAr || "";
-            document.getElementById("acerGuntha").value = match.acerGuntha || "";
-            document.getElementById("farmerName").value = match.farmerName || "";
-            document.getElementById("pan").value = match.pan || "NO";
-            document.getElementById("adhar").value = match.adhar || "NO";
-            document.getElementById("cancelCheque").value = match.cancelCheque || "NO";
-            document.getElementById("consent").value = match.consent || "NO";
-            document.getElementById("tokenPayment").value = match.tokenPayment || "";
-            document.getElementById("tokenDate").value = match.tokenDate || "";
-            document.getElementById("tokenUtr").value = match.tokenUtr || "";
-            document.getElementById("leaseDate").value = match.leaseDate || "";
-            document.getElementById("leasePayment").value = match.leasePayment || "";
-            document.getElementById("leaseUtr").value = match.leaseUtr || "";
-            document.getElementById("driveLink").value = match.driveLink || "";
-            document.getElementById("remarks").value = match.remarks || "";
+            editDocId.value = data.id;
+            document.getElementById("village").value = data.village || '';
+            document.getElementById("surveyNumber").value = data.surveyNumber || '';
+            document.getElementById("khataNumber").value = data.khataNumber || '';
+            document.getElementById("hqAr").value = data.hqAr || '';
+            document.getElementById("acerGuntha").value = data.acerGuntha || '';
+            document.getElementById("farmerName").value = data.farmerName || '';
+            document.getElementById("pan").value = data.pan || 'YES';
+            document.getElementById("adhar").value = data.adhar || 'YES';
+            document.getElementById("cancelCheque").value = data.cancelCheque || 'YES';
+            document.getElementById("consent").value = data.consent || 'YES';
+            document.getElementById("tokenPayment").value = data.tokenPayment || '';
+            document.getElementById("tokenDate").value = data.tokenDate || '';
+            document.getElementById("tokenUtr").value = data.tokenUtr || '';
+            document.getElementById("leaseDate").value = data.leaseDate || '';
+            document.getElementById("leasePayment").value = data.leasePayment || '';
+            document.getElementById("leaseUtr").value = data.leaseUtr || '';
+            document.getElementById("driveLink").value = data.driveLink || '';
+            document.getElementById("remarks").value = data.remarks || '';
 
-            document.getElementById("submitBtn").textContent = "Update Registry Entry";
-            document.getElementById("cancelEditBtn").style.display = "inline-block";
-            window.scrollTo({ top: document.getElementById("adminFormCard").offsetTop - 80, behavior: 'smooth' });
-        };
-
-        document.getElementById("cancelEditBtn").addEventListener("click", resetEntryContext);
-
-        function resetEntryContext() {
-            landForm.reset();
-            document.getElementById("editDocId").value = "";
-            document.getElementById("submitBtn").textContent = "Save Registry Entry";
-            document.getElementById("cancelEditBtn").style.display = "none";
+            submitBtn.innerText = "Apply Registry Modifications";
+            cancelEditBtn.style.display = "inline-block";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        window.triggerDeleteContext = async function(id) {
-            if(confirm("Confirm irreversible deletion of this land survey profile?")) {
+        async function deleteRecord(id) {
+            if(confirm("Are you absolutely sure you want to delete this operational survey record? This cannot be undone.")) {
                 try {
                     await deleteDoc(doc(db, "bhachunda_solar", id));
-                } catch(e) {
-                    alert("Execution block error: " + e.message);
+                    alert("Data record successfully scrubbed from Firestore storage collection.");
+                } catch (e) {
+                    alert("Deletion failed: " + e.message);
                 }
             }
-        };
-
-        // Metrics engine
-        function calculateMetrics(data) {
-            document.getElementById("totalSurveysCount").textContent = `${data.length} Logs`;
-            let runningArea = 0;
-            data.forEach(r => {
-                runningArea += parseFloat(r.acerGuntha) || 0;
-            });
-            document.getElementById("totalAreaMetric").textContent = `${runningArea.toFixed(2)} Ac`;
         }
 
-        // Build unique filters list dynamically
-        function buildDynamicFilters(data) {
-            const loggedSelector = document.getElementById("colFilterLogged");
-            const villageSelector = document.getElementById("colFilterVillage");
-            const missingSelector = document.getElementById("colFilterMissing");
-
-            const savedLogged = loggedSelector.value;
-            const savedVillage = villageSelector.value;
-            const savedMissing = missingSelector.value;
-
-            loggedSelector.innerHTML = '<option value="">(All)</option>';
-            villageSelector.innerHTML = '<option value="">(All)</option>';
-            missingSelector.innerHTML = '<option value="">(All)</option>';
-
-            let dates = new Set();
-            let villages = new Set();
-            let missingNotes = new Set();
-
-            data.forEach(r => {
-                if(r.createdTimestamp) dates.add(r.createdTimestamp.split('T')[0]);
-                if(r.village) villages.add(r.village);
-                if(r.remarks) missingNotes.add(r.remarks.trim());
-            });
-
-            Array.from(dates).sort().forEach(d => loggedSelector.innerHTML += `<option value="${d}">${d}</option>`);
-            Array.from(villages).sort().forEach(v => villageSelector.innerHTML += `<option value="${v}">${v}</option>`);
-            Array.from(missingNotes).sort().forEach(m => {
-                const clean = m.length > 20 ? m.substring(0,20)+"..." : m;
-                missingSelector.innerHTML += `<option value="${m}">${clean}</option>`;
-            });
-
-            loggedSelector.value = dates.has(savedLogged) ? savedLogged : "";
-            villageSelector.value = villages.has(savedVillage) ? savedVillage : "";
-            missingSelector.value = missingNotes.has(savedMissing) ? savedMissing : "";
+        cancelEditBtn.addEventListener("click", resetForm);
+        function resetForm() {
+            landForm.reset();
+            editDocId.value = "";
+            submitBtn.innerText = "Save Registry Entry";
+            cancelEditBtn.style.display = "none";
         }
 
-        // Search and drop-down matching array evaluation logic
-        function renderTableData() {
-            const searchVal = document.getElementById("searchBox").value.toLowerCase();
-            const fLogged = document.getElementById("colFilterLogged").value;
-            const fVillage = document.getElementById("colFilterVillage").value;
-            const fCompliance = document.getElementById("colFilterCompliance").value;
-            const fToken = document.getElementById("colFilterToken").value;
-            const fLease = document.getElementById("colFilterLease").value;
-            const fMissing = document.getElementById("colFilterMissing").value;
+        // Global layout search and dropdown filters runtime system
+        const searchBox = document.getElementById("searchBox");
+        const fLogged = document.getElementById("colFilterLogged");
+        const fVillage = document.getElementById("colFilterVillage");
+        const fCompliance = document.getElementById("colFilterCompliance");
+        const fToken = document.getElementById("colFilterToken");
+        const fLease = document.getElementById("colFilterLease");
+        const fMissing = document.getElementById("colFilterMissing");
 
-            const targetTbody = document.getElementById("tableBody");
-            targetTbody.innerHTML = "";
-
-            const matches = masterRecords.filter(r => {
-                // Global text mapping
-                const matchGlobal = !searchVal || [
-                    r.village, r.surveyNumber, r.khataNumber, r.farmerName, r.remarks, r.tokenUtr, r.leaseUtr
-                ].some(field => String(field || "").toLowerCase().includes(searchVal));
-
-                // Document specific evaluation
-                const isSecure = (r.pan === "YES" && r.adhar === "YES" && r.cancelCheque === "YES" && r.consent === "YES");
-                const tokenStatus = (parseFloat(r.tokenPayment) > 0 && r.tokenDate && r.tokenUtr) ? "SETTLED" : "PENDING";
-                const leaseStatus = (parseFloat(r.leasePayment) > 0 && r.leaseDate && r.leaseUtr) ? "SETTLED" : "PENDING";
-
-                const matchLogged = !fLogged || (r.createdTimestamp && r.createdTimestamp.startsWith(fLogged));
-                const matchVillage = !fVillage || r.village === fVillage;
-                const matchCompliance = !fCompliance || (fCompliance === "Secure" ? isSecure : !isSecure);
-                const matchToken = !fToken || tokenStatus === fToken;
-                const matchLease = !fLease || leaseStatus === fLease;
-                const matchMissing = !fMissing || r.remarks === fMissing;
-
-                return matchGlobal && matchLogged && matchVillage && matchCompliance && matchToken && matchLease && matchMissing;
-            });
-
-            if(matches.length === 0) {
-                targetTbody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-muted);">No records discovered match active criteria configuration.</td></tr>`;
-                return;
-            }
-
-            matches.forEach(r => {
-                const isSecure = (r.pan === "YES" && r.adhar === "YES" && r.cancelCheque === "YES" && r.consent === "YES");
-                const compliStr = isSecure ? "Secure" : "Incomplete";
-                const tStatus = (parseFloat(r.tokenPayment) > 0 && r.tokenDate && r.tokenUtr) ? "SETTLED" : "PENDING";
-                const lStatus = (parseFloat(r.leasePayment) > 0 && r.leaseDate && r.leaseUtr) ? "SETTLED" : "PENDING";
-                
-                const createdDate = r.createdTimestamp ? r.createdTimestamp.split('T')[0] : "N/A";
-
-                const tr = document.createElement("tr");
-                if(tStatus === "PENDING" || lStatus === "PENDING") {
-                    tr.classList.add("payment-pending");
-                }
-
-                tr.innerHTML = `
-                    <td>${createdDate}</td>
-                    <td><strong>${r.village || ""}</strong></td>
-                    <td>${r.surveyNumber || ""}</td>
-                    <td>${r.khataNumber || ""}</td>
-                    <td>${r.acerGuntha || "0"} Ac</td>
-                    <td><span class="single-line-text" title="${r.farmerName || ''}">${r.farmerName || ""}</span></td>
-                    <td><button class="action-inline-btn" onclick="openFileDossier('${r.id}')">📄 Open File</button></td>
-                    <td><span class="status-pill ${isSecure ? 'settled':'pending'}">${compliStr}</span></td>
-                    <td><span class="status-pill ${tStatus === 'SETTLED' ? 'settled':'pending'}">${tStatus}</span></td>
-                    <td><span class="status-pill ${lStatus === 'SETTLED' ? 'settled':'pending'}">${lStatus}</span></td>
-                    <td><span class="single-line-text" style="max-width:120px; color:var(--danger);" title="${r.remarks || ''}">${r.remarks || ""}</span></td>
-                    <td><a href="${r.driveLink || '#'}" target="_blank" class="drive-btn">📁 Drive</a></td>
-                    <td class="admin-only">
-                        <button class="action-inline-btn" style="color:var(--accent-green);" onclick="triggerEditContext('${r.id}')">✏️</button>
-                        <button class="action-inline-btn" style="color:var(--danger);" onclick="triggerDeleteContext('${r.id}')">🗑️</button>
-                    </td>
-                `;
-                targetTbody.appendChild(tr);
-            });
-        }
-
-        // Attach listeners to control filters
-        document.getElementById("searchBox").addEventListener("input", renderTableData);
-        document.getElementById("colFilterLogged").addEventListener("change", renderTableData);
-        document.getElementById("colFilterVillage").addEventListener("change", renderTableData);
-        document.getElementById("colFilterCompliance").addEventListener("change", renderTableData);
-        document.getElementById("colFilterToken").addEventListener("change", renderTableData);
-        document.getElementById("colFilterLease").addEventListener("change", renderTableData);
-        document.getElementById("colFilterMissing").addEventListener("change", renderTableData);
-
-        // Dossier view setup
-        window.openFileDossier = function(id) {
-            const match = masterRecords.find(r => r.id === id);
-            if(!match) return;
-
-            document.getElementById("modalTitle").textContent = `Survey Registry Entry Profile: ${match.surveyNumber || 'N/A'}`;
-            
-            let htmlStr = `
-                <div class="modal-data-row"><strong>Village Sector:</strong> <span>${match.village || 'N/A'}</span></div>
-                <div class="modal-data-row"><strong>Survey Reference:</strong> <span>${match.surveyNumber || 'N/A'}</span></div>
-                <div class="modal-data-row"><strong>Khata Tracker ID:</strong> <span>${match.khataNumber || 'N/A'}</span></div>
-                <div class="modal-data-row"><strong>Hectare Size Metrics:</strong> <span>${match.hqAr || '0'} H.Q.Ar</span></div>
-                <div class="modal-data-row"><strong>Acres Size Metrics:</strong> <span>${match.acerGuntha || '0'} Ac</span></div>
-                <div class="modal-data-row"><strong>Stakeholder Names:</strong> <span style="text-align:right;">${match.farmerName || 'N/A'}</span></div>
-                
-                <h4 style="margin:1rem 0 0.5rem 0; color:var(--forest-green); border-bottom:1px solid #EEE;">Compliance Checks Documents status</h4>
-                <div class="modal-data-row"><strong>PAN Registry Available:</strong> <span class="badge ${match.pan==='YES'?'badge-yes':'badge-no'}">${match.pan || 'NO'}</span></div>
-                <div class="modal-data-row"><strong>Aadhaar Database Profile:</strong> <span class="badge ${match.adhar==='YES'?'badge-yes':'badge-no'}">${match.adhar || 'NO'}</span></div>
-                <div class="modal-data-row"><strong>Cancelled Cheque Node:</strong> <span class="badge ${match.cancelCheque==='YES'?'badge-yes':'badge-no'}">${match.cancelCheque || 'NO'}</span></div>
-                <div class="modal-data-row"><strong>Signed Authorization Consent:</strong> <span class="badge ${match.consent==='YES'?'badge-yes':'badge-no'}">${match.consent || 'NO'}</span></div>
-                
-                <h4 style="margin:1rem 0 0.5rem 0; color:var(--forest-green); border-bottom:1px solid #EEE;">Financial Trackers</h4>
-                <div class="modal-data-row"><strong>Token Amount Transferred:</strong> <span>₹ ${match.tokenPayment || '0'}</span></div>
-                <div class="modal-data-row"><strong>Token Clearance Date:</strong> <span>${match.tokenDate || 'N/A'}</span></div>
-                <div class="modal-data-row"><strong>Token Bank Reference UTR:</strong> <span>${match.tokenUtr || 'N/A'}</span></div>
-                <div class="modal-data-row"><strong>Lease Amount Transferred:</strong> <span>₹ ${match.leasePayment || '0'}</span></div>
-                <div class="modal-data-row"><strong>Lease Clearance Date:</strong> <span>${match.leaseDate || 'N/A'}</span></div>
-                <div class="modal-data-row"><strong>Lease Bank Reference UTR:</strong> <span>${match.leaseUtr || 'N/A'}</span></div>
-                
-                <h4 style="margin:1rem 0 0.5rem 0; color:var(--forest-green); border-bottom:1px solid #EEE;">Operational Constraints / Tracking Notes</h4>
-                <div style="padding:0.6rem 0; font-size:0.88rem; color:var(--danger); line-height:1.4; white-space:pre-wrap;">${match.remarks || 'No issues tracked against this record index context.'}</div>
-            `;
-            
-            document.getElementById("modalContent").innerHTML = htmlStr;
-            document.getElementById("detailsModal").style.display = "flex";
-        };
-
-        document.getElementById("closeModalBtn").addEventListener("click", () => {
-            document.getElementById("detailsModal").style.display = "none";
+        [searchBox, fLogged, fVillage, fCompliance, fToken, fLease, fMissing].forEach(ctrl => {
+            ctrl.addEventListener("input", filterAndRenderData);
         });
 
-        // Universal CSV compilation routine
-        document.getElementById("exportCsvBtn").addEventListener("click", () => {
-            if(masterRecords.length === 0) return alert("Zero records mapped inside system context buffer.");
-            
-            let rows = [
-                ["System ID", "Logged Date", "Village Sector", "Survey Ref", "Khata ID", "Hectare", "Acres", "Farmer Stakeholders", "PAN Status", "Adhar Status", "Cheque Status", "Consent Status", "Token Value", "Token Date", "Token UTR", "Lease Value", "Lease Date", "Lease UTR", "Vault Link", "Remarks Summary"]
-            ];
+        function populateFilters(records) {
+            const loggedSet = new Set();
+            const villageSet = new Set();
+            const missingSet = new Set();
 
-            masterRecords.forEach(r => {
-                rows.push([
-                    r.id,
-                    r.createdTimestamp ? r.createdTimestamp.split('T')[0] : "",
-                    r.village || "",
-                    r.surveyNumber || "",
-                    r.khataNumber || "",
-                    r.hqAr || 0,
-                    r.acerGuntha || 0,
-                    `"${(r.farmerName || '').replace(/"/g, '""')}"`,
-                    r.pan || "NO",
-                    r.adhar || "NO",
-                    r.cancelCheque || "NO",
-                    r.consent || "NO",
-                    r.tokenPayment || 0,
-                    r.tokenDate || "",
-                    r.tokenUtr || "",
-                    r.leasePayment || 0,
-                    r.leaseDate || "",
-                    r.leaseUtr || "",
-                    r.driveLink || "",
-                    `"${(r.remarks || '').replace(/"/g, '""')}"`
-                ]);
+            records.forEach(r => {
+                if(r.timestamp) loggedSet.add(new Date(r.timestamp).toLocaleDateString());
+                if(r.village) villageSet.add(r.village);
+                if(r.remarks) missingSet.add(r.remarks);
             });
 
-            let content = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-            let encodedUri = encodeURI(content);
-            let link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `BHACHUNDA_SOLAR_MASTER_INVENTORY_${new Date().toISOString().split('T')[0]}.csv`);
+            updateDropdown(fLogged, loggedSet);
+            updateDropdown(fVillage, villageSet);
+            updateDropdown(fMissing, missingSet);
+        }
+
+        function updateDropdown(dropdown, contentSet) {
+            const currentVal = dropdown.value;
+            dropdown.innerHTML = '<option value="">(All)</option>';
+            Array.from(contentSet).sort().forEach(item => {
+                dropdown.innerHTML += `<option value="${item}">${item}</option>`;
+            });
+            dropdown.value = currentVal;
+        }
+
+        function filterAndRenderData() {
+            const query = searchBox.value.toLowerCase().trim();
+            const valLogged = fLogged.value;
+            const valVillage = fVillage.value;
+            const valCompliance = fCompliance.value;
+            const valToken = fToken.value;
+            const valLease = fLease.value;
+            const valMissing = fMissing.value;
+
+            const matches = masterRecords.filter(r => {
+                const dateStr = r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '';
+                const isSecure = (r.pan === "YES" && r.adhar === "YES" && r.cancelCheque === "YES" && r.consent === "YES") ? "Secure" : "Incomplete";
+                const tStatus = r.tokenPayment && r.tokenUtr ? "SETTLED" : "PENDING";
+                const lStatus = r.leasePayment && r.leaseUtr ? "SETTLED" : "PENDING";
+
+                if (valLogged && dateStr !== valLogged) return false;
+                if (valVillage && r.village !== valVillage) return false;
+                if (valCompliance && isSecure !== valCompliance) return false;
+                if (valToken && tStatus !== valToken) return false;
+                if (valLease && lStatus !== valLease) return false;
+                if (valMissing && r.remarks !== valMissing) return false;
+
+                if (query) {
+                    const haystack = `${r.village} ${r.surveyNumber} ${r.khataNumber} ${r.farmerName} ${r.remarks}`.toLowerCase();
+                    if (!haystack.includes(query)) return false;
+                }
+                return true;
+            });
+
+            renderDashboard(matches);
+        }
+
+        // Export engine utility methods
+        document.getElementById("exportPdfBtn").addEventListener("click", () => window.print());
+        document.getElementById("exportCsvBtn").addEventListener("click", () => {
+            if(masterRecords.length === 0) return alert("Inventory data is empty.");
+            
+            let csv = "Logged On,Village,Survey Ref,Khata ID,Area (Acres),Farmers,Compliance,Token Status,Lease Status,Missing Notes\n";
+            masterRecords.forEach(r => {
+                const isSecure = (r.pan === "YES" && r.adhar === "YES" && r.cancelCheque === "YES" && r.consent === "YES") ? "SECURE" : "INCOMPLETE";
+                const tStatus = r.tokenPayment && r.tokenUtr ? "SETTLED" : "PENDING";
+                const lStatus = r.leasePayment && r.leaseUtr ? "SETTLED" : "PENDING";
+                const date = r.timestamp ? new Date(r.timestamp).toLocaleDateString() : 'N/A';
+                
+                csv += `"${date}","${r.village || ''}","${r.surveyNumber || ''}","${r.khataNumber || ''}","${r.acerGuntha || '0'}","${(r.farmerName || '').replace(/"/g, '""')}","${isSecure}","${tStatus}","${lStatus}","${(r.remarks || 'None').replace(/"/g, '""')}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.setAttribute("download", `Bhachunda_Solar_Master_Inventory_${new Date().toISOString().slice(0,10)}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        });
-
-        // Trigger native print process context
-        document.getElementById("exportPdfBtn").addEventListener("click", () => {
-            window.print();
         });
     </script>
 </body>
