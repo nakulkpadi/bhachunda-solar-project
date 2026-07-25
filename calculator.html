@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Square Meter to Acre & Guntha Converter</title>
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-light: #e8f5e9;
+            --dark: #1b5e20;
+            --text: #333;
+            --bg: #f5f5f5;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            max-width: 500px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--dark);
+            text-align: center;
+            border-bottom: 2px solid var(--primary-light);
+            padding-bottom: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .results-box {
+            background-color: var(--primary-light);
+            border-left: 5px solid var(--primary);
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 25px;
+        }
+
+        .result-title {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--dark);
+            margin: 0 0 5px 0;
+            font-weight: bold;
+        }
+
+        .result-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111;
+            margin-bottom: 15px;
+        }
+
+        .result-value span {
+            font-size: 16px;
+            font-weight: 400;
+            color: #666;
+        }
+
+        .math-breakdown {
+            margin-top: 20px;
+            font-size: 13px;
+            color: #666;
+            background: #fafafa;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+
+        .math-breakdown p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Land Area Converter</h2>
+
+    <div class="input-group">
+        <label for="areaInput">Enter Area (Square Meters):</label>
+        <input type="number" id="areaInput" value="19062" placeholder="e.g. 19062" oninput="calculateArea()" min="0">
+    </div>
+
+    <div class="results-box">
+        <p class="result-title">Converted Final Output</p>
+        <div class="result-value" id="finalResult">5 Acre and 21 Guntha</div>
+        
+        <p class="result-title">Exact Value (Decimal)</p>
+        <div class="result-value" style="font-size: 18px; margin-bottom: 0;" id="decimalResult">4.710 Acres</div>
+    </div>
+
+    <div class="math-breakdown">
+        <p><strong>Conversion Rules Applied:</strong></p>
+        <p>• 1 Acre = 4,047 sq.mtr</p>
+        <p>• 1 Acre = 40 Gunthas</p>
+        <div id="stepDetails" style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;">
+            <!-- Calculation steps layout -->
+        </div>
+    </div>
+</div>
+
+<script>
+function calculateArea() {
+    const sqMeters = parseFloat(document.getElementById('areaInput').value) || 0;
+    
+    const exactAcres = sqMeters / 4047;
+    
+    let displayAcres = 0;
+    let displayGunthas = 0;
+    let explanationHTML = '';
+
+    if (sqMeters > 0) {
+        // Step 1: Divide sq.mtr by 4047 (e.g. 19062 / 4047 = 4.71)
+        const initialDivision = (sqMeters / 4047).toFixed(2); 
+        const parts = initialDivision.split('.');
+        
+        let rawAcres = parseInt(parts[0]);         // 4
+        let rawGunthas = parseInt(parts[1]) || 0;  // 71
+        
+        // Step 2: Since 40 Guntha = 1 Acre, extract whole acres out of the raw decimal parts
+        const extraAcresFromGunthas = Math.floor(rawGunthas / 40); 
+        const remainingGunthas = rawGunthas % 40;
+        
+        displayAcres = rawAcres + extraAcresFromGunthas;
+        displayGunthas = remainingGunthas;
+
+        explanationHTML = `
+            <p><strong>Step 1:</strong> ${sqMeters} / 4047 = <b>${initialDivision}</b></p>
+            <p><strong>Step 2:</strong> Extracted <b>${rawAcres}</b> Acres & <b>${rawGunthas}</b> raw components.</p>
+            <p><strong>Step 3:</strong> Convert raw components into standard 40-base Gunthas:</p>
+            <p style="padding-left:10px; color:#2e7d32;">${rawGunthas} Gunthas = <b>${extraAcresFromGunthas} Acre</b> and <b>${remainingGunthas} Guntha</b></p>
+            <p><strong>Total:</strong> ${rawAcres} + ${extraAcresFromGunthas} = <b>${displayAcres} Acres</b> and <b>${displayGunthas} Gunthas</b>.</p>
+        `;
+    } else {
+        explanationHTML = '<p>Enter a value greater than 0 to view steps.</p>';
+    }
+
+    // Render numbers to layout
+    document.getElementById('finalResult').innerText = `${displayAcres} Acre and ${displayGunthas} Guntha`;
+    document.getElementById('decimalResult').innerHTML = `${exactAcres.toFixed(3)} <span>Acres</span>`;
+    document.getElementById('stepDetails').innerHTML = explanationHTML;
+}
+
+// Fire once on window load
+calculateArea();
+</script>
+
+</body>
+</html>
