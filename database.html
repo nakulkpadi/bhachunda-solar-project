@@ -548,8 +548,8 @@
             th:nth-child(2), td:nth-child(2) { width: 9%; } 
             th:nth-child(3), td:nth-child(3) { width: 7%; } 
             th:nth-child(4), td:nth-child(4) { width: 6%; } 
-            th:nth-child(5), td:nth-child(5) { width: 7%; } 
-            th:nth-child(6), td:nth-child(6) { width: 22%; } 
+            th:nth-child(5), td:nth-child(5) { width: 9%; } 
+            th:nth-child(6), td:nth-child(6) { width: 20%; } 
             th:nth-child(7), td:nth-child(7) { display: none !important; } 
             th:nth-child(8), td:nth-child(8) { width: 9%; } 
             th:nth-child(9), td:nth-child(9) { width: 8%; } 
@@ -646,11 +646,11 @@
                     </div>
                     <div class="form-group">
                         <label>Hectare Are (H.Q.Ar)</label>
-                        <input type="number" step="any" id="hqAr">
+                        <input type="text" id="hqAr" placeholder="e.g. 1.60.57 or 16057">
                     </div>
                     <div class="form-group">
                         <label>Acres (Acer Guntha)</label>
-                        <input type="number" step="any" id="acerGuntha">
+                        <input type="text" id="acerGuntha" placeholder="Auto-calculated" readonly style="background: #EDF2F7; font-weight: 600;">
                     </div>
                 </div>
 
@@ -764,7 +764,7 @@
                             </th>
                             <th><div class="th-container"><span class="th-title">Survey Ref</span></div></th>
                             <th><div class="th-container"><span class="th-title">Khata ID</span></div></th>
-                            <th><div class="th-container"><span class="th-title">Area</span></div></th>
+                            <th><div class="th-container"><span class="th-title">Calculated Land</span></div></th>
                             <th><div class="th-container"><span class="th-title">Title Deed Holders</span></div></th>
                             <th><div class="th-container"><span class="th-title">Dossier Profile</span></div></th>
                             <th>
@@ -861,7 +861,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // Main data collection configuration
         const ref = collection(db, "bhachunda_solar");
 
         const adminToggle = document.getElementById("adminToggle");
@@ -873,7 +872,6 @@
         
         let masterRecords = [];
 
-        // Isolated Database Check for Debugging
         adminToggle.addEventListener("change", async (e) => {
             if(e.target.checked) {
                 const inputUser = prompt("Enter Admin Username:");
@@ -898,7 +896,7 @@
                     }
                 } catch (err) {
                     console.error("Firestore Error Details:", err);
-                    alert("Firebase Connection Error: " + err.message + "\n\nCheck your browser console (F12) and Firestore Security Rules.");
+                    alert("Firebase Connection Error: " + err.message);
                     e.target.checked = false;
                     document.body.classList.remove("is-admin");
                     resetForm();
@@ -909,7 +907,45 @@
             }
         });
 
-        // Realtime sync pipeline initialization
+        // FIXED AUTOMATIC ACRES & GUNTHA BREAKDOWN LIVE LISTENER
+        const hqArInput = document.getElementById("hqAr");
+        const acerGunthaInput = document.getElementById("acerGuntha");
+
+        hqArInput.addEventListener("input", () => {
+            let rawInput = hqArInput.value.trim();
+            if (!rawInput) {
+                acerGunthaInput.value = "";
+                return;
+            }
+
+            let sqMeters = 0;
+            if (rawInput.includes('.')) {
+                let cleanNumber = rawInput.replace(/\./g, "");
+                sqMeters = parseFloat(cleanNumber) || 0;
+            } else {
+                sqMeters = parseFloat(rawInput) || 0;
+            }
+
+            if (sqMeters <= 0 || isNaN(sqMeters)) {
+                acerGunthaInput.value = "";
+                return;
+            }
+
+            // Step-by-step breakdown math matching calculator formula
+            let totalAcres = sqMeters / 4047;
+            let fullAcres = Math.floor(totalAcres);
+            let remainderFraction = totalAcres - fullAcres;
+            let gunthas = Math.round(remainderFraction * 40);
+
+            // Roll-over check to safely handle rounding limits
+            if (gunthas === 40) {
+                fullAcres += 1;
+                gunthas = 0;
+            }
+
+            acerGunthaInput.value = `${fullAcres} Acre ${gunthas} Guntha`;
+        });
+
         onSnapshot(ref, (snapshot) => {
             masterRecords = [];
             snapshot.forEach((doc) => {
@@ -923,10 +959,9 @@
             tableBody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--danger);">Failed to sync with data stream. Check credentials.</td></tr>`;
         });
 
-        // Dashboard renderer
         function renderDashboard(records) {
             tableBody.innerHTML = "";
-            let totalArea = 0;
+            let totalAreaAcres = 0;
 
             if(records.length === 0) {
                 tableBody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-muted);">No entries found matching criteria.</td></tr>`;
@@ -936,8 +971,18 @@
             }
 
             records.forEach((row) => {
-                const area = parseFloat(row.acerGuntha) || 0;
-                totalArea += area;
+                // Parse standard formatted string to correctly sum overall mathematical footprint
+                let rowAcres = 0;
+                const areaStr = row.acerGuntha || '';
+                if (areaStr.includes('Acre')) {
+                    const parts = areaStr.split('Acre');
+                    const integerAcres = parseFloat(parts[0]) || 0;
+                    const integerGunthas = parseFloat(parts[1]) || 0;
+                    rowAcres = integerAcres + (integerGunthas / 40);
+                } else {
+                    rowAcres = parseFloat(areaStr) || 0;
+                }
+                totalAreaAcres += rowAcres;
 
                 const isSecure = (row.pan === "YES" && row.adhar === "YES" && row.cancelCheque === "YES" && row.consent === "YES");
                 const complianceBadge = isSecure ? '<span class="badge badge-yes">SECURE</span>' : '<span class="badge badge-no">INCOMPLETE</span>';
@@ -953,7 +998,7 @@
                     <td><strong>${row.village || ''}</strong></td>
                     <td>${row.surveyNumber || ''}</td>
                     <td>${row.khataNumber || ''}</td>
-                    <td>${area.toFixed(2)} Ac</td>
+                    <td><strong>${areaStr || '0 Acre 0 Guntha'}</strong></td>
                     <td><span class="single-line-text" title="${row.farmerName || ''}">${row.farmerName || ''}</span></td>
                     <td><button class="action-inline-btn view-dossier-btn" data-id="${row.id}">📄 View File</button></td>
                     <td>${complianceBadge}</td>
@@ -970,11 +1015,21 @@
             });
 
             document.getElementById("totalSurveysCount").innerText = `${records.length} Logs`;
-            document.getElementById("totalAreaMetric").innerText = `${totalArea.toFixed(2)} Ac`;
+            document.getElementById("totalAreaMetric").innerText = `${totalAreaAcres.toFixed(2)} Ac`;
             bindActionButtons();
         }
 
         function bindActionButtons() {
+            document.querySelectorAll(".view-dossier-btn").forEach(btn => {
+                btn.replaceWith(btn.cloneNode(true));
+            });
+            document.querySelectorAll(".edit-btn").forEach(btn => {
+                btn.replaceWith(btn.cloneNode(true));
+            });
+            document.querySelectorAll(".delete-btn").forEach(btn => {
+                btn.replaceWith(btn.cloneNode(true));
+            });
+
             document.querySelectorAll(".view-dossier-btn").forEach(btn => {
                 btn.addEventListener("click", () => openDossierModal(btn.getAttribute("data-id")));
             });
@@ -998,7 +1053,7 @@
                 <div class="modal-data-row"><strong>Village Sector:</strong> <span>${data.village || ''}</span></div>
                 <div class="modal-data-row"><strong>Survey Ref Number:</strong> <span>${data.surveyNumber || ''}</span></div>
                 <div class="modal-data-row"><strong>Khata Identifier:</strong> <span>${data.khataNumber || ''}</span></div>
-                <div class="modal-data-row"><strong>Metric Footprint:</strong> <span>${data.hqAr || '0'} H.Q.Ar / ${data.acerGuntha || '0'} Acres</span></div>
+                <div class="modal-data-row"><strong>Metric Footprint:</strong> <span>${data.hqAr || '0'} H.Q.Ar (${data.acerGuntha || '0 Acre 0 Guntha'})</span></div>
                 <div class="modal-data-row"><strong>Registered Stakeholders:</strong> <span>${data.farmerName || ''}</span></div>
                 <div class="modal-data-row"><strong>PAN Document Check:</strong> <span>${data.pan || 'NO'}</span></div>
                 <div class="modal-data-row"><strong>Aadhaar Document Check:</strong> <span>${data.adhar || 'NO'}</span></div>
@@ -1172,14 +1227,14 @@
         document.getElementById("exportCsvBtn").addEventListener("click", () => {
             if(masterRecords.length === 0) return alert("Inventory data is empty.");
             
-            let csv = "Logged On,Village,Survey Ref,Khata ID,Area (Acres),Farmers,Compliance,Token Status,Lease Status,Missing Notes\n";
+            let csv = "Logged On,Village,Survey Ref,Khata ID,Calculated Land,Farmers,Compliance,Token Status,Lease Status,Missing Notes\n";
             masterRecords.forEach(r => {
                 const isSecure = (r.pan === "YES" && r.adhar === "YES" && r.cancelCheque === "YES" && r.consent === "YES") ? "SECURE" : "INCOMPLETE";
                 const tStatus = r.tokenPayment && r.tokenUtr ? "SETTLED" : "PENDING";
                 const lStatus = r.leasePayment && r.leaseUtr ? "SETTLED" : "PENDING";
                 const date = r.timestamp ? new Date(r.timestamp).toLocaleDateString() : 'N/A';
                 
-                csv += `"${date}","${r.village || ''}","${r.surveyNumber || ''}","${r.khataNumber || ''}","${r.acerGuntha || '0'}","${(r.farmerName || '').replace(/"/g, '""')}","${isSecure}","${tStatus}","${lStatus}","${(r.remarks || 'None').replace(/"/g, '""')}"\n`;
+                csv += `"${date}","${r.village || ''}","${r.surveyNumber || ''}","${r.khataNumber || ''}","${r.acerGuntha || '0 Acre 0 Guntha'}","${(r.farmerName || '').replace(/"/g, '""')}","${isSecure}","${tStatus}","${lStatus}","${(r.remarks || 'None').replace(/"/g, '""')}"\n`;
             });
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
