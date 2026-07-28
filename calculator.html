@@ -3,1248 +3,270 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bhachunda Solar Land Database</title>
+    <title>Hectare Are Sq.Mtr to Acre Guntha Calculator</title>
     <style>
         :root {
-            --bg-base: #F4F7F6;
-            --bg-gradient: linear-gradient(135deg, #EBF2EE 0%, #F4F7F6 100%);
-            --surface: #FFFFFF;
-            --surface-hover: #FAFCFB;
-            --forest-green: #1B4332;
-            --accent-green: #2D6A4F;
-            --mint-glow: rgba(45, 106, 79, 0.15);
-            --border-light: rgba(0, 0, 0, 0.06);
-            --text-main: #2D3748;
-            --text-muted: #718096;
-            --danger: #E53E3E;
-            --warning-bg: #FFFDF5;
-            --warning-border: #F5E6AD;
+            --primary: #1e3a8a;
+            --primary-light: #eff6ff;
+            --accent: #0d9488;
+            --accent-light: #ccfbf1;
+            --text-main: #1f2937;
+            --text-muted: #4b5563;
+            --bg-body: #f3f4f6;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            background: var(--bg-base);
-            background-image: var(--bg-gradient);
-            background-attachment: fixed;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-body);
             color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
         }
 
-        header {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid var(--border-light);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            gap: 10px;
-        }
-
-        .header-brand {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .brand-logo {
-            height: 32px;
-            width: auto;
-            object-fit: contain;
-            display: block;
-        }
-
-        header h1 { 
-            margin: 0; 
-            font-size: clamp(1.05rem, 4vw, 1.35rem);
-            font-weight: 700;
-            color: var(--forest-green);
-            line-height: 1.2;
-        }
-
-        .btn-home {
-            background: transparent;
-            color: var(--forest-green);
-            border: 1px solid rgba(27, 67, 50, 0.3);
-            padding: 0.4rem 0.9rem;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            transition: all 0.2s ease;
-        }
-
-        .btn-home:hover {
-            background: var(--forest-green);
-            color: #FFFFFF;
-        }
-
-        .admin-panel {
-            background: #E8F5E9;
-            padding: 0.4rem 0.9rem;
-            border-radius: 30px;
-            border: 1px solid rgba(45, 106, 79, 0.15);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 1.5rem 1rem;
-            flex: 1;
+        .calculator-card {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            max-width: 550px;
             width: 100%;
             box-sizing: border-box;
         }
 
-        .metrics-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .metric-card {
-            background: var(--surface);
-            border: 1px solid var(--border-light);
-            padding: 1.25rem;
-            border-radius: 14px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-        }
-
-        .metric-label {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: var(--text-muted);
-            margin-bottom: 0.4rem;
-            font-weight: 600;
-        }
-
-        .metric-value {
-            font-size: 1.6rem;
+        h2 {
+            margin-top: 0;
+            color: var(--primary);
+            text-align: center;
+            font-size: 24px;
             font-weight: 700;
-            color: var(--forest-green);
+            margin-bottom: 25px;
         }
 
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border-light);
-            padding: 1.5rem;
-            border-radius: 16px;
-            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.03);
-            margin-bottom: 2rem;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 1.2rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group.full-width {
-            grid-column: 1 / -1;
+        .input-box {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
         }
 
         label {
-            margin-bottom: 0.4rem;
-            font-weight: 600;
-            font-size: 0.82rem;
-            color: var(--text-main);
-        }
-
-        input, select, textarea {
-            background: #F8FAFC;
-            border: 1px solid #E2E8F0;
-            color: var(--text-main);
-            padding: 0.75rem 1rem;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--accent-green);
-            background: #FFFFFF;
-            box-shadow: 0 0 0 3px var(--mint-glow);
-        }
-
-        button {
-            background: var(--forest-green);
-            color: #FFFFFF;
-            padding: 0.85rem 2.2rem;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-
-        button:hover {
-            background: var(--accent-green);
-        }
-
-        .btn-danger {
-            background: #FFF5F5;
-            color: var(--danger);
-            border: 1px solid #FED7D7;
-        }
-
-        .btn-danger:hover {
-            background: var(--danger);
-            color: #FFF;
-        }
-
-        .action-bar-layout {
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            flex-wrap: wrap; 
-            margin-bottom: 1.5rem; 
-            gap: 1rem;
-        }
-
-        .filter-controls-group {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        .search-wrapper {
-            position: relative;
-            min-width: 250px;
-        }
-
-        .search-wrapper input {
-            padding-left: 2.5rem;
-        }
-
-        .search-wrapper::before {
-            content: "🔍";
-            position: absolute;
-            left: 0.9rem;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 0.95rem;
-            opacity: 0.6;
-        }
-
-        .export-btn-group {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .btn-export {
-            background: #EBF2EE;
-            color: var(--forest-green);
-            border: 1px solid rgba(27, 67, 50, 0.2);
-            padding: 0.65rem 1rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.85rem;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s ease;
-        }
-
-        .btn-export:hover {
-            background: var(--forest-green);
-            color: #FFFFFF;
-        }
-
-        .btn-pdf {
-            background: #FFF5F5;
-            color: #C53030;
-            border: 1px solid rgba(197, 48, 48, 0.2);
-        }
-
-        .btn-pdf:hover {
-            background: #C53030;
-            color: #FFFFFF;
-        }
-
-        .table-responsive {
-            overflow-x: auto;
-            border-radius: 14px;
-            border: 1px solid var(--border-light);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.88rem;
-            background: #FFFFFF;
-        }
-
-        th, td {
-            padding: 1rem 0.8rem;
-            text-align: left;
-            vertical-align: middle;
-            border-bottom: 1px solid #F1F5F9;
-            white-space: nowrap;
-        }
-
-        th {
-            background-color: #F8FAFC;
-            color: var(--text-muted);
-            font-weight: 700;
-            font-size: 0.72rem;
-            letter-spacing: 0.5px;
-            position: relative;
-        }
-
-        .th-container {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .th-title {
-            text-transform: uppercase;
-        }
-
-        .excel-select {
-            background: #FFFFFF;
-            border: 1px solid #CBD5E0;
-            border-radius: 4px;
-            padding: 2px 4px;
-            font-size: 0.7rem;
-            font-weight: normal;
-            color: var(--text-main);
-            width: 100%;
-            min-width: 90px;
-            box-sizing: border-box;
-            cursor: pointer;
-        }
-
-        .single-line-text {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 160px;
             display: block;
-        }
-
-        .flex-badge-container {
-            display: inline-flex;
-            gap: 4px;
-            align-items: center;
-        }
-
-        tr.payment-pending {
-            background-color: var(--warning-bg);
-        }
-        tr.payment-pending td {
-            border-bottom: 1px solid var(--warning-border);
-        }
-
-        .status-pill {
-            padding: 0.35rem 0.6rem;
-            font-size: 0.72rem;
-            font-weight: 700;
-            border-radius: 6px;
-            text-transform: uppercase;
-            display: inline-block;
-            text-align: center;
-            white-space: nowrap;
-        }
-        .status-pill.pending {
-            background: #FFF3CD;
-            color: #856404;
-            border: 1px solid #FFEBAA;
-        }
-        .status-pill.settled {
-            background: #D4EDDA;
-            color: #155724;
-            border: 1px solid #C3E6CB;
-        }
-
-        .badge {
-            padding: 0.25rem 0.45rem;
-            border-radius: 4px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            display: inline-block;
-            text-align: center;
-        }
-        .badge-yes { background: #E8F5E9; color: #2E7D32; }
-        .badge-no { background: #FFEBEE; color: #C62828; }
-
-        .drive-btn, .action-inline-btn {
-            background: #EDF2F7;
-            color: #4A5568;
-            text-decoration: none;
-            padding: 0.4rem 0.75rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
+            margin-bottom: 8px;
             font-weight: 600;
-            border: 1px solid #E2E8F0;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            white-space: nowrap;
-        }
-        .drive-btn:hover, .action-inline-btn:hover {
-            background: var(--forest-green);
-            color: #FFFFFF;
-            border-color: var(--forest-green);
+            font-size: 14px;
+            color: var(--text-muted);
         }
 
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4);
-            backdrop-filter: blur(4px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        .modal-box {
-            background: #FFF;
-            padding: 1.5rem;
-            border-radius: 16px;
-            width: 90%;
-            max-width: 650px;
-            box-shadow: 0 15px 50px rgba(0,0,0,0.15);
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-        .modal-box h3 { margin-top: 0; color: var(--forest-green); border-bottom: 2px solid #E2E8F0; padding-bottom: 0.5rem; font-size: 1.1rem; }
-        .modal-data-row { display: flex; justify-content: space-between; padding: 0.6rem 0; border-bottom: 1px dashed #EDF2F7; font-size: 0.88rem; gap: 10px; }
-        .modal-data-row strong { color: #4A5568; flex-shrink: 0; }
-        .modal-close-btn { background: #4A5568; color: #FFF; margin-top: 1.5rem; width: 100%; text-align: center; border: none; padding: 0.8rem; border-radius: 8px; cursor: pointer; }
-
-        /* Admin Gateway CSS classes toggle setup */
-        .admin-only { display: none !important; }
-        body.is-admin .admin-only { display: block !important; }
-        body.is-admin th.admin-only { display: table-cell !important; }
-        body.is-admin td.admin-only { display: table-cell !important; }
-
-        footer {
-            background: #FFFFFF;
-            border-top: 1px solid var(--border-light);
-            padding: 1.25rem 1.5rem;
-            margin-top: auto;
-            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.01);
+        input {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+            text-align: center;
         }
 
-        .footer-content {
-            max-width: 1600px;
-            margin: 0 auto;
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background-color: #ffffff;
+            box-shadow: 0 0 0 4px rgba(13, 148, 136, 0.15);
+        }
+
+        .input-hint {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        .output-box {
+            background-color: var(--accent-light);
+            border-left: 5px solid var(--accent);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .output-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            font-weight: 700;
+            margin: 0 0 6px 0;
+        }
+
+        .output-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .steps-container {
+            background-color: var(--primary-light);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #dbeafe;
+            margin-bottom: 20px;
+        }
+
+        .steps-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-top: 0;
+            margin-bottom: 12px;
+            border-bottom: 1px dashed #bfdbfe;
+            padding-bottom: 6px;
+        }
+
+        .step-row {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            font-size: 0.82rem;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .step-num {
+            font-weight: bold;
+            color: var(--primary);
+            margin-right: 8px;
+        }
+
+        .step-text {
+            flex-grow: 1;
+            color: var(--text-main);
+        }
+
+        .step-calc {
+            font-family: monospace;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .calculator-footer {
+            text-align: center;
+            font-size: 12px;
             color: var(--text-muted);
-        }
-
-        @page {
-            size: landscape;
-            margin: 4mm;
-        }
-
-        @media print {
-            body { 
-                background: #FFF; 
-                color: #000; 
-                font-size: 7.5pt; 
-                min-height: auto;
-            }
-            
-            header, .admin-panel, .btn-home, #adminFormCard, .action-bar-layout, th.admin-only, td.admin-only, footer, .excel-select { 
-                display: none !important; 
-            }
-            
-            .container { 
-                max-width: 100% !important; 
-                padding: 0 !important; 
-                margin: 0 !important; 
-                width: 100% !important;
-            }
-            
-            .metrics-row {
-                margin-bottom: 1rem !important;
-                grid-template-columns: repeat(3, 1fr) !important;
-            }
-
-            .metric-card {
-                padding: 0.5rem !important;
-                border: 1px solid #DDD !important;
-            }
-
-            .metric-value {
-                font-size: 1.1rem !important;
-            }
-
-            .card { 
-                border: none !important; 
-                box-shadow: none !important; 
-                padding: 0 !important; 
-                margin: 0 !important;
-            }
-            
-            .table-responsive { 
-                overflow: visible !important; 
-                border: none !important; 
-                width: 100% !important;
-            }
-            
-            table { 
-                width: 100% !important; 
-                border: 1px solid #999 !important; 
-                table-layout: fixed !important;
-                page-break-inside: auto;
-            }
-            
-            tr { 
-                page-break-inside: avoid !important; 
-                page-break-after: auto; 
-                background: #FFF !important; 
-            }
-            
-            th, td { 
-                border: 1px solid #CCC !important; 
-                padding: 4px 3px !important; 
-                white-space: normal !important; 
-                word-wrap: break-word !important;
-                overflow: hidden !important;
-                color: #000 !important; 
-                font-size: 7pt !important;
-            }
-            
-            th { 
-                background: #F2F2F2 !important; 
-                font-weight: bold !important;
-            }
-
-            th:nth-child(1), td:nth-child(1) { width: 8%; } 
-            th:nth-child(2), td:nth-child(2) { width: 9%; } 
-            th:nth-child(3), td:nth-child(3) { width: 7%; } 
-            th:nth-child(4), td:nth-child(4) { width: 6%; } 
-            th:nth-child(5), td:nth-child(5) { width: 9%; } 
-            th:nth-child(6), td:nth-child(6) { width: 20%; } 
-            th:nth-child(7), td:nth-child(7) { display: none !important; } 
-            th:nth-child(8), td:nth-child(8) { width: 9%; } 
-            th:nth-child(9), td:nth-child(9) { width: 8%; } 
-            th:nth-child(10), td:nth-child(10) { width: 8%; } 
-            th:nth-child(11), td:nth-child(11) { width: 16%; } 
-            th:nth-child(12), td:nth-child(12) { display: none !important; } 
-            
-            .status-pill { 
-                border: 1px solid #666 !important; 
-                background: transparent !important; 
-                color: #000 !important; 
-                padding: 1px 3px !important; 
-                font-size: 6.5pt !important;
-            }
-            
-            .badge {
-                background: transparent !important;
-                color: #000 !important;
-                border: 1px solid #999 !important;
-                padding: 1px 2px !important;
-            }
-
-            .single-line-text { 
-                max-width: none !important; 
-                overflow: visible !important; 
-                white-space: normal !important; 
-                display: block !important;
-            }
-        }
-
-        @media screen and (max-width: 992px) {
-            .action-bar-layout { flex-direction: column; align-items: stretch; }
-            .filter-controls-group { flex-direction: column; align-items: stretch; }
-            .search-wrapper { min-width: 100%; }
+            border-top: 1px solid #e5e7eb;
+            padding-top: 15px;
+            margin-top: 10px;
+            font-weight: 500;
         }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="header-brand">
-            <img src="logo.png" alt="Bhachunda Solar Logo" class="brand-logo" onerror="this.style.display='none'">
-            <h1>Bhachunda Solar Land Database</h1>
-            <a href="index.html" class="btn-home">🏠 Return Home</a>
-        </div>
-        <div class="admin-panel">
-            <label style="margin:0; color:var(--forest-green); font-weight:600; font-size: 0.85rem; cursor:pointer;" for="adminToggle">🔒 Admin Gateway Mode</label>
-            <input type="checkbox" id="adminToggle" style="width:auto; cursor:pointer;">
-        </div>
-    </header>
+<div class="calculator-card">
+    <h2>Land Area Converter</h2>
+    
+    <div class="input-box">
+        <label for="landInput">Enter Land Area Value</label>
+        <input type="text" id="landInput" value="1.60.57" placeholder="e.g., 1.60.57 or 16057" oninput="processConversion()">
+        <div class="input-hint">Accepts format: <b>1.60.57</b> (Hectare.Are.Cent) or direct <b>16057</b> (Sq.Mtr)</div>
+    </div>
 
-    <div class="container">
-        <div style="margin-bottom: 1.5rem;">
-            <h2 style="margin:0; color: var(--forest-green); font-size: 1.4rem;">Control Portal Registry</h2>
-            <p style="margin: 0.2rem 0 0 0; color: var(--text-muted); font-size: 0.88rem;">Real-time responsive dashboard database.</p>
-        </div>
+    <div class="output-box">
+        <p class="output-label">Final Result</p>
+        <div class="output-value" id="finalResult">3 Acre and 39 Guntha</div>
+    </div>
 
-        <div class="metrics-row">
-            <div class="metric-card">
-                <div class="metric-label">Target Village Sectors</div>
-                <div class="metric-value">2 Sites</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Total Survey Records</div>
-                <div class="metric-value" id="totalSurveysCount">0 Logs</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-label">Acquired Footprint Size</div>
-                <div class="metric-value" id="totalAreaMetric">0.00 Ac</div>
-            </div>
-        </div>
-
-        <!-- ADMINISTRATIVE INSERT CARD -->
-        <div id="adminFormCard" class="card admin-only" style="border-top: 4px solid var(--forest-green);">
-            <h2 style="margin-top:0; color:var(--forest-green); font-size: 1.2rem; margin-bottom: 1.2rem;">🌱 Log Land Acquisition Entry</h2>
-            <form id="landForm">
-                <input type="hidden" id="editDocId">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Village Sector</label>
-                        <select id="village" required>
-                            <option value="" disabled selected>Choose location...</option>
-                            <option value="Bhavanipar">Bhavanipar</option>
-                            <option value="Bitta">Bitta</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Survey Number</label>
-                        <input type="text" id="surveyNumber" required placeholder="e.g. 104/P">
-                    </div>
-                    <div class="form-group">
-                        <label>Khata Number</label>
-                        <input type="text" id="khataNumber" required placeholder="e.g. 88">
-                    </div>
-                    <div class="form-group">
-                        <label>Hectare Are (H.Q.Ar)</label>
-                        <input type="text" id="hqAr" placeholder="e.g. 1.60.57 or 16057">
-                    </div>
-                    <div class="form-group">
-                        <label>Acres (Acer Guntha)</label>
-                        <input type="text" id="acerGuntha" placeholder="Auto-calculated" readonly style="background: #EDF2F7; font-weight: 600;">
-                    </div>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                        <label>Registered Farmer Stakeholder Names</label>
-                        <textarea id="farmerName" rows="2" required placeholder="Type all names here..."></textarea>
-                    </div>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>PAN Available?</label>
-                        <select id="pan"><option value="YES">YES</option><option value="NO">NO</option></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Aadhaar Card Document?</label>
-                        <select id="adhar"><option value="YES">YES</option><option value="NO">NO</option></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Cancelled Bank Cheque?</label>
-                        <select id="cancelCheque"><option value="YES">YES</option><option value="NO">NO</option></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Project Consent Letter?</label>
-                        <select id="consent"><option value="YES">YES</option><option value="NO">NO</option></select>
-                    </div>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Token Amount Paid (INR)</label>
-                        <input type="number" id="tokenPayment" placeholder="₹ Value">
-                    </div>
-                    <div class="form-group">
-                        <label>Token Payment Date</label>
-                        <input type="date" id="tokenDate">
-                    </div>
-                    <div class="form-group">
-                        <label>Token Transaction UTR Reference</label>
-                        <input type="text" id="tokenUtr" placeholder="UTR ID">
-                    </div>
-                </div>
-                
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Lease Execution Date</label>
-                        <input type="date" id="leaseDate">
-                    </div>
-                    <div class="form-group">
-                        <label>Lease Execution Amount</label>
-                        <input type="number" id="leasePayment" placeholder="₹ Value">
-                    </div>
-                    <div class="form-group">
-                        <label>Lease Banking UTR Identifier</label>
-                        <input type="text" id="leaseUtr" placeholder="Lease UTR Reference">
-                    </div>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                        <label>Connected Google Drive Records Vault Link</label>
-                        <input type="url" id="driveLink" required placeholder="https://drive.google.com/drive/folders/...">
-                    </div>
-                </div>
-
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                        <label style="color: #B7791F;">⚠️ Administrative Remarks / Pending Documents Tracking Note</label>
-                        <textarea id="remarks" rows="2" placeholder="e.g., Landowner signature missing..."></textarea>
-                    </div>
-                </div>
-                
-                <div style="margin-top: 1.5rem;">
-                    <button type="submit" id="submitBtn">Save Registry Entry</button>
-                    <button type="button" class="btn-danger" id="cancelEditBtn" style="display:none; margin-left:10px;">Cancel Modification</button>
-                </div>
-            </form>
-        </div>
-
-        <!-- MASTER RECORD INVENTORY TABLE -->
-        <div class="card">
-            <div class="action-bar-layout">
-                <h2 style="margin:0; color:var(--forest-green); font-size: 1.2rem;">📊 Inventory Master Record</h2>
-                <div class="filter-controls-group">
-                    <div class="search-wrapper">
-                        <input type="text" id="searchBox" style="margin: 0;" placeholder="Global keyword search...">
-                    </div>
-                    <div class="export-btn-group">
-                        <button id="exportCsvBtn" class="btn-export">📊 Excel (CSV)</button>
-                        <button id="exportPdfBtn" class="btn-export btn-pdf">🖨️ Print / PDF Report</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="table-responsive">
-                <table id="masterDataTable">
-                    <thead>
-                        <tr>
-                            <th>
-                                <div class="th-container">
-                                    <span class="th-title">Logged On</span>
-                                    <select id="colFilterLogged" class="excel-select"><option value="">(All)</option></select>
-                                </div>
-                            </th>
-                            <th>
-                                <div class="th-container">
-                                    <span class="th-title">Village</span>
-                                    <select id="colFilterVillage" class="excel-select"><option value="">(All)</option></select>
-                                </div>
-                            </th>
-                            <th><div class="th-container"><span class="th-title">Survey Ref</span></div></th>
-                            <th><div class="th-container"><span class="th-title">Khata ID</span></div></th>
-                            <th><div class="th-container"><span class="th-title">Calculated Land</span></div></th>
-                            <th><div class="th-container"><span class="th-title">Title Deed Holders</span></div></th>
-                            <th><div class="th-container"><span class="th-title">Dossier Profile</span></div></th>
-                            <th>
-                                <div class="th-container">
-                                    <span class="th-title">Compliance</span>
-                                    <select id="colFilterCompliance" class="excel-select">
-                                        <option value="">(All)</option>
-                                        <option value="Secure">100% Secure</option>
-                                        <option value="Incomplete">Incomplete</option>
-                                    </select>
-                                </div>
-                            </th>
-                            <th>
-                                <div class="th-container">
-                                    <span class="th-title">Token Status</span>
-                                    <select id="colFilterToken" class="excel-select">
-                                        <option value="">(All)</option>
-                                        <option value="SETTLED">SETTLED</option>
-                                        <option value="PENDING">PENDING</option>
-                                    </select>
-                                </div>
-                            </th>
-                            <th>
-                                <div class="th-container">
-                                    <span class="th-title">Lease Status</span>
-                                    <select id="colFilterLease" class="excel-select">
-                                        <option value="">(All)</option>
-                                        <option value="SETTLED">SETTLED</option>
-                                        <option value="PENDING">PENDING</option>
-                                    </select>
-                                </div>
-                            </th>
-                            <th>
-                                <div class="th-container">
-                                    <span class="th-title">Missing Notes</span>
-                                    <select id="colFilterMissing" class="excel-select"><option value="">(All)</option></select>
-                                </div>
-                            </th>
-                            <th><div class="th-container"><span class="th-title">Central Vault</span></div></th>
-                            <th class="admin-only"><div class="th-container"><span class="th-title">System Actions</span></div></th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody">
-                        <tr><td colspan="13" style="text-align: center; color: var(--text-muted);">Configuring active database pipeline context...</td></tr>
-                    </tbody>
-                </table>
-            </div>
+    <div class="steps-container">
+        <h3 class="steps-title">Live Mathematical Breakdown</h3>
+        <div id="stepsList">
+            <!-- Dynamic calculation tracking updates here -->
         </div>
     </div>
 
-    <!-- DETAILS DOSSIER MODAL -->
-    <div id="detailsModal" class="modal-overlay">
-        <div class="modal-box">
-            <h3 id="modalTitle">Survey Record Dossier</h3>
-            <div id="modalContent"></div>
-            <button class="modal-close-btn" id="closeModalBtn">Close File Dossier</button>
-        </div>
+    <div class="calculator-footer">
+        &copy; 2026 All Rights Reserved | Engineered by NAKUL KAPDI
     </div>
+</div>
 
-    <footer>
-        <div class="footer-content">
-            <div>© 2026 Bhachunda Solar Land Project Operations Registry. All Rights Reserved.</div>
-            <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="width: 8px; height: 8px; background: #2E7D32; border-radius: 50%; display: inline-block;"></span>
-                <span>Live Database Engine Active</span>
-            </div>
+<script>
+function processConversion() {
+    let rawInput = document.getElementById('landInput').value.trim();
+    
+    if (!rawInput) {
+        document.getElementById('finalResult').innerText = "0 Acre and 0 Guntha";
+        document.getElementById('stepsList').innerHTML = "<p style='color:#9ca3af; font-size:14px; margin:0;'>Please enter a valid area number.</p>";
+        return;
+    }
+
+    let sqMeters = 0;
+    let interpretationText = "";
+
+    // 1. Convert input notation directly to pure Square Meters
+    if (rawInput.includes('.')) {
+        // Strip out dots to join them as a single clean integer (e.g., 1.60.57 -> 16057)
+        let cleanNumber = rawInput.replace(/\./g, "");
+        sqMeters = parseFloat(cleanNumber) || 0;
+        interpretationText = `Interpreted format <b>${rawInput}</b> → <b>${sqMeters}</b> Sq.Mtr`;
+    } else {
+        sqMeters = parseFloat(rawInput) || 0;
+        interpretationText = `Direct Square Meters value entered: <b>${sqMeters}</b>`;
+    }
+
+    // Guard rule if parsed value is zero or non-numeric
+    if (sqMeters <= 0 || isNaN(sqMeters)) {
+        document.getElementById('finalResult').innerText = "0 Acre and 0 Guntha";
+        return;
+    }
+
+    // Step 2: Divide by 4047 constant
+    let totalAcres = sqMeters / 4047;
+    
+    // Step 3: Isolate the full integer part (Acres)
+    let wholeAcres = Math.floor(totalAcres);
+    
+    // Step 4: Extract the exact remainder decimal part
+    let decimalRemainder = totalAcres - wholeAcres;
+    
+    // Step 5: Multiply the decimal remainder by 40 base to derive exact Gunthas and round it to whole number
+    let calculatedGunthas = decimalRemainder * 40;
+    let displayGunthas = Math.round(calculatedGunthas);
+    
+    // Update main display panel
+    document.getElementById('finalResult').innerText = `${wholeAcres} Acre and ${displayGunthas} Guntha`;
+
+    // Render step-by-step layout reflecting notebook logic
+    document.getElementById('stepsList').innerHTML = `
+        <div class="step-row">
+            <span class="step-text"><span class="step-num">1 &rarr;</span> ${interpretationText}</span>
         </div>
-    </footer>
+        <div class="step-row">
+            <span class="step-text"><span class="step-num">2 &rarr;</span> Divide by 4047 for Total Acres:</span>
+            <span class="step-calc">${sqMeters} / 4047 = ${totalAcres.toFixed(4)}</span>
+        </div>
+        <div class="step-row">
+            <span class="step-text"><span class="step-num">3 &rarr;</span> Extract Full Acres:</span>
+            <span class="step-calc">${wholeAcres} Acres</span>
+        </div>
+        <div class="step-row">
+            <span class="step-text"><span class="step-num">4 &rarr;</span> Isolate Remainder Fraction:</span>
+            <span class="step-calc">${totalAcres.toFixed(4)} - ${wholeAcres} = ${decimalRemainder.toFixed(4)}</span>
+        </div>
+        <div class="step-row" style="margin-bottom: 0;">
+            <span class="step-text"><span class="step-num">5 &rarr;</span> Convert & Round to Whole Gunthas (&times; 40):</span>
+            <span class="step-calc">${decimalRemainder.toFixed(4)} &times; 40 &rarr; ${displayGunthas}</span>
+        </div>
+    `;
+}
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { 
-            getFirestore, 
-            collection, 
-            doc, 
-            addDoc, 
-            updateDoc, 
-            deleteDoc, 
-            onSnapshot,
-            getDocs,
-            query,
-            where
-        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+// Automatically execute logic once on load
+processConversion();
+</script>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAPHjoSFl3eytfcRJdoZRteD-mqoHCK6vg",
-            authDomain: "bhachunda-solar.firebaseapp.com",
-            projectId: "bhachunda-solar",
-            storageBucket: "bhachunda-solar.firebasestorage.app",
-            messagingSenderId: "830070673428",
-            appId: "1:830070673428:web:fb356c218cb56c60e3d701"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        
-        const ref = collection(db, "bhachunda_solar");
-
-        const adminToggle = document.getElementById("adminToggle");
-        const tableBody = document.getElementById("tableBody");
-        const landForm = document.getElementById("landForm");
-        const submitBtn = document.getElementById("submitBtn");
-        const editDocId = document.getElementById("editDocId");
-        const cancelEditBtn = document.getElementById("cancelEditBtn");
-        
-        let masterRecords = [];
-
-        adminToggle.addEventListener("change", async (e) => {
-            if(e.target.checked) {
-                const inputUser = prompt("Enter Admin Username:");
-                if (!inputUser) { e.target.checked = false; return; }
-                
-                const inputPass = prompt("Enter Admin Password:");
-                if (!inputPass) { e.target.checked = false; return; }
-
-                try {
-                    const usersRef = collection(db, "users");
-                    const q = query(usersRef, where("username", "==", inputUser), where("password", "==", inputPass));
-                    const querySnapshot = await getDocs(q);
-
-                    if (!querySnapshot.empty) {
-                        document.body.classList.add("is-admin");
-                        alert("Authentication successful!");
-                    } else {
-                        alert("Invalid administrative credentials. Username or password does not match.");
-                        e.target.checked = false;
-                        document.body.classList.remove("is-admin");
-                        resetForm();
-                    }
-                } catch (err) {
-                    console.error("Firestore Error Details:", err);
-                    alert("Firebase Connection Error: " + err.message);
-                    e.target.checked = false;
-                    document.body.classList.remove("is-admin");
-                    resetForm();
-                }
-            } else {
-                document.body.classList.remove("is-admin");
-                resetForm();
-            }
-        });
-
-        // FIXED AUTOMATIC ACRES & GUNTHA BREAKDOWN LIVE LISTENER
-        const hqArInput = document.getElementById("hqAr");
-        const acerGunthaInput = document.getElementById("acerGuntha");
-
-        hqArInput.addEventListener("input", () => {
-            let rawInput = hqArInput.value.trim();
-            if (!rawInput) {
-                acerGunthaInput.value = "";
-                return;
-            }
-
-            let sqMeters = 0;
-            if (rawInput.includes('.')) {
-                let cleanNumber = rawInput.replace(/\./g, "");
-                sqMeters = parseFloat(cleanNumber) || 0;
-            } else {
-                sqMeters = parseFloat(rawInput) || 0;
-            }
-
-            if (sqMeters <= 0 || isNaN(sqMeters)) {
-                acerGunthaInput.value = "";
-                return;
-            }
-
-            // Step-by-step breakdown math matching calculator formula
-            let totalAcres = sqMeters / 4047;
-            let fullAcres = Math.floor(totalAcres);
-            let remainderFraction = totalAcres - fullAcres;
-            let gunthas = Math.round(remainderFraction * 40);
-
-            // Roll-over check to safely handle rounding limits
-            if (gunthas === 40) {
-                fullAcres += 1;
-                gunthas = 0;
-            }
-
-            acerGunthaInput.value = `${fullAcres} Acre ${gunthas} Guntha`;
-        });
-
-        onSnapshot(ref, (snapshot) => {
-            masterRecords = [];
-            snapshot.forEach((doc) => {
-                masterRecords.push({ id: doc.id, ...doc.data() });
-            });
-            masterRecords.sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
-            renderDashboard(masterRecords);
-            populateFilters(masterRecords);
-        }, (error) => {
-            console.error("Database sync pipe failed:", error);
-            tableBody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--danger);">Failed to sync with data stream. Check credentials.</td></tr>`;
-        });
-
-        function renderDashboard(records) {
-            tableBody.innerHTML = "";
-            let totalAreaAcres = 0;
-
-            if(records.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="13" style="text-align: center; color: var(--text-muted);">No entries found matching criteria.</td></tr>`;
-                document.getElementById("totalSurveysCount").innerText = "0 Logs";
-                document.getElementById("totalAreaMetric").innerText = "0.00 Ac";
-                return;
-            }
-
-            records.forEach((row) => {
-                // Parse standard formatted string to correctly sum overall mathematical footprint
-                let rowAcres = 0;
-                const areaStr = row.acerGuntha || '';
-                if (areaStr.includes('Acre')) {
-                    const parts = areaStr.split('Acre');
-                    const integerAcres = parseFloat(parts[0]) || 0;
-                    const integerGunthas = parseFloat(parts[1]) || 0;
-                    rowAcres = integerAcres + (integerGunthas / 40);
-                } else {
-                    rowAcres = parseFloat(areaStr) || 0;
-                }
-                totalAreaAcres += rowAcres;
-
-                const isSecure = (row.pan === "YES" && row.adhar === "YES" && row.cancelCheque === "YES" && row.consent === "YES");
-                const complianceBadge = isSecure ? '<span class="badge badge-yes">SECURE</span>' : '<span class="badge badge-no">INCOMPLETE</span>';
-                
-                const tokenStatus = row.tokenPayment && row.tokenUtr ? '<span class="status-pill settled">SETTLED</span>' : '<span class="status-pill pending">PENDING</span>';
-                const leaseStatus = row.leasePayment && row.leaseUtr ? '<span class="status-pill settled">SETTLED</span>' : '<span class="status-pill pending">PENDING</span>';
-
-                const tr = document.createElement("tr");
-                if (!row.tokenPayment || !row.leasePayment) tr.classList.add("payment-pending");
-
-                tr.innerHTML = `
-                    <td>${row.timestamp ? new Date(row.timestamp).toLocaleDateString() : 'N/A'}</td>
-                    <td><strong>${row.village || ''}</strong></td>
-                    <td>${row.surveyNumber || ''}</td>
-                    <td>${row.khataNumber || ''}</td>
-                    <td><strong>${areaStr || '0 Acre 0 Guntha'}</strong></td>
-                    <td><span class="single-line-text" title="${row.farmerName || ''}">${row.farmerName || ''}</span></td>
-                    <td><button class="action-inline-btn view-dossier-btn" data-id="${row.id}">📄 View File</button></td>
-                    <td>${complianceBadge}</td>
-                    <td>${tokenStatus}</td>
-                    <td>${leaseStatus}</td>
-                    <td><span class="single-line-text" style="color:var(--danger);" title="${row.remarks || ''}">${row.remarks || 'None'}</span></td>
-                    <td><a href="${row.driveLink || '#'}" target="_blank" class="drive-btn">📁 Vault Link</a></td>
-                    <td class="admin-only">
-                        <button class="action-inline-btn edit-btn" data-id="${row.id}" style="background:#EBF2EE; color:var(--accent-green);">✏️</button>
-                        <button class="action-inline-btn delete-btn" data-id="${row.id}" style="background:#FFF5F5; color:var(--danger);">🗑️</button>
-                    </td>
-                `;
-                tableBody.appendChild(tr);
-            });
-
-            document.getElementById("totalSurveysCount").innerText = `${records.length} Logs`;
-            document.getElementById("totalAreaMetric").innerText = `${totalAreaAcres.toFixed(2)} Ac`;
-            bindActionButtons();
-        }
-
-        function bindActionButtons() {
-            document.querySelectorAll(".view-dossier-btn").forEach(btn => {
-                btn.replaceWith(btn.cloneNode(true));
-            });
-            document.querySelectorAll(".edit-btn").forEach(btn => {
-                btn.replaceWith(btn.cloneNode(true));
-            });
-            document.querySelectorAll(".delete-btn").forEach(btn => {
-                btn.replaceWith(btn.cloneNode(true));
-            });
-
-            document.querySelectorAll(".view-dossier-btn").forEach(btn => {
-                btn.addEventListener("click", () => openDossierModal(btn.getAttribute("data-id")));
-            });
-            document.querySelectorAll(".edit-btn").forEach(btn => {
-                btn.addEventListener("click", () => loadRecordToForm(btn.getAttribute("data-id")));
-            });
-            document.querySelectorAll(".delete-btn").forEach(btn => {
-                btn.addEventListener("click", () => deleteRecord(btn.getAttribute("data-id")));
-            });
-        }
-
-        const detailsModal = document.getElementById("detailsModal");
-        const modalContent = document.getElementById("modalContent");
-        document.getElementById("closeModalBtn").addEventListener("click", () => detailsModal.style.display = "none");
-
-        function openDossierModal(id) {
-            const data = masterRecords.find(r => r.id === id);
-            if(!data) return;
-            
-            modalContent.innerHTML = `
-                <div class="modal-data-row"><strong>Village Sector:</strong> <span>${data.village || ''}</span></div>
-                <div class="modal-data-row"><strong>Survey Ref Number:</strong> <span>${data.surveyNumber || ''}</span></div>
-                <div class="modal-data-row"><strong>Khata Identifier:</strong> <span>${data.khataNumber || ''}</span></div>
-                <div class="modal-data-row"><strong>Metric Footprint:</strong> <span>${data.hqAr || '0'} H.Q.Ar (${data.acerGuntha || '0 Acre 0 Guntha'})</span></div>
-                <div class="modal-data-row"><strong>Registered Stakeholders:</strong> <span>${data.farmerName || ''}</span></div>
-                <div class="modal-data-row"><strong>PAN Document Check:</strong> <span>${data.pan || 'NO'}</span></div>
-                <div class="modal-data-row"><strong>Aadhaar Document Check:</strong> <span>${data.adhar || 'NO'}</span></div>
-                <div class="modal-data-row"><strong>Cancelled Cheque Status:</strong> <span>${data.cancelCheque || 'NO'}</span></div>
-                <div class="modal-data-row"><strong>Project Consent Letter:</strong> <span>${data.consent || 'NO'}</span></div>
-                <div class="modal-data-row"><strong>Token Payment Details:</strong> <span>₹${data.tokenPayment || '0'} (${data.tokenDate || 'N/A'}) - UTR: ${data.tokenUtr || 'N/A'}</span></div>
-                <div class="modal-data-row"><strong>Lease Execution Status:</strong> <span>₹${data.leasePayment || '0'} (${data.leaseDate || 'N/A'}) - UTR: ${data.leaseUtr || 'N/A'}</span></div>
-                <div class="modal-data-row"><strong>Remarks/Notes:</strong> <span style="color:var(--danger);">${data.remarks || 'None'}</span></div>
-            `;
-            detailsModal.style.display = "flex";
-        }
-
-        landForm.addEventListener("submit", async (e) => {
-            e.preventDefault();
-            
-            const payload = {
-                village: document.getElementById("village").value,
-                surveyNumber: document.getElementById("surveyNumber").value,
-                khataNumber: document.getElementById("khataNumber").value,
-                hqAr: document.getElementById("hqAr").value,
-                acerGuntha: document.getElementById("acerGuntha").value,
-                farmerName: document.getElementById("farmerName").value,
-                pan: document.getElementById("pan").value,
-                adhar: document.getElementById("adhar").value,
-                cancelCheque: document.getElementById("cancelCheque").value,
-                consent: document.getElementById("consent").value,
-                tokenPayment: document.getElementById("tokenPayment").value,
-                tokenDate: document.getElementById("tokenDate").value,
-                tokenUtr: document.getElementById("tokenUtr").value,
-                leaseDate: document.getElementById("leaseDate").value,
-                leasePayment: document.getElementById("leasePayment").value,
-                leaseUtr: document.getElementById("leaseUtr").value,
-                driveLink: document.getElementById("driveLink").value,
-                remarks: document.getElementById("remarks").value,
-                timestamp: new Date().toISOString()
-            };
-
-            try {
-                if(editDocId.value) {
-                    await updateDoc(doc(db, "bhachunda_solar", editDocId.value), payload);
-                    alert("Registry document reference updated successfully.");
-                } else {
-                    await addDoc(ref, payload);
-                    alert("New transaction successfully written to Firestore collection.");
-                }
-                resetForm();
-            } catch (err) {
-                console.error("Write assertion crash:", err);
-                alert("Database transactional rejection: " + err.message);
-            }
-        });
-
-        function loadRecordToForm(id) {
-            const data = masterRecords.find(r => r.id === id);
-            if(!data) return;
-
-            editDocId.value = data.id;
-            document.getElementById("village").value = data.village || '';
-            document.getElementById("surveyNumber").value = data.surveyNumber || '';
-            document.getElementById("khataNumber").value = data.khataNumber || '';
-            document.getElementById("hqAr").value = data.hqAr || '';
-            document.getElementById("acerGuntha").value = data.acerGuntha || '';
-            document.getElementById("farmerName").value = data.farmerName || '';
-            document.getElementById("pan").value = data.pan || 'YES';
-            document.getElementById("adhar").value = data.adhar || 'YES';
-            document.getElementById("cancelCheque").value = data.cancelCheque || 'YES';
-            document.getElementById("consent").value = data.consent || 'YES';
-            document.getElementById("tokenPayment").value = data.tokenPayment || '';
-            document.getElementById("tokenDate").value = data.tokenDate || '';
-            document.getElementById("tokenUtr").value = data.tokenUtr || '';
-            document.getElementById("leaseDate").value = data.leaseDate || '';
-            document.getElementById("leasePayment").value = data.leasePayment || '';
-            document.getElementById("leaseUtr").value = data.leaseUtr || '';
-            document.getElementById("driveLink").value = data.driveLink || '';
-            document.getElementById("remarks").value = data.remarks || '';
-
-            submitBtn.innerText = "Apply Registry Modifications";
-            cancelEditBtn.style.display = "inline-block";
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        async function deleteRecord(id) {
-            if(confirm("Are you absolutely sure you want to delete this operational survey record? This cannot be undone.")) {
-                try {
-                    await deleteDoc(doc(db, "bhachunda_solar", id));
-                    alert("Data record successfully scrubbed from Firestore storage collection.");
-                } catch (e) {
-                    alert("Deletion failed: " + e.message);
-                }
-            }
-        }
-
-        cancelEditBtn.addEventListener("click", resetForm);
-        function resetForm() {
-            landForm.reset();
-            editDocId.value = "";
-            submitBtn.innerText = "Save Registry Entry";
-            cancelEditBtn.style.display = "none";
-        }
-
-        const searchBox = document.getElementById("searchBox");
-        const fLogged = document.getElementById("colFilterLogged");
-        const fVillage = document.getElementById("colFilterVillage");
-        const fCompliance = document.getElementById("colFilterCompliance");
-        const fToken = document.getElementById("colFilterToken");
-        const fLease = document.getElementById("colFilterLease");
-        const fMissing = document.getElementById("colFilterMissing");
-
-        [searchBox, fLogged, fVillage, fCompliance, fToken, fLease, fMissing].forEach(ctrl => {
-            ctrl.addEventListener("input", filterAndRenderData);
-        });
-
-        function populateFilters(records) {
-            const loggedSet = new Set();
-            const villageSet = new Set();
-            const missingSet = new Set();
-
-            records.forEach(r => {
-                if(r.timestamp) loggedSet.add(new Date(r.timestamp).toLocaleDateString());
-                if(r.village) villageSet.add(r.village);
-                if(r.remarks) missingSet.add(r.remarks);
-            });
-
-            updateDropdown(fLogged, loggedSet);
-            updateDropdown(fVillage, villageSet);
-            updateDropdown(fMissing, missingSet);
-        }
-
-        function updateDropdown(dropdown, contentSet) {
-            const currentVal = dropdown.value;
-            dropdown.innerHTML = '<option value="">(All)</option>';
-            Array.from(contentSet).sort().forEach(item => {
-                dropdown.innerHTML += `<option value="${item}">${item}</option>`;
-            });
-            dropdown.value = currentVal;
-        }
-
-        function filterAndRenderData() {
-            const query = searchBox.value.toLowerCase().trim();
-            const valLogged = fLogged.value;
-            const valVillage = fVillage.value;
-            const valCompliance = fCompliance.value;
-            const valToken = fToken.value;
-            const valLease = fLease.value;
-            const valMissing = fMissing.value;
-
-            const matches = masterRecords.filter(r => {
-                const dateStr = r.timestamp ? new Date(r.timestamp).toLocaleDateString() : '';
-                const isSecure = (r.pan === "YES" && r.adhar === "YES" && r.cancelCheque === "YES" && r.consent === "YES") ? "Secure" : "Incomplete";
-                const tStatus = r.tokenPayment && r.tokenUtr ? "SETTLED" : "PENDING";
-                const lStatus = r.leasePayment && r.leaseUtr ? "SETTLED" : "PENDING";
-
-                if (valLogged && dateStr !== valLogged) return false;
-                if (valVillage && r.village !== valVillage) return false;
-                if (valCompliance && isSecure !== valCompliance) return false;
-                if (valToken && tStatus !== valToken) return false;
-                if (valLease && lStatus !== valLease) return false;
-                if (valMissing && r.remarks !== valMissing) return false;
-
-                if (query) {
-                    const haystack = `${r.village} ${r.surveyNumber} ${r.khataNumber} ${r.farmerName} ${r.remarks}`.toLowerCase();
-                    if (!haystack.includes(query)) return false;
-                }
-                return true;
-            });
-
-            renderDashboard(matches);
-        }
-
-        document.getElementById("exportPdfBtn").addEventListener("click", () => window.print());
-        document.getElementById("exportCsvBtn").addEventListener("click", () => {
-            if(masterRecords.length === 0) return alert("Inventory data is empty.");
-            
-            let csv = "Logged On,Village,Survey Ref,Khata ID,Calculated Land,Farmers,Compliance,Token Status,Lease Status,Missing Notes\n";
-            masterRecords.forEach(r => {
-                const isSecure = (r.pan === "YES" && r.adhar === "YES" && r.cancelCheque === "YES" && r.consent === "YES") ? "SECURE" : "INCOMPLETE";
-                const tStatus = r.tokenPayment && r.tokenUtr ? "SETTLED" : "PENDING";
-                const lStatus = r.leasePayment && r.leaseUtr ? "SETTLED" : "PENDING";
-                const date = r.timestamp ? new Date(r.timestamp).toLocaleDateString() : 'N/A';
-                
-                csv += `"${date}","${r.village || ''}","${r.surveyNumber || ''}","${r.khataNumber || ''}","${r.acerGuntha || '0 Acre 0 Guntha'}","${(r.farmerName || '').replace(/"/g, '""')}","${isSecure}","${tStatus}","${lStatus}","${(r.remarks || 'None').replace(/"/g, '""')}"\n`;
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `Bhachunda_Solar_Master_Inventory_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
-    </script>
 </body>
 </html>
