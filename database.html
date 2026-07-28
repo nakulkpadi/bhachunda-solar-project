@@ -593,7 +593,6 @@
         <div class="header-brand">
             <img src="logo.png" alt="Bhachunda Solar Logo" class="brand-logo" onerror="this.style.display='none'">
             <h1>Bhachunda Solar Land Database</h1>
-            <!-- Fixed navigation route to root endpoint file -->
             <a href="index.html" class="btn-home">🏠 Return Home</a>
         </div>
         <div class="admin-panel">
@@ -763,26 +762,10 @@
                                     <select id="colFilterVillage" class="excel-select"><option value="">(All)</option></select>
                                 </div>
                             </th>
-                            <th>
-                                <div class="th-container">
-                                    <span class="th-title">Survey Ref</span>
-                                </div>
-                            </th>
-                            <th>
-                                <div class="th-container">
-                                    <span class="th-title">Khata ID</span>
-                                </div>
-                            </th>
-                            <th>
-                                <div class="th-container">
-                                    <span class="th-title">Area</span>
-                                </div>
-                            </th>
-                            <th>
-                                <div class="th-container">
-                                    <span class="th-title">Title Deed Holders</span>
-                                </div>
-                            </th>
+                            <th><div class="th-container"><span class="th-title">Survey Ref</span></div></th>
+                            <th><div class="th-container"><span class="th-title">Khata ID</span></div></th>
+                            <th><div class="th-container"><span class="th-title">Area</span></div></th>
+                            <th><div class="th-container"><span class="th-title">Title Deed Holders</span></div></th>
                             <th><div class="th-container"><span class="th-title">Dossier Profile</span></div></th>
                             <th>
                                 <div class="th-container">
@@ -860,7 +843,10 @@
             addDoc, 
             updateDoc, 
             deleteDoc, 
-            onSnapshot
+            onSnapshot,
+            getDocs,
+            query,
+            where
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -874,6 +860,8 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        
+        // Main data collection configuration
         const ref = collection(db, "bhachunda_solar");
 
         const adminToggle = document.getElementById("adminToggle");
@@ -885,10 +873,36 @@
         
         let masterRecords = [];
 
-        // Admin view toggle handler
-        adminToggle.addEventListener("change", (e) => {
+        // Isolated Database Check for Debugging
+        adminToggle.addEventListener("change", async (e) => {
             if(e.target.checked) {
-                document.body.classList.add("is-admin");
+                const inputUser = prompt("Enter Admin Username:");
+                if (!inputUser) { e.target.checked = false; return; }
+                
+                const inputPass = prompt("Enter Admin Password:");
+                if (!inputPass) { e.target.checked = false; return; }
+
+                try {
+                    const usersRef = collection(db, "users");
+                    const q = query(usersRef, where("username", "==", inputUser), where("password", "==", inputPass));
+                    const querySnapshot = await getDocs(q);
+
+                    if (!querySnapshot.empty) {
+                        document.body.classList.add("is-admin");
+                        alert("Authentication successful!");
+                    } else {
+                        alert("Invalid administrative credentials. Username or password does not match.");
+                        e.target.checked = false;
+                        document.body.classList.remove("is-admin");
+                        resetForm();
+                    }
+                } catch (err) {
+                    console.error("Firestore Error Details:", err);
+                    alert("Firebase Connection Error: " + err.message + "\n\nCheck your browser console (F12) and Firestore Security Rules.");
+                    e.target.checked = false;
+                    document.body.classList.remove("is-admin");
+                    resetForm();
+                }
             } else {
                 document.body.classList.remove("is-admin");
                 resetForm();
@@ -901,7 +915,6 @@
             snapshot.forEach((doc) => {
                 masterRecords.push({ id: doc.id, ...doc.data() });
             });
-            // Sort database chronologically by log creation date
             masterRecords.sort((a,b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
             renderDashboard(masterRecords);
             populateFilters(masterRecords);
@@ -961,7 +974,6 @@
             bindActionButtons();
         }
 
-        // Action binding for dynamic DOM nodes
         function bindActionButtons() {
             document.querySelectorAll(".view-dossier-btn").forEach(btn => {
                 btn.addEventListener("click", () => openDossierModal(btn.getAttribute("data-id")));
@@ -974,7 +986,6 @@
             });
         }
 
-        // Modal management logic
         const detailsModal = document.getElementById("detailsModal");
         const modalContent = document.getElementById("modalContent");
         document.getElementById("closeModalBtn").addEventListener("click", () => detailsModal.style.display = "none");
@@ -1000,7 +1011,6 @@
             detailsModal.style.display = "flex";
         }
 
-        // Form Submit handler for Write/Modify operations
         landForm.addEventListener("submit", async (e) => {
             e.preventDefault();
             
@@ -1089,7 +1099,6 @@
             cancelEditBtn.style.display = "none";
         }
 
-        // Global layout search and dropdown filters runtime system
         const searchBox = document.getElementById("searchBox");
         const fLogged = document.getElementById("colFilterLogged");
         const fVillage = document.getElementById("colFilterVillage");
@@ -1159,7 +1168,6 @@
             renderDashboard(matches);
         }
 
-        // Export engine utility methods
         document.getElementById("exportPdfBtn").addEventListener("click", () => window.print());
         document.getElementById("exportCsvBtn").addEventListener("click", () => {
             if(masterRecords.length === 0) return alert("Inventory data is empty.");
