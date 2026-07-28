@@ -116,6 +116,7 @@
             border-radius: 12px;
             padding: 20px;
             border: 1px solid #dbeafe;
+            margin-bottom: 20px;
         }
 
         .steps-title {
@@ -153,6 +154,16 @@
             padding: 2px 6px;
             border-radius: 4px;
         }
+
+        .calculator-footer {
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-muted);
+            border-top: 1px solid #e5e7eb;
+            padding-top: 15px;
+            margin-top: 10px;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -168,14 +179,18 @@
 
     <div class="output-box">
         <p class="output-label">Final Result</p>
-        <div class="output-value" id="finalResult">3 Acre and 38.70 Guntha</div>
+        <div class="output-value" id="finalResult">3 Acre and 39 Guntha</div>
     </div>
 
     <div class="steps-container">
         <h3 class="steps-title">Live Mathematical Breakdown</h3>
         <div id="stepsList">
-            <!-- Dynamic calculation tracking matching your notebook steps will update here -->
+            <!-- Dynamic calculation tracking updates here -->
         </div>
+    </div>
+
+    <div class="calculator-footer">
+        &copy; 2026 All Rights Reserved | Engineered by NAKUL KAPDI
     </div>
 </div>
 
@@ -218,11 +233,9 @@ function processConversion() {
     // Step 4: Extract the exact remainder decimal part
     let decimalRemainder = totalAcres - wholeAcres;
     
-    // Step 5: Multiply the decimal remainder by 40 base to derive exact Gunthas
+    // Step 5: Multiply the decimal remainder by 40 base to derive exact Gunthas and round it to whole number
     let calculatedGunthas = decimalRemainder * 40;
-
-    // Format outputs neatly
-    let displayGunthas = calculatedGunthas.toFixed(2);
+    let displayGunthas = Math.round(calculatedGunthas);
     
     // Update main display panel
     document.getElementById('finalResult').innerText = `${wholeAcres} Acre and ${displayGunthas} Guntha`;
@@ -245,8 +258,8 @@ function processConversion() {
             <span class="step-calc">${totalAcres.toFixed(4)} - ${wholeAcres} = ${decimalRemainder.toFixed(4)}</span>
         </div>
         <div class="step-row" style="margin-bottom: 0;">
-            <span class="step-text"><span class="step-num">5 &rarr;</span> Convert Fraction to Gunthas (&times; 40):</span>
-            <span class="step-calc">${decimalRemainder.toFixed(4)} &times; 40 = ${displayGunthas}</span>
+            <span class="step-text"><span class="step-num">5 &rarr;</span> Convert & Round to Whole Gunthas (&times; 40):</span>
+            <span class="step-calc">${decimalRemainder.toFixed(4)} &times; 40 &rarr; ${displayGunthas}</span>
         </div>
     `;
 }
