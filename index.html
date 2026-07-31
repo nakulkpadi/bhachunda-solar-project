@@ -18,6 +18,7 @@
             --btn-blue: #1E40AF;
             --btn-gold: #D97706;
             --footer-bg: #1B4332;
+            --btn-map-color: #7B2CBF; /* Unique color theme for the map card */
         }
 
         html, body {
@@ -145,8 +146,8 @@
 
         .layout-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 25px;
             justify-content: center;
         }
 
@@ -189,6 +190,7 @@
         .db-theme .icon-wrapper { background-color: #E8F5E9; color: var(--brand-green); }
         .calc-theme .icon-wrapper { background-color: #FFFDE7; color: #E6A100; }
         .area-theme .icon-wrapper { background-color: #E0F2FE; color: #0284C7; }
+        .map-theme .icon-wrapper { background-color: #F3E5F5; color: var(--btn-map-color); }
 
         .card-inner-text h3 {
             margin: 0 0 8px 0;
@@ -204,7 +206,7 @@
             line-height: 1.5;
         }
 
-        .card-action-btn {
+        .card-action-btn, .card-trigger-btn {
             width: 100%;
             padding: 14px 24px;
             border-radius: 10px;
@@ -218,11 +220,92 @@
             gap: 8px;
             box-sizing: border-box;
             margin-top: 25px;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
         }
 
         .bg-green-action { background-color: var(--btn-green); }
         .bg-gold-action { background-color: var(--btn-gold); }
         .bg-blue-action { background-color: var(--btn-blue); }
+        .bg-purple-action { background-color: var(--btn-map-color); }
+
+        /* FULL SCREEN MODAL SYSTEM STYLES WITH ZOOM SUPPORT */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(12, 35, 64, 0.75);
+            backdrop-filter: blur(6px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-box {
+            background: #FFFFFF;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            animation: modalSlideUp 0.25s ease-out;
+            /* Explicitly removed overflow: hidden to support multi-directional scrolling on zoom */
+        }
+
+        .modal-header {
+            padding: 1rem 2rem;
+            background: #F8FAFC;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            z-index: 10;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: var(--navy-blue);
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            background: #E2E8F0;
+            border: none;
+            color: #4A5568;
+            font-size: 1.5rem;
+            font-weight: bold;
+            line-height: 1;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .close-btn:hover {
+            background: #CBD5E0;
+            color: #1A202C;
+            transform: scale(1.05);
+        }
+
+        .modal-body {
+            flex: 1;
+            width: 100%;
+            height: calc(100vh - 70px);
+            background: #EFF1F3;
+            position: relative;
+        }
+
+        .modal-body iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
 
         footer {
             background-color: var(--footer-bg) !important;
@@ -268,6 +351,15 @@
             gap: 10px;
         }
 
+        @keyframes modalSlideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 992px) {
+            .layout-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+        }
+
         @media (max-width: 768px) {
             .hero-banner-container { min-height: auto; padding: 180px 20px 130px 20px; }
             .portal-grid-container { margin-top: -50px; }
@@ -310,6 +402,18 @@
                 <a href="database.html" class="card-action-btn bg-green-action">Go to Database &nbsp;➔</a>
             </div>
 
+            <!-- DYNAMIC FULL-SCREEN POPUP PROJECT MAP CARD -->
+            <div class="ui-card map-theme">
+                <div class="card-top-identity">
+                    <div class="icon-wrapper">🗺️</div>
+                    <div class="card-inner-text">
+                        <h3>Project Layout Map</h3>
+                        <p>View the comprehensive site topography blueprint directly in-browser.</p>
+                    </div>
+                </div>
+                <button class="card-trigger-btn bg-purple-action" id="openMapBtn">View Project Map &nbsp;➔</button>
+            </div>
+
             <!-- LEASE RENT CALCULATOR CARD -->
             <div class="ui-card calc-theme">
                 <div class="card-top-identity">
@@ -337,6 +441,20 @@
         </div>
     </div>
 
+    <!-- 100% FULL SCREEN MAP POPUP OVERLAY LAYOUT -->
+    <div id="mapModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Live Project Layout Blueprint</h3>
+                <button class="close-btn" id="closeMapBtn">Close ×</button>
+            </div>
+            <div class="modal-body">
+                <!-- Direct Integration with Google Drive file layout view preview mode -->
+                <iframe src="https://drive.google.com/file/d/1Z-4bFuxqiT9shaDw-r5Zoht0ZFv828b_/preview" allow="autoplay"></iframe>
+            </div>
+        </div>
+    </div>
+
     <footer>
         <div class="footer-max-bounds">
             <div class="footer-pill-item"><span class="pill-graphic">🌱</span> Clean Energy</div>
@@ -350,5 +468,23 @@
         </div>
     </footer>
 
+    <!-- INTERACTION CONTROLLER -->
+    <script>
+        const modalElement = document.getElementById("mapModal");
+        const triggerOpenBtn = document.getElementById("openMapBtn");
+        const triggerCloseBtn = document.getElementById("closeMapBtn");
+
+        // Open Full Screen Overlay
+        triggerOpenBtn.addEventListener("click", () => {
+            modalElement.style.display = "flex";
+            document.body.style.overflow = "hidden"; // Prevents background website body scrolling
+        });
+
+        // Close Full Screen Overlay via Button
+        triggerCloseBtn.addEventListener("click", () => {
+            modalElement.style.display = "none";
+            document.body.style.overflow = "auto"; // Restores background scrolling
+        });
+    </script>
 </body>
 </html>
