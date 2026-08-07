@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Consent & Undertaking Form Generator</title>
 <style>
+    * {
+        box-sizing: border-box;
+    }
+
     body {
         font-family: Arial, sans-serif;
         background-color: #f4f6f9;
@@ -53,6 +58,7 @@
         border: 1px solid #ccc;
         border-radius: 4px;
         font-size: 14px;
+        font-family: inherit;
     }
 
     .owners-container {
@@ -98,25 +104,30 @@
         font-weight: 500;
     }
 
-    /* PRINT LAYOUT */
+    /* PRINT AREA DEFAULT HIDE */
     .print-area {
         display: none;
     }
 
+    /* STRICT SAFARI & IOS PRINT ENGINE FIXES */
     @page {
         size: A4 portrait;
-        margin: 0; /* REMOVES DEFAULT BROWSER HEADERS/FOOTERS (URL, DATE, TIME) */
+        margin: 0mm !important; /* Removes Safari Headers, Footers, URLs, Dates */
     }
 
     @media print {
-        body {
-            background-color: #fff;
-            padding: 0;
-            margin: 0;
+        html, body {
+            width: 210mm !important;
+            height: 100% !important;
+            background: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
             font-family: 'Times New Roman', Times, serif;
             font-size: 11pt;
             color: #000;
-            -webkit-print-color-adjust: exact;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            overflow: visible !important;
         }
 
         .no-print {
@@ -125,26 +136,36 @@
 
         .print-area {
             display: block !important;
+            width: 210mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
         .page {
-            width: 210mm;
-            min-height: 280mm;
-            padding: 15mm 20mm;
-            margin: 0 auto;
-            box-sizing: border-box;
-            page-break-after: always;
-            page-break-inside: avoid;
-            position: relative;
+            width: 210mm !important;
+            height: 296mm !important; /* Fixed exact height preventing blank trailing pages in Safari */
+            max-height: 296mm !important;
+            padding: 12mm 18mm !important;
+            margin: 0 auto !important;
+            box-sizing: border-box !important;
+            page-break-before: always !important;
+            page-break-after: always !important;
+            page-break-inside: avoid !important;
+            overflow: hidden !important; /* Safari boundary lock */
+            position: relative !important;
+        }
+
+        .page:first-child {
+            page-break-before: avoid !important;
         }
 
         .page:last-child {
-            page-break-after: avoid;
+            page-break-after: avoid !important;
         }
 
         p {
-            line-height: 1.35;
-            margin-bottom: 8px;
+            line-height: 1.3;
+            margin-bottom: 6px;
             margin-top: 0;
             text-align: justify;
         }
@@ -152,7 +173,7 @@
         .data-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .data-table th, .data-table td {
@@ -164,7 +185,7 @@
         .header-layout-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .header-layout-table td {
@@ -176,42 +197,41 @@
 
         .center { text-align: center; }
         .bold { font-weight: bold; }
-        .title { font-size: 14pt; font-weight: bold; text-align: center; margin-bottom: 15px; text-transform: uppercase; }
+        .title { font-size: 13.5pt; font-weight: bold; text-align: center; margin-bottom: 12px; text-transform: uppercase; }
         
         .flex-between {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
-        /* PAGE 3 COMPACT SINGLE-PAGE SPECIFIC STYLES */
+        /* PAGE 3 COMPACT SINGLE-PAGE SAFARI SPECIFIC STYLES */
         .page-3 {
-            padding: 12mm 15mm !important;
-            font-size: 9.5pt !important;
-        }
-
-        .page-3 p {
-            line-height: 1.25 !important;
-            margin-bottom: 5px !important;
-            font-size: 9.5pt !important;
-        }
-
-        .page-3 .title {
-            font-size: 12pt !important;
-            margin-bottom: 8px !important;
-        }
-
-        .page-3 .data-table td {
-            padding: 3px 6px !important;
+            padding: 10mm 15mm !important;
             font-size: 9pt !important;
         }
 
+        .page-3 p {
+            line-height: 1.2 !important;
+            margin-bottom: 4px !important;
+            font-size: 9pt !important;
+        }
+
+        .page-3 .title {
+            font-size: 11.5pt !important;
+            margin-bottom: 6px !important;
+        }
+
+        .page-3 .data-table td {
+            padding: 2px 5px !important;
+            font-size: 8.5pt !important;
+        }
+
         .signature-grid {
-            margin-top: 20px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            font-size: 9.5pt;
+            margin-top: 12px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 9pt;
         }
 
         .gu-text {
@@ -228,8 +248,9 @@
     <form id="landForm">
         <div class="form-grid">
             <div class="form-group">
-                <label>Date / તારીખ</label>
-                <input type="text" id="in_date" value="29-07-2026">
+                <label>Date / તારીખ (Calendar Select)</label>
+                <!-- NATIVE DATE INPUT WITH CALENDAR PICKER -->
+                <input type="date" id="in_date">
             </div>
             <div class="form-group">
                 <label>Khata No. / ખાતા નં.</label>
@@ -309,7 +330,7 @@
             </tr>
         </table>
 
-        <div class="bold" style="margin-bottom: 5px;">ENGLISH VERSION</div>
+        <div class="bold" style="margin-bottom: 4px;">ENGLISH VERSION</div>
         <p>
             We, the undersigned, are providing our land located in <span class="out_taluka"></span>, District <span class="out_district"></span> having survey number <span class="out_survey"></span> village <span class="out_v_en"></span>, Tehsil <span class="out_taluka"></span>, and admeasuring H.Are.Sq.Mt. <span class="out_has"></span> acres <span class="out_acres"></span> guntha <span class="out_guntha"></span> (Said Land) on yearly lease to <b>Balarama Novagrid Private Limited (BNPL)</b>, for 29 years and 11 months for development of a Solar Project on the Said Land.
         </p>
@@ -323,7 +344,7 @@
             It is mutually agreed that after the signing of this consent letter, if the title of the land is found to be clear, we will execute the formal lease agreement within two (2) months of the signing of this consent letter.
         </p>
 
-        <div class="bold gu-text" style="margin-top: 15px; margin-bottom: 5px;">GUJARATI VERSION</div>
+        <div class="bold gu-text" style="margin-top: 12px; margin-bottom: 4px;">GUJARATI VERSION</div>
         <p class="gu-text">
             અમો નીચે હસ્તાક્ષર કરનારાઓ, અમારી જમીન જે ગામ: <span class="out_v_gu"></span>, તાલુકો <span class="out_taluka"></span>, જીલ્લો <span class="out_district"></span> ખાતે આવેલી છે, જેનો સર્વે નંબર <span class="out_survey"></span> છે અને કુલ વિસ્તાર હે.આરે.ચો.મી <span class="out_has"></span>, એકર <span class="out_acres"></span> ગુંઠા <span class="out_guntha"></span> છે (ઉલ્લેખિત જમીન) - તેને ૨૯ વર્ષ અને ૧૧ મહિનાની વાર્ષિક લીઝ પર બાલારામા નોવાગ્રિડ પ્રાઇવેટ લિમિટેડ (BNPL) ને સોલાર પ્રોજેક્ટના વિકાસ માટે આપી રહ્યા છીએ.
         </p>
@@ -352,13 +373,13 @@
             </tbody>
         </table>
 
-        <div style="margin-top: 15px;" class="bold">
+        <div style="margin-top: 12px;" class="bold">
             Khata No. / ખાતા નં.: <span class="out_khata"></span>
         </div>
 
-        <div style="margin-top: 20px;">
+        <div style="margin-top: 15px;">
             <div class="bold gu-text">Enclosures / અમે અમારી સંમતિ સાથે નીચે મુજબના દસ્તાવેજો જોડી રહ્યા છીએ:</div>
-            <ol class="gu-text" style="line-height: 1.8;">
+            <ol class="gu-text" style="line-height: 1.6;">
                 <li>કેવાયસી દસ્તાવેજો (આધાર કાર્ડ, પાન કાર્ડ) / KYC Documents</li>
                 <li>જમીન ૭/૧૨ / Land Form - 7/12</li>
                 <li>કેન્સલ ચેક અથવા બેંક પાસબુક / Cancelled Cheque or Bank Passbook</li>
@@ -391,7 +412,7 @@
             આ ચિઠ્ઠી/બાંહેધરી મેં/અમે મારી/અમારી સ્વેચ્છાએ અને કોઈપણ દબાણ વગર આપી છે.
         </p>
 
-        <hr style="margin: 6px 0;">
+        <hr style="margin: 4px 0;">
 
         <p>
             <b>English:</b> I/We, the undersigned farmer/farmers listed below, owner/possessor of land, hereby confirm that I/we have accepted Rs. 10,000/- as token fee in my/our bank account from the land facilitator and EPC contractor M/s Pahal Green Energy Private Limited, on behalf of M/s Balaram Novagrid Private Limited, the project developer for the 350 MW power project to be fed into the 400 kV Bhachunda (Abdasa) Substation.
@@ -409,7 +430,7 @@
             This letter/undertaking is given by me/us voluntarily and without any pressure.
         </p>
 
-        <table class="data-table" style="margin-top: 6px;">
+        <table class="data-table" style="margin-top: 4px;">
             <tr>
                 <td style="width: 45%;"><b>જમીન માલિકનું નામ / Name of Land Owner:</b></td>
                 <td><span id="p3_owner_table"></span></td>
@@ -437,11 +458,11 @@
         </table>
 
         <div class="signature-grid">
-            <div>
+            <div style="width: 48%;">
                 <b>સાક્ષીનું નામ / Witness Name:</b> ____________________<br><br>
                 <b>સાક્ષીની સહી / Signature of Witness:</b> ________________
             </div>
-            <div>
+            <div style="width: 48%; text-align: right;">
                 <br><br>
                 <b>ખેડૂતની સહી / Farmer's Signature:</b> ________________
             </div>
@@ -451,6 +472,28 @@
 
 <script>
     let debounceTimer;
+
+    // AUTO-FETCH & SET CURRENT DATE IN DATE PICKER
+    function setInitialCurrentDate() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        
+        // HTML5 date inputs require YYYY-MM-DD
+        document.getElementById('in_date').value = `${year}-${month}-${day}`;
+    }
+
+    // FORMAT DATE FROM YYYY-MM-DD TO DD-MM-YYYY FOR PRINT OUTPUT
+    function getFormattedDateForPrint() {
+        const rawDate = document.getElementById('in_date').value;
+        if (!rawDate) return '';
+        const parts = rawDate.split('-');
+        if (parts.length === 3) {
+            return `${parts[2]}-${parts[1]}-${parts[0]}`; // Convert YYYY-MM-DD to DD-MM-YYYY
+        }
+        return rawDate;
+    }
 
     function transliterateVillage(text) {
         clearTimeout(debounceTimer);
@@ -532,7 +575,7 @@
     function generateAndPrint() {
         convertLandArea();
 
-        const date = document.getElementById('in_date').value;
+        const formattedDate = getFormattedDateForPrint();
         const khata = document.getElementById('in_khata').value;
         const vEn = document.getElementById('in_village_en').value;
         const vGu = document.getElementById('in_village_gu').value;
@@ -544,7 +587,7 @@
         const guntha = document.getElementById('in_guntha').value;
         const mobile = document.getElementById('in_mobile').value;
 
-        populateSpanClass('out_date', date);
+        populateSpanClass('out_date', formattedDate);
         populateSpanClass('out_khata', khata);
         populateSpanClass('out_v_en', vEn);
         populateSpanClass('out_v_gu', vGu);
@@ -581,10 +624,13 @@
 
         document.getElementById('p3_owner_table').innerText = ownerNames.join(' / ');
 
-        window.print();
+        setTimeout(() => {
+            window.print();
+        }, 100);
     }
 
     window.onload = function() {
+        setInitialCurrentDate();
         convertLandArea();
     };
 </script>
