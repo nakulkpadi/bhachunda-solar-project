@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Consent & Undertaking Form Generator</title>
+<!-- html2pdf Library for direct PDF generation and sharing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
     * {
         box-sizing: border-box;
@@ -135,9 +137,19 @@
         margin-top: 18px; 
     }
     .btn-reprint {
-        background-color: #17a2b8;
+        background-color: #007bff;
         color: white;
-        padding: 6px 12px;
+        padding: 6px 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 12px;
+    }
+    .btn-reshare {
+        background-color: #25D366;
+        color: white;
+        padding: 6px 10px;
         border: none;
         border-radius: 4px;
         cursor: pointer;
@@ -397,7 +409,7 @@
             </div>
         </div>
 
-        <button type="button" class="btn btn-print" onclick="generateAndPrint()">PRINT DATA / PRINT FORM</button>
+        <button type="button" class="btn btn-print" onclick="saveAndPrint()">SAVE & PRINT</button>
     </form>
 
     <!-- GENERATED CONSENT RECORDS LIST VIEW & SEARCH -->
@@ -417,7 +429,7 @@
                         <th>Date Generated</th>
                         <th>First Owner Name</th>
                         <th>Mobile Number</th>
-                        <th style="text-align: center;">Action</th>
+                        <th style="text-align: center;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="consentRecordsBody">
@@ -620,7 +632,6 @@
         database = getDatabase(app);
         consentRef = ref(database, "consent-forms");
 
-        // Sync real-time updates from Firebase Database across all devices
         onValue(consentRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -663,8 +674,9 @@
                 <td>${data.dateGenerated || ''}</td>
                 <td>${data.firstOwner || ''}</td>
                 <td>${data.mobile || ''}</td>
-                <td style="text-align: center;">
+                <td style="text-align: center; white-space: nowrap;">
                     <button type="button" class="btn-reprint" onclick="reprintConsent('${data.surveyNo}')">Print</button>
+                    <button type="button" class="btn-reshare" onclick="reshareConsent('${data.surveyNo}')">Share</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -715,7 +727,7 @@
         setInitialCurrentDate();
     };
 
-    window.generateAndPrint = async function() {
+    window.saveAndPrint = async function() {
         convertLandArea();
 
         const survey = document.getElementById('in_survey').value.trim();
@@ -738,33 +750,7 @@
             }
         });
 
-        const formattedDate = getFormattedDateForPrint();
-        const khata = document.getElementById('in_khata').value;
-        const vEn = document.getElementById('in_village_en').value;
-        const vGu = document.getElementById('in_village_gu').value;
-        const taluka = document.getElementById('in_taluka').value;
-        const district = document.getElementById('in_district').value;
-        const has = document.getElementById('in_has').value;
-        const acres = Number(document.getElementById('in_acres').value) || 0;
-        const guntha = Number(document.getElementById('in_guntha').value) || 0;
-        const mobile = document.getElementById('in_mobile').value;
-
-        const formData = {
-            surveyNo: survey,
-            dateGenerated: formattedDate,
-            firstOwner: ownerNames[0] || '',
-            mobile: mobile,
-            khataNo: khata,
-            villageEn: vEn,
-            villageGu: vGu,
-            taluka: taluka,
-            district: district,
-            has: has,
-            acres: acres,
-            guntha: guntha,
-            owners: ownerNames,
-            createdAt: new Date().toISOString()
-        };
+        const formData = buildFormDataObject(survey, ownerNames);
 
         if (consentRef) {
             try {
@@ -779,6 +765,111 @@
         triggerPrintLayout(formData);
         resetFormFields();
     };
+
+    window.reprintConsent = function(surveyNo) {
+        if (!window.consentListCache) return;
+        const record = window.consentListCache.find(item => String(item.surveyNo) === String(surveyNo));
+        if (record) {
+            triggerPrintLayout(record);
+        }
+    };
+
+    window.reshareConsent = async function(surveyNo) {
+        if (!window.consentListCache) return;
+        const record = window.consentListCache.find(item => String(item.surveyNo) === String(surveyNo));
+        if (!record) return;
+
+        // Populate hidden layout for canvas capture
+        populateSpanClass('out_date', record.dateGenerated);
+        populateSpanClass('out_khata', record.khataNo);
+        populateSpanClass('out_v_en', record.villageEn);
+        populateSpanClass('out_v_gu', record.villageGu);
+        populateSpanClass('out_taluka', record.taluka);
+        populateSpanClass('out_district', record.district);
+        populateSpanClass('out_survey', record.surveyNo);
+        populateSpanClass('out_has', record.has);
+        populateSpanClass('out_acres', record.acres);
+        populateSpanClass('out_guntha', record.guntha);
+        populateSpanClass('out_mobile', record.mobile);
+
+        const p2Tbody = document.getElementById('page2_owner_rows');
+        if (p2Tbody) {
+            p2Tbody.innerHTML = '';
+            let totalRows = Math.max(record.owners.length, 10);
+            for (let i = 0; i < totalRows; i++) {
+                const tr = document.createElement('tr');
+                const name = record.owners[i] ? record.owners[i] : '';
+                tr.innerHTML = `
+                    <td class="center">${i + 1}</td>
+                    <td>${name}</td>
+                    <td></td>
+                `;
+                p2Tbody.appendChild(tr);
+            }
+        }
+
+        const p3OwnerTable = document.getElementById('p3_owner_table');
+        if (p3OwnerTable) {
+            p3OwnerTable.innerText = record.owners.join(' / ');
+        }
+
+        const printElement = document.querySelector('.print-area');
+        printElement.style.display = 'block';
+
+        const pdfOptions = {
+            margin:       0,
+            filename:     `Consent_Form_Survey_${record.surveyNo}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        try {
+            const pdfBlob = await html2pdf().set(pdfOptions).from(printElement).output('blob');
+            printElement.style.display = 'none';
+
+            const file = new File([pdfBlob], `Consent_Form_Survey_${record.surveyNo}.pdf`, { type: 'application/pdf' });
+
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: `Consent Form - Survey ${record.surveyNo}`,
+                    text: `Consent & Undertaking Form for Survey No. ${record.surveyNo}.`,
+                    files: [file]
+                });
+            } else {
+                const fileURL = URL.createObjectURL(pdfBlob);
+                const downloadChoice = confirm("Direct file sharing requires a mobile browser (Chrome/Android or Safari/iOS).\n\nClick OK to download the PDF file to your device.");
+                if (downloadChoice) {
+                    const a = document.createElement('a');
+                    a.href = fileURL;
+                    a.download = `Consent_Form_Survey_${record.surveyNo}.pdf`;
+                    a.click();
+                }
+            }
+        } catch (error) {
+            printElement.style.display = 'none';
+            alert("Error generating PDF: " + error.message);
+        }
+    };
+
+    function buildFormDataObject(survey, ownerNames) {
+        return {
+            surveyNo: survey,
+            dateGenerated: getFormattedDateForPrint(),
+            firstOwner: ownerNames[0] || '',
+            mobile: document.getElementById('in_mobile').value,
+            khataNo: document.getElementById('in_khata').value,
+            villageEn: document.getElementById('in_village_en').value,
+            villageGu: document.getElementById('in_village_gu').value,
+            taluka: document.getElementById('in_taluka').value,
+            district: document.getElementById('in_district').value,
+            has: document.getElementById('in_has').value,
+            acres: Number(document.getElementById('in_acres').value) || 0,
+            guntha: Number(document.getElementById('in_guntha').value) || 0,
+            owners: ownerNames,
+            createdAt: new Date().toISOString()
+        };
+    }
 
     window.triggerPrintLayout = function(data) {
         populateSpanClass('out_date', data.dateGenerated);
@@ -817,14 +908,6 @@
         setTimeout(() => {
             window.print();
         }, 100);
-    };
-
-    window.reprintConsent = function(surveyNo) {
-        if (!window.consentListCache) return;
-        const record = window.consentListCache.find(item => String(item.surveyNo) === String(surveyNo));
-        if (record) {
-            triggerPrintLayout(record);
-        }
     };
 </script>
 
