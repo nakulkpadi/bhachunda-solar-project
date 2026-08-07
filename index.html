@@ -17,6 +17,7 @@
             --btn-green: #388E3C;
             --btn-blue: #1E40AF;
             --btn-gold: #D97706;
+            --btn-teal: #00796B;
             --footer-bg: #1B4332;
             --btn-map-color: #7B2CBF; /* Unique color theme for the map card */
         }
@@ -191,6 +192,7 @@
         .calc-theme .icon-wrapper { background-color: #FFFDE7; color: #E6A100; }
         .area-theme .icon-wrapper { background-color: #E0F2FE; color: #0284C7; }
         .map-theme .icon-wrapper { background-color: #F3E5F5; color: var(--btn-map-color); }
+        .consent-theme .icon-wrapper { background-color: #E0F2F1; color: var(--btn-teal); }
 
         .card-inner-text h3 {
             margin: 0 0 8px 0;
@@ -229,6 +231,7 @@
         .bg-gold-action { background-color: var(--btn-gold); }
         .bg-blue-action { background-color: var(--btn-blue); }
         .bg-purple-action { background-color: var(--btn-map-color); }
+        .bg-teal-action { background-color: var(--btn-teal); }
 
         /* FULL SCREEN MODAL SYSTEM STYLES WITH ZOOM SUPPORT */
         .modal-overlay {
@@ -252,7 +255,6 @@
             display: flex;
             flex-direction: column;
             animation: modalSlideUp 0.25s ease-out;
-            /* Explicitly removed overflow: hidden to support multi-directional scrolling on zoom */
         }
 
         .modal-header {
@@ -274,7 +276,7 @@
         }
 
         .close-btn {
-            background: #E2E8F0;
+            background: #CBD5E0;
             border: none;
             color: #4A5568;
             font-size: 1.5rem;
@@ -402,6 +404,18 @@
                 <a href="database.html" class="card-action-btn bg-green-action">Go to Database &nbsp;➔</a>
             </div>
 
+            <!-- CONSENT FORM CARD -->
+            <div class="ui-card consent-theme">
+                <div class="card-top-identity">
+                    <div class="icon-wrapper">📝</div>
+                    <div class="card-inner-text">
+                        <h3>Consent Form</h3>
+                        <p>Generate, fill, and print Consent & Undertaking forms for landowners.</p>
+                    </div>
+                </div>
+                <a href="consent_form.html" class="card-action-btn bg-teal-action">Open Consent Form &nbsp;➔</a>
+            </div>
+
             <!-- DYNAMIC FULL-SCREEN POPUP PROJECT MAP CARD -->
             <div class="ui-card map-theme">
                 <div class="card-top-identity">
@@ -449,7 +463,6 @@
                 <button class="close-btn" id="closeMapBtn">Close ×</button>
             </div>
             <div class="modal-body">
-                <!-- Direct Integration with Google Drive file layout view preview mode -->
                 <iframe src="https://drive.google.com/file/d/1Z-4bFuxqiT9shaDw-r5Zoht0ZFv828b_/preview" allow="autoplay"></iframe>
             </div>
         </div>
@@ -474,16 +487,14 @@
         const triggerOpenBtn = document.getElementById("openMapBtn");
         const triggerCloseBtn = document.getElementById("closeMapBtn");
 
-        // Open Full Screen Overlay
         triggerOpenBtn.addEventListener("click", () => {
             modalElement.style.display = "flex";
-            document.body.style.overflow = "hidden"; // Prevents background website body scrolling
+            document.body.style.overflow = "hidden";
         });
 
-        // Close Full Screen Overlay via Button
         triggerCloseBtn.addEventListener("click", () => {
             modalElement.style.display = "none";
-            document.body.style.overflow = "auto"; // Restores background scrolling
+            document.body.style.overflow = "auto";
         });
     </script>
 </body>
