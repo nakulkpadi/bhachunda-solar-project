@@ -145,7 +145,6 @@
         font-size: 12px;
     }
 
-    /* LIST VIEW & SEARCH STYLES */
     .records-card {
         margin-top: 35px;
         border-top: 2px dashed #e0e0e0;
@@ -198,7 +197,6 @@
         font-weight: 500;
     }
 
-    /* PRINT AREA DEFAULT HIDE */
     .print-area {
         display: none;
     }
@@ -360,11 +358,13 @@
             </div>
             <div class="form-group">
                 <label>Taluka / તાલુકો</label>
-                <input type="text" id="in_taluka" placeholder="e.g. Abdasa">
+                <!-- DEFAULT VALUE: Abdasa -->
+                <input type="text" id="in_taluka" value="Abdasa" placeholder="e.g. Abdasa">
             </div>
             <div class="form-group">
                 <label>District / જીલ્લો</label>
-                <input type="text" id="in_district" placeholder="e.g. Kachchh">
+                <!-- DEFAULT VALUE: Kutch -->
+                <input type="text" id="in_district" value="Kutch" placeholder="e.g. Kutch">
             </div>
             <div class="form-group">
                 <label>Survey No. / સર્વે નં.</label>
@@ -596,14 +596,9 @@
         getDatabase, 
         ref, 
         push, 
-        onValue, 
-        get, 
-        query, 
-        orderByChild, 
-        equalTo 
+        onValue 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Your actual Web App's Firebase configuration
     const firebaseConfig = {
         apiKey: "AIzaSyAPHjoSFl3eytfcRJdoZRteD-mqoHCK6vg",
         authDomain: "bhachunda-solar.firebaseapp.com",
@@ -618,7 +613,6 @@
     let database;
     let consentRef;
 
-    // Load initial cached records immediately on load
     document.addEventListener("DOMContentLoaded", () => {
         renderTable(window.consentListCache);
     });
@@ -635,9 +629,10 @@
                 window.consentListCache = Object.values(data);
                 localStorage.setItem('consentRecords', JSON.stringify(window.consentListCache));
                 renderTable(window.consentListCache);
+                console.log("Connected to Firebase and retrieved records successfully.");
             }
         }, (error) => {
-            console.error("Firebase Realtime Database Listen Error:", error);
+            console.error("Firebase Connection/Database Error:", error);
         });
     } catch (e) {
         console.error("Firebase Initialization Failed:", e);
@@ -648,7 +643,7 @@
         tbody.innerHTML = '';
 
         if (!records || records.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888;">No consent form records found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888;">No consent form records created yet. Submit a form above.</td></tr>`;
             return;
         }
 
@@ -690,20 +685,8 @@
         renderTable(filtered);
     };
 
-    async function checkDuplicateSurvey(surveyNo) {
-        const inMemoryDuplicate = window.consentListCache.some(item => String(item.surveyNo) === String(surveyNo));
-        if (inMemoryDuplicate) return true;
-
-        if (consentRef) {
-            try {
-                const surveyQuery = query(consentRef, orderByChild('surveyNo'), equalTo(surveyNo));
-                const snapshot = await get(surveyQuery);
-                return snapshot.exists();
-            } catch (err) {
-                return false;
-            }
-        }
-        return false;
+    function checkDuplicateSurvey(surveyNo) {
+        return window.consentListCache.some(item => String(item.surveyNo) === String(surveyNo));
     }
 
     window.resetFormFields = function() {
@@ -711,6 +694,10 @@
         
         document.getElementById('in_village_en').value = 'Bhavanipur';
         document.getElementById('in_village_gu').value = 'ભવાનીપર';
+        
+        // Retain default values upon form reset
+        document.getElementById('in_taluka').value = 'Abdasa';
+        document.getElementById('in_district').value = 'Kutch';
         
         const container = document.getElementById('ownersContainer');
         container.innerHTML = `
@@ -732,7 +719,7 @@
             return;
         }
 
-        const isDuplicate = await checkDuplicateSurvey(survey);
+        const isDuplicate = checkDuplicateSurvey(survey);
         if (isDuplicate) {
             alert(`Warning: Consent form for Survey No. "${survey}" is already generated! Duplicate entries are not allowed.`);
             return;
@@ -784,7 +771,7 @@
             }
         }
 
-        // Local cache backup
+        // Always save locally to prevent data loss
         const existingIndex = window.consentListCache.findIndex(item => String(item.surveyNo) === String(formData.surveyNo));
         if (existingIndex > -1) {
             window.consentListCache[existingIndex] = formData;
