@@ -358,12 +358,10 @@
             </div>
             <div class="form-group">
                 <label>Taluka / તાલુકો</label>
-                <!-- DEFAULT VALUE: Abdasa -->
                 <input type="text" id="in_taluka" value="Abdasa" placeholder="e.g. Abdasa">
             </div>
             <div class="form-group">
                 <label>District / જીલ્લો</label>
-                <!-- DEFAULT VALUE: Kutch -->
                 <input type="text" id="in_district" value="Kutch" placeholder="e.g. Kutch">
             </div>
             <div class="form-group">
@@ -424,7 +422,7 @@
                 </thead>
                 <tbody id="consentRecordsBody">
                     <tr>
-                        <td colspan="6" style="text-align: center; color: #888;">No consent form records created yet. Submit a form above.</td>
+                        <td colspan="6" style="text-align: center; color: #888;">Loading records from cloud database...</td>
                     </tr>
                 </tbody>
             </table>
@@ -589,7 +587,7 @@
     </div>
 </div>
 
-<!-- FIREBASE REALTIME DATABASE & LOCAL STORAGE INTEGRATION SCRIPT -->
+<!-- FIREBASE REALTIME DATABASE MODULE SCRIPT -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
@@ -622,17 +620,25 @@
         database = getDatabase(app);
         consentRef = ref(database, "consent-forms");
 
-        // Sync real-time updates from Firebase Database
+        // Sync real-time updates from Firebase Database across all devices
         onValue(consentRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                window.consentListCache = Object.values(data);
-                localStorage.setItem('consentRecords', JSON.stringify(window.consentListCache));
-                renderTable(window.consentListCache);
-                console.log("Connected to Firebase and retrieved records successfully.");
+                const recordsArray = Object.keys(data).map(key => ({
+                    id: key,
+                    ...data[key]
+                }));
+                
+                window.consentListCache = recordsArray;
+                localStorage.setItem('consentRecords', JSON.stringify(recordsArray));
+                renderTable(recordsArray);
+            } else {
+                window.consentListCache = [];
+                renderTable([]);
             }
         }, (error) => {
-            console.error("Firebase Connection/Database Error:", error);
+            alert("Firebase Sync Error: " + error.message);
+            console.error("Firebase Connection Error:", error);
         });
     } catch (e) {
         console.error("Firebase Initialization Failed:", e);
@@ -640,6 +646,7 @@
 
     window.renderTable = function(records) {
         const tbody = document.getElementById('consentRecordsBody');
+        if (!tbody) return;
         tbody.innerHTML = '';
 
         if (!records || records.length === 0) {
@@ -694,8 +701,6 @@
         
         document.getElementById('in_village_en').value = 'Bhavanipur';
         document.getElementById('in_village_gu').value = 'ભવાનીપર';
-        
-        // Retain default values upon form reset
         document.getElementById('in_taluka').value = 'Abdasa';
         document.getElementById('in_district').value = 'Kutch';
         
@@ -761,32 +766,21 @@
             createdAt: new Date().toISOString()
         };
 
-        // Write to Firebase Realtime Database
         if (consentRef) {
             try {
                 await push(consentRef, formData);
-                console.log("Successfully stored in Firebase Realtime Database!");
             } catch (error) {
+                alert("Failed to write to Firebase: " + error.message);
                 console.error("Firebase Push Error:", error);
+                return;
             }
         }
-
-        // Always save locally to prevent data loss
-        const existingIndex = window.consentListCache.findIndex(item => String(item.surveyNo) === String(formData.surveyNo));
-        if (existingIndex > -1) {
-            window.consentListCache[existingIndex] = formData;
-        } else {
-            window.consentListCache.push(formData);
-        }
-        localStorage.setItem('consentRecords', JSON.stringify(window.consentListCache));
 
         triggerPrintLayout(formData);
         resetFormFields();
     };
 
     window.triggerPrintLayout = function(data) {
-        renderTable(window.consentListCache);
-
         populateSpanClass('out_date', data.dateGenerated);
         populateSpanClass('out_khata', data.khataNo);
         populateSpanClass('out_v_en', data.villageEn);
@@ -800,21 +794,25 @@
         populateSpanClass('out_mobile', data.mobile);
 
         const p2Tbody = document.getElementById('page2_owner_rows');
-        p2Tbody.innerHTML = '';
-        
-        let totalRows = Math.max(data.owners.length, 10);
-        for (let i = 0; i < totalRows; i++) {
-            const tr = document.createElement('tr');
-            const name = data.owners[i] ? data.owners[i] : '';
-            tr.innerHTML = `
-                <td class="center">${i + 1}</td>
-                <td>${name}</td>
-                <td></td>
-            `;
-            p2Tbody.appendChild(tr);
+        if (p2Tbody) {
+            p2Tbody.innerHTML = '';
+            let totalRows = Math.max(data.owners.length, 10);
+            for (let i = 0; i < totalRows; i++) {
+                const tr = document.createElement('tr');
+                const name = data.owners[i] ? data.owners[i] : '';
+                tr.innerHTML = `
+                    <td class="center">${i + 1}</td>
+                    <td>${name}</td>
+                    <td></td>
+                `;
+                p2Tbody.appendChild(tr);
+            }
         }
 
-        document.getElementById('p3_owner_table').innerText = data.owners.join(' / ');
+        const p3OwnerTable = document.getElementById('p3_owner_table');
+        if (p3OwnerTable) {
+            p3OwnerTable.innerText = data.owners.join(' / ');
+        }
 
         setTimeout(() => {
             window.print();
