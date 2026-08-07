@@ -209,6 +209,7 @@
         font-weight: 500;
     }
 
+    /* Hidden layout used for direct browser print and PDF generation */
     .print-area {
         display: none;
     }
@@ -779,7 +780,6 @@
         const record = window.consentListCache.find(item => String(item.surveyNo) === String(surveyNo));
         if (!record) return;
 
-        // Populate hidden layout for canvas capture
         populateSpanClass('out_date', record.dateGenerated);
         populateSpanClass('out_khata', record.khataNo);
         populateSpanClass('out_v_en', record.villageEn);
@@ -816,12 +816,29 @@
         const printElement = document.querySelector('.print-area');
         printElement.style.display = 'block';
 
+        // Explicit width/height sizing on individual pages to lock correct layout formatting
+        const pages = printElement.querySelectorAll('.page');
+        pages.forEach(p => {
+            p.style.width = '794px';
+            p.style.minHeight = '1123px';
+            p.style.maxHeight = '1123px';
+            p.style.padding = '56px 68px';
+            p.style.backgroundColor = '#ffffff';
+            p.style.boxSizing = 'border-box';
+            p.style.position = 'relative';
+            p.style.overflow = 'hidden';
+            p.style.pageBreakAfter = 'always';
+            p.style.fontFamily = "'Times New Roman', Times, serif";
+            p.style.fontSize = '14px';
+            p.style.color = '#000000';
+        });
+
         const pdfOptions = {
             margin:       0,
             filename:     `Consent_Form_Survey_${record.surveyNo}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            html2canvas:  { scale: 2, useCORS: true, letterRendering: true, width: 794 },
+            jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' }
         };
 
         try {
@@ -838,13 +855,10 @@
                 });
             } else {
                 const fileURL = URL.createObjectURL(pdfBlob);
-                const downloadChoice = confirm("Direct file sharing requires a mobile browser (Chrome/Android or Safari/iOS).\n\nClick OK to download the PDF file to your device.");
-                if (downloadChoice) {
-                    const a = document.createElement('a');
-                    a.href = fileURL;
-                    a.download = `Consent_Form_Survey_${record.surveyNo}.pdf`;
-                    a.click();
-                }
+                const a = document.createElement('a');
+                a.href = fileURL;
+                a.download = `Consent_Form_Survey_${record.surveyNo}.pdf`;
+                a.click();
             }
         } catch (error) {
             printElement.style.display = 'none';
