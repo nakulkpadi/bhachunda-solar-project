@@ -589,53 +589,56 @@
     </div>
 </div>
 
-<!-- FIREBASE FIRESTORE & LOCAL LIST MANAGEMENT SCRIPT -->
+<!-- FIREBASE REALTIME DATABASE & LOCAL STORAGE INTEGRATION SCRIPT -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
-        getFirestore, 
-        collection, 
-        addDoc, 
-        getDocs, 
+        getDatabase, 
+        ref, 
+        push, 
+        onValue, 
+        get, 
         query, 
-        where, 
-        onSnapshot 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        orderByChild, 
+        equalTo 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+    // Your actual Web App's Firebase configuration
     const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
+        apiKey: "AIzaSyAPHjoSFl3eytfcRJdoZRteD-mqoHCK6vg",
+        authDomain: "bhachunda-solar.firebaseapp.com",
+        databaseURL: "https://bhachunda-solar-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "bhachunda-solar",
+        storageBucket: "bhachunda-solar.firebasestorage.app",
+        messagingSenderId: "830070673428",
+        appId: "1:830070673428:web:fb356c218cb56c60e3d701"
     };
 
-    window.consentListCache = [];
-    let db;
-    let consentCollectionRef;
+    window.consentListCache = JSON.parse(localStorage.getItem('consentRecords') || '[]');
+    let database;
+    let consentRef;
+
+    // Load initial cached records immediately on load
+    document.addEventListener("DOMContentLoaded", () => {
+        renderTable(window.consentListCache);
+    });
 
     try {
-        if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            consentCollectionRef = collection(db, "consent-form");
+        const app = initializeApp(firebaseConfig);
+        database = getDatabase(app);
+        consentRef = ref(database, "consent-forms");
 
-            onSnapshot(consentCollectionRef, (snapshot) => {
-                snapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const idx = window.consentListCache.findIndex(item => item.surveyNo === data.surveyNo);
-                    if (idx > -1) {
-                        window.consentListCache[idx] = data;
-                    } else {
-                        window.consentListCache.push(data);
-                    }
-                });
+        // Sync real-time updates from Firebase Database
+        onValue(consentRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                window.consentListCache = Object.values(data);
+                localStorage.setItem('consentRecords', JSON.stringify(window.consentListCache));
                 renderTable(window.consentListCache);
-            }, (error) => {
-                console.error("Firestore Listen Error:", error);
-            });
-        }
+            }
+        }, (error) => {
+            console.error("Firebase Realtime Database Listen Error:", error);
+        });
     } catch (e) {
         console.error("Firebase Initialization Failed:", e);
     }
@@ -688,14 +691,14 @@
     };
 
     async function checkDuplicateSurvey(surveyNo) {
-        const inMemoryDuplicate = window.consentListCache.some(item => item.surveyNo === surveyNo);
+        const inMemoryDuplicate = window.consentListCache.some(item => String(item.surveyNo) === String(surveyNo));
         if (inMemoryDuplicate) return true;
 
-        if (consentCollectionRef) {
+        if (consentRef) {
             try {
-                const q = query(consentCollectionRef, where("surveyNo", "==", surveyNo));
-                const querySnapshot = await getDocs(q);
-                return !querySnapshot.empty;
+                const surveyQuery = query(consentRef, orderByChild('surveyNo'), equalTo(surveyNo));
+                const snapshot = await get(surveyQuery);
+                return snapshot.exists();
             } catch (err) {
                 return false;
             }
@@ -706,7 +709,6 @@
     window.resetFormFields = function() {
         document.getElementById('landForm').reset();
         
-        // Reset Village back to default Bhavanipur
         document.getElementById('in_village_en').value = 'Bhavanipur';
         document.getElementById('in_village_gu').value = 'ભવાનીપર';
         
@@ -769,28 +771,33 @@
             acres: acres,
             guntha: guntha,
             owners: ownerNames,
-            createdAt: new Date()
+            createdAt: new Date().toISOString()
         };
 
-        if (consentCollectionRef) {
+        // Write to Firebase Realtime Database
+        if (consentRef) {
             try {
-                await addDoc(consentCollectionRef, formData);
+                await push(consentRef, formData);
+                console.log("Successfully stored in Firebase Realtime Database!");
             } catch (error) {
-                console.warn("Firestore save skipped/failed. Updating locally:", error);
+                console.error("Firebase Push Error:", error);
             }
         }
+
+        // Local cache backup
+        const existingIndex = window.consentListCache.findIndex(item => String(item.surveyNo) === String(formData.surveyNo));
+        if (existingIndex > -1) {
+            window.consentListCache[existingIndex] = formData;
+        } else {
+            window.consentListCache.push(formData);
+        }
+        localStorage.setItem('consentRecords', JSON.stringify(window.consentListCache));
 
         triggerPrintLayout(formData);
         resetFormFields();
     };
 
     window.triggerPrintLayout = function(data) {
-        const existingIndex = window.consentListCache.findIndex(item => item.surveyNo === data.surveyNo);
-        if (existingIndex > -1) {
-            window.consentListCache[existingIndex] = data;
-        } else {
-            window.consentListCache.push(data);
-        }
         renderTable(window.consentListCache);
 
         populateSpanClass('out_date', data.dateGenerated);
@@ -829,7 +836,7 @@
 
     window.reprintConsent = function(surveyNo) {
         if (!window.consentListCache) return;
-        const record = window.consentListCache.find(item => item.surveyNo === surveyNo);
+        const record = window.consentListCache.find(item => String(item.surveyNo) === String(surveyNo));
         if (record) {
             triggerPrintLayout(record);
         }
