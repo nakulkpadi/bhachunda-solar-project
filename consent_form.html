@@ -103,6 +103,11 @@
         display: none;
     }
 
+    @page {
+        size: A4 portrait;
+        margin: 0; /* REMOVES DEFAULT BROWSER HEADERS/FOOTERS (URL, DATE, TIME) */
+    }
+
     @media print {
         body {
             background-color: #fff;
@@ -111,6 +116,7 @@
             font-family: 'Times New Roman', Times, serif;
             font-size: 11pt;
             color: #000;
+            -webkit-print-color-adjust: exact;
         }
 
         .no-print {
@@ -123,14 +129,13 @@
 
         .page {
             width: 210mm;
-            height: 297mm;
+            min-height: 280mm;
             padding: 15mm 20mm;
             margin: 0 auto;
             box-sizing: border-box;
             page-break-after: always;
             page-break-inside: avoid;
             position: relative;
-            overflow: hidden;
         }
 
         .page:last-child {
@@ -181,7 +186,7 @@
 
         /* PAGE 3 COMPACT SINGLE-PAGE SPECIFIC STYLES */
         .page-3 {
-            padding: 10mm 15mm !important;
+            padding: 12mm 15mm !important;
             font-size: 9.5pt !important;
         }
 
@@ -299,8 +304,8 @@
 
         <table class="header-layout-table">
             <tr>
-                <td style="width: 25%; white-space: nowrap;"><b>Date / તારીખ:</b> <span class="out_date"></span></td>
-                <td style="width: 75%;"><b>Place / સ્થળ:</b> Village. <span class="out_v_en"></span>, Tal. <span class="out_taluka"></span>, <span class="out_district"></span> / ગામ. <span class="out_v_gu"></span> તા. <span class="out_taluka"></span>, <span class="out_district"></span></td>
+                <td style="width: 30%; white-space: nowrap;"><b>Date / તારીખ:</b> <span class="out_date"></span></td>
+                <td style="width: 70%;"><b>Place / સ્થળ:</b> Village. <span class="out_v_en"></span>, Tal. <span class="out_taluka"></span>, <span class="out_district"></span> / ગામ. <span class="out_v_gu"></span> તા. <span class="out_taluka"></span>, <span class="out_district"></span></td>
             </tr>
         </table>
 
@@ -386,7 +391,7 @@
             આ ચિઠ્ઠી/બાંહેધરી મેં/અમે મારી/અમારી સ્વેચ્છાએ અને કોઈપણ દબાણ વગર આપી છે.
         </p>
 
-        <hr style="margin: 8px 0;">
+        <hr style="margin: 6px 0;">
 
         <p>
             <b>English:</b> I/We, the undersigned farmer/farmers listed below, owner/possessor of land, hereby confirm that I/we have accepted Rs. 10,000/- as token fee in my/our bank account from the land facilitator and EPC contractor M/s Pahal Green Energy Private Limited, on behalf of M/s Balaram Novagrid Private Limited, the project developer for the 350 MW power project to be fed into the 400 kV Bhachunda (Abdasa) Substation.
@@ -404,7 +409,7 @@
             This letter/undertaking is given by me/us voluntarily and without any pressure.
         </p>
 
-        <table class="data-table" style="margin-top: 8px;">
+        <table class="data-table" style="margin-top: 6px;">
             <tr>
                 <td style="width: 45%;"><b>જમીન માલિકનું નામ / Name of Land Owner:</b></td>
                 <td><span id="p3_owner_table"></span></td>
