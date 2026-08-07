@@ -77,7 +77,7 @@
         color: #555;
     }
 
-    input {
+    input, select {
         padding: 10px 12px;
         border: 1px solid #ccc;
         border-radius: 6px;
@@ -85,6 +85,7 @@
         font-family: inherit;
         width: 100%;
         box-sizing: border-box;
+        background-color: #fff;
     }
 
     .owners-container {
@@ -344,54 +345,53 @@
             </div>
             <div class="form-group">
                 <label>Khata No. / ખાતા નં.</label>
-                <input type="text" id="in_khata" value="558">
+                <input type="text" id="in_khata" placeholder="e.g. 558">
             </div>
             <div class="form-group">
-                <label>Village English (Auto Converts to Gujarati)</label>
-                <input type="text" id="in_village_en" value="Bhavanipur" oninput="transliterateVillage(this.value)">
+                <label>Village English</label>
+                <select id="in_village_en" onchange="handleVillageChange(this.value)">
+                    <option value="Bhavanipur" selected>Bhavanipur</option>
+                    <option value="Bitta">Bitta</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Village Gujarati / ગામ</label>
-                <input type="text" id="in_village_gu" value="ભવાનીપર">
+                <input type="text" id="in_village_gu" value="ભવાનીપર" placeholder="Auto-filled based on village" readonly style="background-color: #e9ecef;">
             </div>
             <div class="form-group">
                 <label>Taluka / તાલુકો</label>
-                <input type="text" id="in_taluka" value="Abdasa">
+                <input type="text" id="in_taluka" placeholder="e.g. Abdasa">
             </div>
             <div class="form-group">
                 <label>District / જીલ્લો</label>
-                <input type="text" id="in_district" value="Kachchh">
+                <input type="text" id="in_district" placeholder="e.g. Kachchh">
             </div>
             <div class="form-group">
                 <label>Survey No. / સર્વે નં.</label>
-                <input type="text" id="in_survey" value="542">
+                <input type="text" id="in_survey" placeholder="e.g. 542">
             </div>
             <div class="form-group">
                 <label>H.A.S. (Format: e.g. 1.60.57 or 2.50.70)</label>
-                <input type="text" id="in_has" value="1.60.57" oninput="convertLandArea()">
+                <input type="text" id="in_has" placeholder="e.g. 1.60.57" oninput="convertLandArea()">
             </div>
             <div class="form-group">
                 <label>Acres (Auto-calculated)</label>
-                <input type="text" id="in_acres" value="3" readonly style="background-color: #e9ecef;">
+                <input type="text" id="in_acres" placeholder="Auto-calculated" readonly style="background-color: #e9ecef;">
             </div>
             <div class="form-group">
                 <label>Guntha (Auto-calculated)</label>
-                <input type="text" id="in_guntha" value="39" readonly style="background-color: #e9ecef;">
+                <input type="text" id="in_guntha" placeholder="Auto-calculated" readonly style="background-color: #e9ecef;">
             </div>
             <div class="form-group full-width">
                 <label>Mobile No.</label>
-                <input type="text" id="in_mobile" value="9921494600">
+                <input type="text" id="in_mobile" placeholder="e.g. 9921494600">
             </div>
 
             <div class="form-group full-width">
                 <label>7/12 Owner Name(s) / જમીન માલિકનું નામ</label>
                 <div class="owners-container" id="ownersContainer">
                     <div class="owner-row">
-                        <input type="text" class="owner-input" value="JITENDRA VALJI BHANUSHALI">
-                        <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
-                    </div>
-                    <div class="owner-row">
-                        <input type="text" class="owner-input" value="CHANDRAKANT VALJI BHANUSHALI">
+                        <input type="text" class="owner-input" placeholder="e.g. JITENDRA VALJI BHANUSHALI">
                         <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
                     </div>
                 </div>
@@ -602,7 +602,6 @@
         onSnapshot 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // REPLACE WITH YOUR REAL FIREBASE KEYS FROM FIREBASE CONSOLE
     const firebaseConfig = {
         apiKey: "YOUR_API_KEY",
         authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
@@ -622,7 +621,6 @@
             db = getFirestore(app);
             consentCollectionRef = collection(db, "consent-form");
 
-            // Realtime sync from Firestore
             onSnapshot(consentCollectionRef, (snapshot) => {
                 snapshot.forEach((docSnap) => {
                     const data = docSnap.data();
@@ -642,7 +640,6 @@
         console.error("Firebase Initialization Failed:", e);
     }
 
-    // Render Table Rows
     window.renderTable = function(records) {
         const tbody = document.getElementById('consentRecordsBody');
         tbody.innerHTML = '';
@@ -669,7 +666,6 @@
         });
     };
 
-    // Live Search Filter
     window.filterRecords = function() {
         const queryVal = document.getElementById('searchBox').value.toLowerCase().trim();
         if (!window.consentListCache) return;
@@ -691,7 +687,6 @@
         renderTable(filtered);
     };
 
-    // Check Duplicate Survey Entry
     async function checkDuplicateSurvey(surveyNo) {
         const inMemoryDuplicate = window.consentListCache.some(item => item.surveyNo === surveyNo);
         if (inMemoryDuplicate) return true;
@@ -708,7 +703,24 @@
         return false;
     }
 
-    // Generate & Print Action with Duplicate Check Warning
+    window.resetFormFields = function() {
+        document.getElementById('landForm').reset();
+        
+        // Reset Village back to default Bhavanipur
+        document.getElementById('in_village_en').value = 'Bhavanipur';
+        document.getElementById('in_village_gu').value = 'ભવાનીપર';
+        
+        const container = document.getElementById('ownersContainer');
+        container.innerHTML = `
+            <div class="owner-row">
+                <input type="text" class="owner-input" placeholder="e.g. JITENDRA VALJI BHANUSHALI">
+                <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
+            </div>
+        `;
+        
+        setInitialCurrentDate();
+    };
+
     window.generateAndPrint = async function() {
         convertLandArea();
 
@@ -718,7 +730,6 @@
             return;
         }
 
-        // DUPLICATE CHECK WARNING
         const isDuplicate = await checkDuplicateSurvey(survey);
         if (isDuplicate) {
             alert(`Warning: Consent form for Survey No. "${survey}" is already generated! Duplicate entries are not allowed.`);
@@ -770,11 +781,10 @@
         }
 
         triggerPrintLayout(formData);
+        resetFormFields();
     };
 
-    // Render Print Document & Update Local View Instantly
     window.triggerPrintLayout = function(data) {
-        // Update UI table instantly
         const existingIndex = window.consentListCache.findIndex(item => item.surveyNo === data.surveyNo);
         if (existingIndex > -1) {
             window.consentListCache[existingIndex] = data;
@@ -783,7 +793,6 @@
         }
         renderTable(window.consentListCache);
 
-        // Populate print document template
         populateSpanClass('out_date', data.dateGenerated);
         populateSpanClass('out_khata', data.khataNo);
         populateSpanClass('out_v_en', data.villageEn);
@@ -813,13 +822,11 @@
 
         document.getElementById('p3_owner_table').innerText = data.owners.join(' / ');
 
-        // Trigger Print Window
         setTimeout(() => {
             window.print();
         }, 100);
     };
 
-    // Reprint existing record
     window.reprintConsent = function(surveyNo) {
         if (!window.consentListCache) return;
         const record = window.consentListCache.find(item => item.surveyNo === surveyNo);
@@ -830,8 +837,6 @@
 </script>
 
 <script>
-    let debounceTimer;
-
     function setInitialCurrentDate() {
         const today = new Date();
         const year = today.getFullYear();
@@ -839,6 +844,17 @@
         const day = String(today.getDate()).padStart(2, '0');
         
         document.getElementById('in_date').value = `${year}-${month}-${day}`;
+    }
+
+    function handleVillageChange(villageEn) {
+        const gujaratiField = document.getElementById('in_village_gu');
+        if (villageEn === 'Bhavanipur') {
+            gujaratiField.value = 'ભવાનીપર';
+        } else if (villageEn === 'Bitta') {
+            gujaratiField.value = 'બીટા';
+        } else {
+            gujaratiField.value = '';
+        }
     }
 
     function getFormattedDateForPrint() {
@@ -851,30 +867,13 @@
         return rawDate;
     }
 
-    function transliterateVillage(text) {
-        clearTimeout(debounceTimer);
-        const query = text.trim();
-        if (!query) {
-            document.getElementById('in_village_gu').value = '';
-            return;
-        }
-
-        debounceTimer = setTimeout(() => {
-            const url = `https://inputtools.google.com/request?text=${encodeURIComponent(query)}&itc=gu-t-i0-und&num=1`;
-            fetch(url)
-                .then(res => res.json())
-                .then(data => {
-                    if (data[0] === 'SUCCESS' && data[1] && data[1][0] && data[1][0][1]) {
-                        document.getElementById('in_village_gu').value = data[1][0][1][0];
-                    }
-                })
-                .catch(err => console.error("Transliteration Error:", err));
-        }, 300);
-    }
-
     function convertLandArea() {
         const val = document.getElementById('in_has').value.trim();
-        if (!val) return;
+        if (!val) {
+            document.getElementById('in_acres').value = '';
+            document.getElementById('in_guntha').value = '';
+            return;
+        }
 
         let sqMtr = 0;
         if (val.includes('.')) {
@@ -930,7 +929,6 @@
 
     window.onload = function() {
         setInitialCurrentDate();
-        convertLandArea();
     };
 </script>
 </body>
