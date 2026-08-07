@@ -9,41 +9,65 @@
         box-sizing: border-box;
     }
 
+    html, body {
+        width: 100%;
+        overflow-x: hidden;
+    }
+
     body {
         font-family: Arial, sans-serif;
         background-color: #f4f6f9;
         margin: 0;
-        padding: 20px;
+        padding: 12px;
     }
     
     .no-print {
         background: #ffffff;
-        padding: 20px;
-        border-radius: 8px;
-        max-width: 900px;
+        padding: 18px 14px;
+        border-radius: 12px;
+        max-width: 1000px;
+        width: 100%;
         margin: 0 auto 30px auto;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     }
 
     h2 {
         margin-top: 0;
         color: #333;
         text-align: center;
+        font-size: 20px;
     }
 
     .form-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 15px;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        width: 100%;
+    }
+
+    @media (min-width: 601px) {
+        body {
+            padding: 20px;
+        }
+        .no-print {
+            padding: 25px;
+        }
+        h2 {
+            font-size: 24px;
+        }
+        .form-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .form-group.full-width {
+            grid-column: span 2;
+        }
     }
 
     .form-group {
         display: flex;
         flex-direction: column;
-    }
-
-    .form-group.full-width {
-        grid-column: span 2;
+        width: 100%;
     }
 
     label {
@@ -54,52 +78,121 @@
     }
 
     input {
-        padding: 8px 10px;
+        padding: 10px 12px;
         border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 14px;
+        border-radius: 6px;
+        font-size: 16px;
         font-family: inherit;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     .owners-container {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 10px;
+        width: 100%;
     }
 
     .owner-row {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         align-items: center;
+        width: 100%;
     }
 
     .btn {
-        padding: 10px 20px;
+        padding: 12px 16px;
         border: none;
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
         font-weight: bold;
         font-size: 14px;
     }
 
-    .btn-add { background-color: #28a745; color: white; }
+    .btn-add { 
+        background-color: #28a745; 
+        color: white; 
+        width: 100%;
+    }
     .btn-remove { 
         background-color: #dc3545; 
         color: white; 
-        padding: 8px 12px; 
+        padding: 10px 14px; 
         border: none; 
-        border-radius: 4px; 
+        border-radius: 6px; 
         cursor: pointer; 
         font-weight: bold;
+        white-space: nowrap;
+        font-size: 13px;
     }
-    .btn-print { background-color: #007bff; color: white; width: 100%; font-size: 16px; margin-top: 15px; }
+    .btn-print { 
+        background-color: #007bff; 
+        color: white; 
+        width: 100%; 
+        font-size: 16px; 
+        margin-top: 18px; 
+    }
+    .btn-reprint {
+        background-color: #17a2b8;
+        color: white;
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 12px;
+    }
+
+    /* LIST VIEW & SEARCH STYLES */
+    .records-card {
+        margin-top: 35px;
+        border-top: 2px dashed #e0e0e0;
+        padding-top: 20px;
+    }
+    .search-container {
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+    .search-input {
+        padding: 10px 14px;
+        border: 2px solid #007bff;
+        border-radius: 6px;
+        font-size: 15px;
+        width: 100%;
+    }
+    .records-table-container {
+        overflow-x: auto;
+        margin-top: 10px;
+    }
+    .records-table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+        font-size: 14px;
+    }
+    .records-table th {
+        background-color: #f8f9fa;
+        color: #495057;
+        padding: 10px;
+        border-bottom: 2px solid #dee2e6;
+        font-weight: 600;
+    }
+    .records-table td {
+        padding: 10px;
+        border-bottom: 1px solid #dee2e6;
+        vertical-align: middle;
+    }
+    .records-table tr:hover {
+        background-color: #f1f3f5;
+    }
 
     .site-footer {
         margin-top: 25px;
         padding-top: 15px;
         border-top: 1px solid #e0e0e0;
         text-align: center;
-        font-size: 13px;
+        font-size: 12px;
         color: #666;
         font-weight: 500;
     }
@@ -109,10 +202,9 @@
         display: none;
     }
 
-    /* STRICT SAFARI & IOS PRINT ENGINE FIXES */
     @page {
         size: A4 portrait;
-        margin: 0mm !important; /* Removes Safari Headers, Footers, URLs, Dates */
+        margin: 0mm !important;
     }
 
     @media print {
@@ -143,7 +235,7 @@
 
         .page {
             width: 210mm !important;
-            height: 296mm !important; /* Fixed exact height preventing blank trailing pages in Safari */
+            height: 296mm !important;
             max-height: 296mm !important;
             padding: 12mm 18mm !important;
             margin: 0 auto !important;
@@ -151,7 +243,7 @@
             page-break-before: always !important;
             page-break-after: always !important;
             page-break-inside: avoid !important;
-            overflow: hidden !important; /* Safari boundary lock */
+            overflow: hidden !important;
             position: relative !important;
         }
 
@@ -205,7 +297,6 @@
             margin-bottom: 8px;
         }
 
-        /* PAGE 3 COMPACT SINGLE-PAGE SAFARI SPECIFIC STYLES */
         .page-3 {
             padding: 10mm 15mm !important;
             font-size: 9pt !important;
@@ -249,7 +340,6 @@
         <div class="form-grid">
             <div class="form-group">
                 <label>Date / તારીખ (Calendar Select)</label>
-                <!-- NATIVE DATE INPUT WITH CALENDAR PICKER -->
                 <input type="date" id="in_date">
             </div>
             <div class="form-group">
@@ -297,20 +387,49 @@
                 <label>7/12 Owner Name(s) / જમીન માલિકનું નામ</label>
                 <div class="owners-container" id="ownersContainer">
                     <div class="owner-row">
-                        <input type="text" class="owner-input" value="JITENDRA VALJI BHANUSHALI" style="width: 100%;">
+                        <input type="text" class="owner-input" value="JITENDRA VALJI BHANUSHALI">
                         <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
                     </div>
                     <div class="owner-row">
-                        <input type="text" class="owner-input" value="CHANDRAKANT VALJI BHANUSHALI" style="width: 100%;">
+                        <input type="text" class="owner-input" value="CHANDRAKANT VALJI BHANUSHALI">
                         <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
                     </div>
                 </div>
-                <button type="button" class="btn btn-add" onclick="addOwnerField()" style="margin-top: 8px;">+ Add More Owners</button>
+                <button type="button" class="btn btn-add" onclick="addOwnerField()" style="margin-top: 10px;">+ Add More Owners</button>
             </div>
         </div>
 
         <button type="button" class="btn btn-print" onclick="generateAndPrint()">PRINT DATA / PRINT FORM</button>
     </form>
+
+    <!-- GENERATED CONSENT RECORDS LIST VIEW & SEARCH -->
+    <div class="records-card">
+        <h2>Generated Consent Records</h2>
+        
+        <div class="search-container">
+            <input type="text" id="searchBox" class="search-input" placeholder="🔍 Search by Survey No, Owner Name, or Mobile Number..." oninput="filterRecords()">
+        </div>
+
+        <div class="records-table-container">
+            <table class="records-table">
+                <thead>
+                    <tr>
+                        <th>Sr. no.</th>
+                        <th>Survey Number</th>
+                        <th>Date Generated</th>
+                        <th>First Owner Name</th>
+                        <th>Mobile Number</th>
+                        <th style="text-align: center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="consentRecordsBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #888;">No consent form records created yet. Submit a form above.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <div class="site-footer">
         &copy; 2026 All Rights Reserved | Engineered by Nakul Kapdi
@@ -470,27 +589,264 @@
     </div>
 </div>
 
+<!-- FIREBASE FIRESTORE & LOCAL LIST MANAGEMENT SCRIPT -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+        getFirestore, 
+        collection, 
+        addDoc, 
+        getDocs, 
+        query, 
+        where, 
+        onSnapshot 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // REPLACE WITH YOUR REAL FIREBASE KEYS FROM FIREBASE CONSOLE
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    window.consentListCache = [];
+    let db;
+    let consentCollectionRef;
+
+    try {
+        if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            consentCollectionRef = collection(db, "consent-form");
+
+            // Realtime sync from Firestore
+            onSnapshot(consentCollectionRef, (snapshot) => {
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const idx = window.consentListCache.findIndex(item => item.surveyNo === data.surveyNo);
+                    if (idx > -1) {
+                        window.consentListCache[idx] = data;
+                    } else {
+                        window.consentListCache.push(data);
+                    }
+                });
+                renderTable(window.consentListCache);
+            }, (error) => {
+                console.error("Firestore Listen Error:", error);
+            });
+        }
+    } catch (e) {
+        console.error("Firebase Initialization Failed:", e);
+    }
+
+    // Render Table Rows
+    window.renderTable = function(records) {
+        const tbody = document.getElementById('consentRecordsBody');
+        tbody.innerHTML = '';
+
+        if (!records || records.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888;">No consent form records found.</td></tr>`;
+            return;
+        }
+
+        let index = 1;
+        records.forEach((data) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${index++}</td>
+                <td><b>${data.surveyNo || ''}</b></td>
+                <td>${data.dateGenerated || ''}</td>
+                <td>${data.firstOwner || ''}</td>
+                <td>${data.mobile || ''}</td>
+                <td style="text-align: center;">
+                    <button type="button" class="btn-reprint" onclick="reprintConsent('${data.surveyNo}')">Print</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    };
+
+    // Live Search Filter
+    window.filterRecords = function() {
+        const queryVal = document.getElementById('searchBox').value.toLowerCase().trim();
+        if (!window.consentListCache) return;
+
+        if (!queryVal) {
+            renderTable(window.consentListCache);
+            return;
+        }
+
+        const filtered = window.consentListCache.filter(item => {
+            const survey = (item.surveyNo || '').toLowerCase();
+            const owner = (item.firstOwner || '').toLowerCase();
+            const mobile = (item.mobile || '').toLowerCase();
+            const allOwners = (item.owners || []).join(' ').toLowerCase();
+
+            return survey.includes(queryVal) || owner.includes(queryVal) || mobile.includes(queryVal) || allOwners.includes(queryVal);
+        });
+
+        renderTable(filtered);
+    };
+
+    // Check Duplicate Survey Entry
+    async function checkDuplicateSurvey(surveyNo) {
+        const inMemoryDuplicate = window.consentListCache.some(item => item.surveyNo === surveyNo);
+        if (inMemoryDuplicate) return true;
+
+        if (consentCollectionRef) {
+            try {
+                const q = query(consentCollectionRef, where("surveyNo", "==", surveyNo));
+                const querySnapshot = await getDocs(q);
+                return !querySnapshot.empty;
+            } catch (err) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    // Generate & Print Action with Duplicate Check Warning
+    window.generateAndPrint = async function() {
+        convertLandArea();
+
+        const survey = document.getElementById('in_survey').value.trim();
+        if (!survey) {
+            alert("Please enter a valid Survey Number.");
+            return;
+        }
+
+        // DUPLICATE CHECK WARNING
+        const isDuplicate = await checkDuplicateSurvey(survey);
+        if (isDuplicate) {
+            alert(`Warning: Consent form for Survey No. "${survey}" is already generated! Duplicate entries are not allowed.`);
+            return;
+        }
+
+        const ownerInputs = document.querySelectorAll('.owner-input');
+        const ownerNames = [];
+        ownerInputs.forEach(input => {
+            if (input.value.trim() !== '') {
+                ownerNames.push(input.value.trim());
+            }
+        });
+
+        const formattedDate = getFormattedDateForPrint();
+        const khata = document.getElementById('in_khata').value;
+        const vEn = document.getElementById('in_village_en').value;
+        const vGu = document.getElementById('in_village_gu').value;
+        const taluka = document.getElementById('in_taluka').value;
+        const district = document.getElementById('in_district').value;
+        const has = document.getElementById('in_has').value;
+        const acres = Number(document.getElementById('in_acres').value) || 0;
+        const guntha = Number(document.getElementById('in_guntha').value) || 0;
+        const mobile = document.getElementById('in_mobile').value;
+
+        const formData = {
+            surveyNo: survey,
+            dateGenerated: formattedDate,
+            firstOwner: ownerNames[0] || '',
+            mobile: mobile,
+            khataNo: khata,
+            villageEn: vEn,
+            villageGu: vGu,
+            taluka: taluka,
+            district: district,
+            has: has,
+            acres: acres,
+            guntha: guntha,
+            owners: ownerNames,
+            createdAt: new Date()
+        };
+
+        if (consentCollectionRef) {
+            try {
+                await addDoc(consentCollectionRef, formData);
+            } catch (error) {
+                console.warn("Firestore save skipped/failed. Updating locally:", error);
+            }
+        }
+
+        triggerPrintLayout(formData);
+    };
+
+    // Render Print Document & Update Local View Instantly
+    window.triggerPrintLayout = function(data) {
+        // Update UI table instantly
+        const existingIndex = window.consentListCache.findIndex(item => item.surveyNo === data.surveyNo);
+        if (existingIndex > -1) {
+            window.consentListCache[existingIndex] = data;
+        } else {
+            window.consentListCache.push(data);
+        }
+        renderTable(window.consentListCache);
+
+        // Populate print document template
+        populateSpanClass('out_date', data.dateGenerated);
+        populateSpanClass('out_khata', data.khataNo);
+        populateSpanClass('out_v_en', data.villageEn);
+        populateSpanClass('out_v_gu', data.villageGu);
+        populateSpanClass('out_taluka', data.taluka);
+        populateSpanClass('out_district', data.district);
+        populateSpanClass('out_survey', data.surveyNo);
+        populateSpanClass('out_has', data.has);
+        populateSpanClass('out_acres', data.acres);
+        populateSpanClass('out_guntha', data.guntha);
+        populateSpanClass('out_mobile', data.mobile);
+
+        const p2Tbody = document.getElementById('page2_owner_rows');
+        p2Tbody.innerHTML = '';
+        
+        let totalRows = Math.max(data.owners.length, 10);
+        for (let i = 0; i < totalRows; i++) {
+            const tr = document.createElement('tr');
+            const name = data.owners[i] ? data.owners[i] : '';
+            tr.innerHTML = `
+                <td class="center">${i + 1}</td>
+                <td>${name}</td>
+                <td></td>
+            `;
+            p2Tbody.appendChild(tr);
+        }
+
+        document.getElementById('p3_owner_table').innerText = data.owners.join(' / ');
+
+        // Trigger Print Window
+        setTimeout(() => {
+            window.print();
+        }, 100);
+    };
+
+    // Reprint existing record
+    window.reprintConsent = function(surveyNo) {
+        if (!window.consentListCache) return;
+        const record = window.consentListCache.find(item => item.surveyNo === surveyNo);
+        if (record) {
+            triggerPrintLayout(record);
+        }
+    };
+</script>
+
 <script>
     let debounceTimer;
 
-    // AUTO-FETCH & SET CURRENT DATE IN DATE PICKER
     function setInitialCurrentDate() {
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const day = String(today.getDate()).padStart(2, '0');
         
-        // HTML5 date inputs require YYYY-MM-DD
         document.getElementById('in_date').value = `${year}-${month}-${day}`;
     }
 
-    // FORMAT DATE FROM YYYY-MM-DD TO DD-MM-YYYY FOR PRINT OUTPUT
     function getFormattedDateForPrint() {
         const rawDate = document.getElementById('in_date').value;
         if (!rawDate) return '';
         const parts = rawDate.split('-');
         if (parts.length === 3) {
-            return `${parts[2]}-${parts[1]}-${parts[0]}`; // Convert YYYY-MM-DD to DD-MM-YYYY
+            return `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
         return rawDate;
     }
@@ -550,7 +906,7 @@
         const div = document.createElement('div');
         div.className = 'owner-row';
         div.innerHTML = `
-            <input type="text" class="owner-input" placeholder="Owner Name" style="width: 100%;">
+            <input type="text" class="owner-input" placeholder="Owner Name">
             <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
         `;
         container.appendChild(div);
@@ -570,63 +926,6 @@
         for (let el of elements) {
             el.innerText = value;
         }
-    }
-
-    function generateAndPrint() {
-        convertLandArea();
-
-        const formattedDate = getFormattedDateForPrint();
-        const khata = document.getElementById('in_khata').value;
-        const vEn = document.getElementById('in_village_en').value;
-        const vGu = document.getElementById('in_village_gu').value;
-        const taluka = document.getElementById('in_taluka').value;
-        const district = document.getElementById('in_district').value;
-        const survey = document.getElementById('in_survey').value;
-        const has = document.getElementById('in_has').value;
-        const acres = document.getElementById('in_acres').value;
-        const guntha = document.getElementById('in_guntha').value;
-        const mobile = document.getElementById('in_mobile').value;
-
-        populateSpanClass('out_date', formattedDate);
-        populateSpanClass('out_khata', khata);
-        populateSpanClass('out_v_en', vEn);
-        populateSpanClass('out_v_gu', vGu);
-        populateSpanClass('out_taluka', taluka);
-        populateSpanClass('out_district', district);
-        populateSpanClass('out_survey', survey);
-        populateSpanClass('out_has', has);
-        populateSpanClass('out_acres', acres);
-        populateSpanClass('out_guntha', guntha);
-        populateSpanClass('out_mobile', mobile);
-
-        const ownerInputs = document.querySelectorAll('.owner-input');
-        const ownerNames = [];
-        ownerInputs.forEach(input => {
-            if (input.value.trim() !== '') {
-                ownerNames.push(input.value.trim());
-            }
-        });
-
-        const p2Tbody = document.getElementById('page2_owner_rows');
-        p2Tbody.innerHTML = '';
-        
-        let totalRows = Math.max(ownerNames.length, 10);
-        for (let i = 0; i < totalRows; i++) {
-            const tr = document.createElement('tr');
-            const name = ownerNames[i] ? ownerNames[i] : '';
-            tr.innerHTML = `
-                <td class="center">${i + 1}</td>
-                <td>${name}</td>
-                <td></td>
-            `;
-            p2Tbody.appendChild(tr);
-        }
-
-        document.getElementById('p3_owner_table').innerText = ownerNames.join(' / ');
-
-        setTimeout(() => {
-            window.print();
-        }, 100);
     }
 
     window.onload = function() {
