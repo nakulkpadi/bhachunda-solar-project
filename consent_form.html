@@ -9,66 +9,41 @@
         box-sizing: border-box;
     }
 
-    html, body {
-        width: 100%;
-        overflow-x: hidden; /* Prevents unwanted horizontal scrolling on mobile */
-    }
-
     body {
         font-family: Arial, sans-serif;
         background-color: #f4f6f9;
         margin: 0;
-        padding: 12px;
+        padding: 20px;
     }
     
     .no-print {
         background: #ffffff;
-        padding: 18px 14px;
-        border-radius: 12px;
+        padding: 20px;
+        border-radius: 8px;
         max-width: 900px;
-        width: 100%;
         margin: 0 auto 30px auto;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
 
     h2 {
         margin-top: 0;
         color: #333;
         text-align: center;
-        font-size: 20px;
     }
 
-    /* RESPONSIVE GRID LAYOUT: 1-Column on Mobile, 2-Column on Desktop */
     .form-grid {
         display: grid;
-        grid-template-columns: 1fr; /* Default mobile 1 column */
-        gap: 12px;
-        width: 100%;
-    }
-
-    @media (min-width: 601px) {
-        body {
-            padding: 20px;
-        }
-        .no-print {
-            padding: 25px;
-        }
-        h2 {
-            font-size: 24px;
-        }
-        .form-grid {
-            grid-template-columns: 1fr 1fr; /* Switch to 2 columns on larger screens */
-            gap: 15px;
-        }
-        .form-group.full-width {
-            grid-column: span 2;
-        }
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
     }
 
     .form-group {
         display: flex;
         flex-direction: column;
-        width: 100%;
+    }
+
+    .form-group.full-width {
+        grid-column: span 2;
     }
 
     label {
@@ -79,68 +54,52 @@
     }
 
     input {
-        padding: 10px 12px;
+        padding: 8px 10px;
         border: 1px solid #ccc;
-        border-radius: 6px;
-        font-size: 16px; /* 16px prevents automatic zoom-in on iOS Safari */
+        border-radius: 4px;
+        font-size: 14px;
         font-family: inherit;
-        width: 100%;
-        box-sizing: border-box;
     }
 
     .owners-container {
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        width: 100%;
+        gap: 8px;
     }
 
     .owner-row {
         display: flex;
-        gap: 8px;
+        gap: 10px;
         align-items: center;
-        width: 100%;
     }
 
     .btn {
-        padding: 12px 16px;
+        padding: 10px 20px;
         border: none;
-        border-radius: 6px;
+        border-radius: 4px;
         cursor: pointer;
         font-weight: bold;
         font-size: 14px;
     }
 
-    .btn-add { 
-        background-color: #28a745; 
-        color: white; 
-        width: 100%;
-    }
+    .btn-add { background-color: #28a745; color: white; }
     .btn-remove { 
         background-color: #dc3545; 
         color: white; 
-        padding: 10px 14px; 
+        padding: 8px 12px; 
         border: none; 
-        border-radius: 6px; 
+        border-radius: 4px; 
         cursor: pointer; 
         font-weight: bold;
-        white-space: nowrap;
-        font-size: 13px;
     }
-    .btn-print { 
-        background-color: #007bff; 
-        color: white; 
-        width: 100%; 
-        font-size: 16px; 
-        margin-top: 18px; 
-    }
+    .btn-print { background-color: #007bff; color: white; width: 100%; font-size: 16px; margin-top: 15px; }
 
     .site-footer {
         margin-top: 25px;
         padding-top: 15px;
         border-top: 1px solid #e0e0e0;
         text-align: center;
-        font-size: 12px;
+        font-size: 13px;
         color: #666;
         font-weight: 500;
     }
@@ -290,6 +249,7 @@
         <div class="form-grid">
             <div class="form-group">
                 <label>Date / તારીખ (Calendar Select)</label>
+                <!-- NATIVE DATE INPUT WITH CALENDAR PICKER -->
                 <input type="date" id="in_date">
             </div>
             <div class="form-group">
@@ -337,15 +297,15 @@
                 <label>7/12 Owner Name(s) / જમીન માલિકનું નામ</label>
                 <div class="owners-container" id="ownersContainer">
                     <div class="owner-row">
-                        <input type="text" class="owner-input" value="JITENDRA VALJI BHANUSHALI">
+                        <input type="text" class="owner-input" value="JITENDRA VALJI BHANUSHALI" style="width: 100%;">
                         <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
                     </div>
                     <div class="owner-row">
-                        <input type="text" class="owner-input" value="CHANDRAKANT VALJI BHANUSHALI">
+                        <input type="text" class="owner-input" value="CHANDRAKANT VALJI BHANUSHALI" style="width: 100%;">
                         <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
                     </div>
                 </div>
-                <button type="button" class="btn btn-add" onclick="addOwnerField()" style="margin-top: 10px;">+ Add More Owners</button>
+                <button type="button" class="btn btn-add" onclick="addOwnerField()" style="margin-top: 8px;">+ Add More Owners</button>
             </div>
         </div>
 
@@ -513,21 +473,24 @@
 <script>
     let debounceTimer;
 
+    // AUTO-FETCH & SET CURRENT DATE IN DATE PICKER
     function setInitialCurrentDate() {
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const day = String(today.getDate()).padStart(2, '0');
         
+        // HTML5 date inputs require YYYY-MM-DD
         document.getElementById('in_date').value = `${year}-${month}-${day}`;
     }
 
+    // FORMAT DATE FROM YYYY-MM-DD TO DD-MM-YYYY FOR PRINT OUTPUT
     function getFormattedDateForPrint() {
         const rawDate = document.getElementById('in_date').value;
         if (!rawDate) return '';
         const parts = rawDate.split('-');
         if (parts.length === 3) {
-            return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            return `${parts[2]}-${parts[1]}-${parts[0]}`; // Convert YYYY-MM-DD to DD-MM-YYYY
         }
         return rawDate;
     }
@@ -587,7 +550,7 @@
         const div = document.createElement('div');
         div.className = 'owner-row';
         div.innerHTML = `
-            <input type="text" class="owner-input" placeholder="Owner Name">
+            <input type="text" class="owner-input" placeholder="Owner Name" style="width: 100%;">
             <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
         `;
         container.appendChild(div);
