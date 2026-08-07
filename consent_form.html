@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Consent & Undertaking Form Generator</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f6f9;
+        margin: 0;
+        padding: 20px;
+    }
+    
+    .no-print {
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 900px;
+        margin: 0 auto 30px auto;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    h2 {
+        margin-top: 0;
+        color: #333;
+        text-align: center;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-group.full-width {
+        grid-column: span 2;
+    }
+
+    label {
+        font-weight: bold;
+        font-size: 13px;
+        margin-bottom: 5px;
+        color: #555;
+    }
+
+    input {
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .owners-container {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .owner-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .btn-add { background-color: #28a745; color: white; }
+    .btn-remove { 
+        background-color: #dc3545; 
+        color: white; 
+        padding: 8px 12px; 
+        border: none; 
+        border-radius: 4px; 
+        cursor: pointer; 
+        font-weight: bold;
+    }
+    .btn-print { background-color: #007bff; color: white; width: 100%; font-size: 16px; margin-top: 15px; }
+
+    .site-footer {
+        margin-top: 25px;
+        padding-top: 15px;
+        border-top: 1px solid #e0e0e0;
+        text-align: center;
+        font-size: 13px;
+        color: #666;
+        font-weight: 500;
+    }
+
+    /* PRINT LAYOUT */
+    .print-area {
+        display: none;
+    }
+
+    @media print {
+        body {
+            background-color: #fff;
+            padding: 0;
+            margin: 0;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            color: #000;
+        }
+
+        .no-print {
+            display: none !important;
+        }
+
+        .print-area {
+            display: block !important;
+        }
+
+        .page {
+            width: 210mm;
+            height: 297mm;
+            padding: 15mm 20mm;
+            margin: 0 auto;
+            box-sizing: border-box;
+            page-break-after: always;
+            page-break-inside: avoid;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page:last-child {
+            page-break-after: avoid;
+        }
+
+        p {
+            line-height: 1.35;
+            margin-bottom: 8px;
+            margin-top: 0;
+            text-align: justify;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+
+        .data-table th, .data-table td {
+            border: 1px solid #000;
+            padding: 4px 6px;
+            font-size: 10pt;
+        }
+
+        .header-layout-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .header-layout-table td {
+            border: none;
+            padding: 0;
+            vertical-align: top;
+            font-size: 10.5pt;
+        }
+
+        .center { text-align: center; }
+        .bold { font-weight: bold; }
+        .title { font-size: 14pt; font-weight: bold; text-align: center; margin-bottom: 15px; text-transform: uppercase; }
+        
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        /* PAGE 3 COMPACT SINGLE-PAGE SPECIFIC STYLES */
+        .page-3 {
+            padding: 10mm 15mm !important;
+            font-size: 9.5pt !important;
+        }
+
+        .page-3 p {
+            line-height: 1.25 !important;
+            margin-bottom: 5px !important;
+            font-size: 9.5pt !important;
+        }
+
+        .page-3 .title {
+            font-size: 12pt !important;
+            margin-bottom: 8px !important;
+        }
+
+        .page-3 .data-table td {
+            padding: 3px 6px !important;
+            font-size: 9pt !important;
+        }
+
+        .signature-grid {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            font-size: 9.5pt;
+        }
+
+        .gu-text {
+            font-family: 'Shruti', 'Gujarati Mohini', 'Nirmala UI', sans-serif;
+        }
+    }
+</style>
+</head>
+<body>
+
+<!-- INPUT FORM SECTION -->
+<div class="no-print">
+    <h2>Data Input Form</h2>
+    <form id="landForm">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Date / તારીખ</label>
+                <input type="text" id="in_date" value="29-07-2026">
+            </div>
+            <div class="form-group">
+                <label>Khata No. / ખાતા નં.</label>
+                <input type="text" id="in_khata" value="558">
+            </div>
+            <div class="form-group">
+                <label>Village English (Auto Converts to Gujarati)</label>
+                <input type="text" id="in_village_en" value="Bhavanipur" oninput="transliterateVillage(this.value)">
+            </div>
+            <div class="form-group">
+                <label>Village Gujarati / ગામ</label>
+                <input type="text" id="in_village_gu" value="ભવાનીપર">
+            </div>
+            <div class="form-group">
+                <label>Taluka / તાલુકો</label>
+                <input type="text" id="in_taluka" value="Abdasa">
+            </div>
+            <div class="form-group">
+                <label>District / જીલ્લો</label>
+                <input type="text" id="in_district" value="Kachchh">
+            </div>
+            <div class="form-group">
+                <label>Survey No. / સર્વે નં.</label>
+                <input type="text" id="in_survey" value="542">
+            </div>
+            <div class="form-group">
+                <label>H.A.S. (Format: e.g. 1.60.57 or 2.50.70)</label>
+                <input type="text" id="in_has" value="1.60.57" oninput="convertLandArea()">
+            </div>
+            <div class="form-group">
+                <label>Acres (Auto-calculated)</label>
+                <input type="text" id="in_acres" value="3" readonly style="background-color: #e9ecef;">
+            </div>
+            <div class="form-group">
+                <label>Guntha (Auto-calculated)</label>
+                <input type="text" id="in_guntha" value="39" readonly style="background-color: #e9ecef;">
+            </div>
+            <div class="form-group full-width">
+                <label>Mobile No.</label>
+                <input type="text" id="in_mobile" value="9921494600">
+            </div>
+
+            <div class="form-group full-width">
+                <label>7/12 Owner Name(s) / જમીન માલિકનું નામ</label>
+                <div class="owners-container" id="ownersContainer">
+                    <div class="owner-row">
+                        <input type="text" class="owner-input" value="JITENDRA VALJI BHANUSHALI" style="width: 100%;">
+                        <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
+                    </div>
+                    <div class="owner-row">
+                        <input type="text" class="owner-input" value="CHANDRAKANT VALJI BHANUSHALI" style="width: 100%;">
+                        <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-add" onclick="addOwnerField()" style="margin-top: 8px;">+ Add More Owners</button>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-print" onclick="generateAndPrint()">PRINT DATA / PRINT FORM</button>
+    </form>
+
+    <div class="site-footer">
+        &copy; 2026 All Rights Reserved | Engineered by Nakul Kapdi
+    </div>
+</div>
+
+<!-- PRINTABLE DOCUMENTS LAYOUT -->
+<div class="print-area">
+    <!-- PAGE 01 -->
+    <div class="page">
+        <div class="title">CONSENT LETTER / સંમતિ પત્ર</div>
+
+        <table class="header-layout-table">
+            <tr>
+                <td style="width: 25%; white-space: nowrap;"><b>Date / તારીખ:</b> <span class="out_date"></span></td>
+                <td style="width: 75%;"><b>Place / સ્થળ:</b> Village. <span class="out_v_en"></span>, Tal. <span class="out_taluka"></span>, <span class="out_district"></span> / ગામ. <span class="out_v_gu"></span> તા. <span class="out_taluka"></span>, <span class="out_district"></span></td>
+            </tr>
+        </table>
+
+        <div class="bold" style="margin-bottom: 5px;">ENGLISH VERSION</div>
+        <p>
+            We, the undersigned, are providing our land located in <span class="out_taluka"></span>, District <span class="out_district"></span> having survey number <span class="out_survey"></span> village <span class="out_v_en"></span>, Tehsil <span class="out_taluka"></span>, and admeasuring H.Are.Sq.Mt. <span class="out_has"></span> acres <span class="out_acres"></span> guntha <span class="out_guntha"></span> (Said Land) on yearly lease to <b>Balarama Novagrid Private Limited (BNPL)</b>, for 29 years and 11 months for development of a Solar Project on the Said Land.
+        </p>
+        <p>
+            We hereby provide our consent for conversion of land from agricultural to non-agricultural status and shall undertake to sign all the necessary documents for submission to the Government Authorities.
+        </p>
+        <p>
+            We also provide our consent to BNPL to appoint Sutariya Law firm to issue public notice and undertake Title Due Diligence for Title Clearance and to receive objections and to undertake such necessary steps required for the said purpose.
+        </p>
+        <p>
+            It is mutually agreed that after the signing of this consent letter, if the title of the land is found to be clear, we will execute the formal lease agreement within two (2) months of the signing of this consent letter.
+        </p>
+
+        <div class="bold gu-text" style="margin-top: 15px; margin-bottom: 5px;">GUJARATI VERSION</div>
+        <p class="gu-text">
+            અમો નીચે હસ્તાક્ષર કરનારાઓ, અમારી જમીન જે ગામ: <span class="out_v_gu"></span>, તાલુકો <span class="out_taluka"></span>, જીલ્લો <span class="out_district"></span> ખાતે આવેલી છે, જેનો સર્વે નંબર <span class="out_survey"></span> છે અને કુલ વિસ્તાર હે.આરે.ચો.મી <span class="out_has"></span>, એકર <span class="out_acres"></span> ગુંઠા <span class="out_guntha"></span> છે (ઉલ્લેખિત જમીન) - તેને ૨૯ વર્ષ અને ૧૧ મહિનાની વાર્ષિક લીઝ પર બાલારામા નોવાગ્રિડ પ્રાઇવેટ લિમિટેડ (BNPL) ને સોલાર પ્રોજેક્ટના વિકાસ માટે આપી રહ્યા છીએ.
+        </p>
+        <p class="gu-text">
+            અમો સદરહું ખેતીની જમીનને હંગામી બિનખેતી (Temporary NA) જમીનમાં રૂપાંતર કરવા માટે અમારી સંમતિ આપીએ છીએ અને સરકારની સત્તાઓ સમક્ષ રજૂઆત માટે જરૂરી તમામ દસ્તાવેજો પર હસ્તાક્ષર કરવાની ખાતરી આપીએ છીએ.
+        </p>
+        <p class="gu-text">
+            અમે BNPL ને સુતરિયા લો ફર્મની નિમણૂક કરવા માટે પણ અમારી સંમતિ આપીએ છીએ જેથી સદરહું જમીન અંગે જાહેર નોટિસ બહાર પાડવામાં આવે, ટાઇટલ ક્લીયરન્સ માટે ટાઇટલ ડ્યુ ડીલીજન્સ હાથ ધરવામાં આવે, કોઈ પણ વાંધા અરજી પ્રાપ્ત કરવામાં આવે અને તે સંબંધિત જરૂરી કાર્યવાહી હાથ ધરવામાં આવે.
+        </p>
+        <p class="gu-text">
+            એ પણ પરસ્પર સંમતિ આપવામાં આવે છે કે આ સંમતિ પત્ર પર હસ્તાક્ષર કર્યા પછી, જો જમીનનું ટાઇટલ ક્લીયર (ચોખ્ખું) માલુમ પડશે, તો આ સંમતિ પત્ર પર હસ્તાક્ષર કર્યાના બે (૨) મહિનાની અંદર અમે રીતસરનો લીઝ એગ્રીમેન્ટ (ભાડા કરાર) કરી આપીશું.
+        </p>
+    </div>
+
+    <!-- PAGE 02 -->
+    <div class="page">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 10%;">No. / ક્રમ</th>
+                    <th style="width: 60%;">Name of Owner / Khatedar (English / Gujarati)</th>
+                    <th style="width: 30%;">Signature / સહી</th>
+                </tr>
+            </thead>
+            <tbody id="page2_owner_rows">
+            </tbody>
+        </table>
+
+        <div style="margin-top: 15px;" class="bold">
+            Khata No. / ખાતા નં.: <span class="out_khata"></span>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <div class="bold gu-text">Enclosures / અમે અમારી સંમતિ સાથે નીચે મુજબના દસ્તાવેજો જોડી રહ્યા છીએ:</div>
+            <ol class="gu-text" style="line-height: 1.8;">
+                <li>કેવાયસી દસ્તાવેજો (આધાર કાર્ડ, પાન કાર્ડ) / KYC Documents</li>
+                <li>જમીન ૭/૧૨ / Land Form - 7/12</li>
+                <li>કેન્સલ ચેક અથવા બેંક પાસબુક / Cancelled Cheque or Bank Passbook</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- PAGE 03 -->
+    <div class="page page-3">
+        <div class="title">ચિઠ્ઠી-કમ-બાંહેધરી / Letter-cum-Undertaking</div>
+
+        <div class="flex-between bold">
+            <div>Date / તારીખ: <span class="out_date"></span></div>
+            <div>Place / સ્થળ: <span class="out_v_gu"></span></div>
+        </div>
+
+        <p class="gu-text">
+            <b>ગુજરાતી:</b> અમો નીચે સહી કરનાર ખેડૂત/ખેડૂતો, જમીન માલિક/કબજેદાર તરીકે આથી પુષ્ટિ કરીએ છીએ કે, ૩૫૦ MW પાવર પ્રોજેક્ટ, જેનું પાવર 400 KV ભાચુંડા (અબડાસા) સબસ્ટેશનમાં ફીડ થવાનું છે, તે માટે પ્રોજેક્ટ ડેવલપર M/s Balaram Novagrid Private Limited વતી જમીન ફેસિલિટેટર અને EPC કોન્ટ્રાક્ટર M/s Pahal Green Energy Private Limited તરફથી મારા/અમારા બેંક ખાતામાં રૂ. ૧૦,૦૦૦/- ટોકન ફી તરીકે પ્રાપ્ત કર્યા છે.
+        </p>
+        <p class="gu-text">
+            અમે/અમો સમજીએ છીએ કે ઉપરોક્ત જમીનનો અંતે NA એટલે કે હંગામી બિનખેતી ઉપયોગ માટે રૂપાંતર કરાવવાનું રહેશે.
+        </p>
+        <p class="gu-text">
+            જો મારી/અમારી જમીન સંબંધિત કોઈપણ મુદ્દો, વિવાદ, દસ્તાવેજો ખામી, માલિકી/કબજાની ખામી, રેવન્યુ રેકોર્ડની ખામી અથવા અન્ય કોઈ જમીન સંબંધિત કારણોસર આગળની પ્રક્રિયામાં અડચણ આવે, તો હું/અમે પ્રાપ્ત કરેલી રૂ. ૧૦,૦૦૦/- ટોકન રકમ પરત કરવાની બાંહેધરી આપું/આપીએ છીએ.
+        </p>
+        <p class="gu-text">
+            એ પણ પરસ્પર સંમતિ આપવામાં આવે છે કે આ ચિઠ્ઠી-કમ-બાંહેધરી પર હસ્તાક્ષર કર્યા પછી, જે જમીનનું ટાઇટલ ક્લિયર (ચોખ્ખું) માલુમ પડશે. તો આ ચિઠ્ઠી-કમ-બાંહેધરી પર હસ્તાક્ષર કર્યાના બે (૨) મહિનાની અંદર અમે રીતસરનો લીઝ એગ્રીમેન્ટ (ભાડા કરાર) કરી આપીશું.
+        </p>
+        <p class="gu-text">
+            આ ચિઠ્ઠી/બાંહેધરી મેં/અમે મારી/અમારી સ્વેચ્છાએ અને કોઈપણ દબાણ વગર આપી છે.
+        </p>
+
+        <hr style="margin: 8px 0;">
+
+        <p>
+            <b>English:</b> I/We, the undersigned farmer/farmers listed below, owner/possessor of land, hereby confirm that I/we have accepted Rs. 10,000/- as token fee in my/our bank account from the land facilitator and EPC contractor M/s Pahal Green Energy Private Limited, on behalf of M/s Balaram Novagrid Private Limited, the project developer for the 350 MW power project to be fed into the 400 kV Bhachunda (Abdasa) Substation.
+        </p>
+        <p>
+            I/We understand that the said land is ultimately required to be converted into NA, i.e. Temporary Non-Agricultural use.
+        </p>
+        <p>
+            In case any land-related issue, dispute, defect in documents, title/possession issue, revenue record issue, or any other issue related to my/our land creates any obstruction in the further process, I/we undertake to return/refund the token amount of Rs. 10,000/- received by me/us.
+        </p>
+        <p>
+            It is mutually agreed that after the signing of this letter-cum-undertaking, if the title of the land is found to be clear, we will execute the formal lease agreement within two (2) months of the signing of this letter-cum-undertaking.
+        </p>
+        <p>
+            This letter/undertaking is given by me/us voluntarily and without any pressure.
+        </p>
+
+        <table class="data-table" style="margin-top: 8px;">
+            <tr>
+                <td style="width: 45%;"><b>જમીન માલિકનું નામ / Name of Land Owner:</b></td>
+                <td><span id="p3_owner_table"></span></td>
+            </tr>
+            <tr>
+                <td><b>ગામ / Village:</b></td>
+                <td><span class="out_v_en"></span> / <span class="out_v_gu"></span></td>
+            </tr>
+            <tr>
+                <td><b>સર્વે નં. / Survey No.:</b></td>
+                <td><span class="out_survey"></span></td>
+            </tr>
+            <tr>
+                <td><b>તાલુકો / Taluka:</b></td>
+                <td><span class="out_taluka"></span></td>
+            </tr>
+            <tr>
+                <td><b>જીલ્લો / District:</b></td>
+                <td><span class="out_district"></span></td>
+            </tr>
+            <tr>
+                <td><b>મોબાઈલ નં. / Mobile No.:</b></td>
+                <td><span class="out_mobile"></span></td>
+            </tr>
+        </table>
+
+        <div class="signature-grid">
+            <div>
+                <b>સાક્ષીનું નામ / Witness Name:</b> ____________________<br><br>
+                <b>સાક્ષીની સહી / Signature of Witness:</b> ________________
+            </div>
+            <div>
+                <br><br>
+                <b>ખેડૂતની સહી / Farmer's Signature:</b> ________________
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let debounceTimer;
+
+    function transliterateVillage(text) {
+        clearTimeout(debounceTimer);
+        const query = text.trim();
+        if (!query) {
+            document.getElementById('in_village_gu').value = '';
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            const url = `https://inputtools.google.com/request?text=${encodeURIComponent(query)}&itc=gu-t-i0-und&num=1`;
+            fetch(url)
+                .then(res => res.json())
+                .then(data => {
+                    if (data[0] === 'SUCCESS' && data[1] && data[1][0] && data[1][0][1]) {
+                        document.getElementById('in_village_gu').value = data[1][0][1][0];
+                    }
+                })
+                .catch(err => console.error("Transliteration Error:", err));
+        }, 300);
+    }
+
+    function convertLandArea() {
+        const val = document.getElementById('in_has').value.trim();
+        if (!val) return;
+
+        let sqMtr = 0;
+        if (val.includes('.')) {
+            const parts = val.split('.');
+            const hectare = parseInt(parts[0] || '0', 10);
+            const are = parseInt(parts[1] || '0', 10);
+            let cent = parts[2] || '0';
+            if (cent.length === 1) cent = cent + '0';
+            const centVal = parseInt(cent, 10);
+
+            sqMtr = (hectare * 10000) + (are * 100) + centVal;
+        } else {
+            sqMtr = parseFloat(val) || 0;
+        }
+
+        if (sqMtr > 0) {
+            const totalAcres = sqMtr / 4047;
+            const fullAcres = Math.floor(totalAcres);
+            const remainder = totalAcres - fullAcres;
+            const guntha = Math.round(remainder * 40);
+
+            document.getElementById('in_acres').value = fullAcres;
+            document.getElementById('in_guntha').value = guntha;
+        }
+    }
+
+    function addOwnerField() {
+        const container = document.getElementById('ownersContainer');
+        const div = document.createElement('div');
+        div.className = 'owner-row';
+        div.innerHTML = `
+            <input type="text" class="owner-input" placeholder="Owner Name" style="width: 100%;">
+            <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
+        `;
+        container.appendChild(div);
+    }
+
+    function removeOwnerField(btn) {
+        const rows = document.querySelectorAll('.owner-row');
+        if (rows.length > 1) {
+            btn.parentElement.remove();
+        } else {
+            alert("At least one land owner field must remain.");
+        }
+    }
+
+    function populateSpanClass(className, value) {
+        const elements = document.getElementsByClassName(className);
+        for (let el of elements) {
+            el.innerText = value;
+        }
+    }
+
+    function generateAndPrint() {
+        convertLandArea();
+
+        const date = document.getElementById('in_date').value;
+        const khata = document.getElementById('in_khata').value;
+        const vEn = document.getElementById('in_village_en').value;
+        const vGu = document.getElementById('in_village_gu').value;
+        const taluka = document.getElementById('in_taluka').value;
+        const district = document.getElementById('in_district').value;
+        const survey = document.getElementById('in_survey').value;
+        const has = document.getElementById('in_has').value;
+        const acres = document.getElementById('in_acres').value;
+        const guntha = document.getElementById('in_guntha').value;
+        const mobile = document.getElementById('in_mobile').value;
+
+        populateSpanClass('out_date', date);
+        populateSpanClass('out_khata', khata);
+        populateSpanClass('out_v_en', vEn);
+        populateSpanClass('out_v_gu', vGu);
+        populateSpanClass('out_taluka', taluka);
+        populateSpanClass('out_district', district);
+        populateSpanClass('out_survey', survey);
+        populateSpanClass('out_has', has);
+        populateSpanClass('out_acres', acres);
+        populateSpanClass('out_guntha', guntha);
+        populateSpanClass('out_mobile', mobile);
+
+        const ownerInputs = document.querySelectorAll('.owner-input');
+        const ownerNames = [];
+        ownerInputs.forEach(input => {
+            if (input.value.trim() !== '') {
+                ownerNames.push(input.value.trim());
+            }
+        });
+
+        const p2Tbody = document.getElementById('page2_owner_rows');
+        p2Tbody.innerHTML = '';
+        
+        let totalRows = Math.max(ownerNames.length, 10);
+        for (let i = 0; i < totalRows; i++) {
+            const tr = document.createElement('tr');
+            const name = ownerNames[i] ? ownerNames[i] : '';
+            tr.innerHTML = `
+                <td class="center">${i + 1}</td>
+                <td>${name}</td>
+                <td></td>
+            `;
+            p2Tbody.appendChild(tr);
+        }
+
+        document.getElementById('p3_owner_table').innerText = ownerNames.join(' / ');
+
+        window.print();
+    }
+
+    window.onload = function() {
+        convertLandArea();
+    };
+</script>
+</body>
+</html>
