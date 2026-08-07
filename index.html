@@ -145,7 +145,6 @@
             position: relative;
         }
 
-        /* FIXED FLEXBOX LAYOUT FOR PERFECT ALIGNMENT */
         .layout-grid {
             display: flex;
             flex-wrap: wrap;
@@ -165,8 +164,8 @@
             justify-content: space-between;
             min-height: 250px;
             width: 100%;
-            max-width: 270px; /* Controls maximum card width */
-            flex: 1 1 240px;  /* Allows cards to scale and adapt smoothly */
+            max-width: 270px;
+            flex: 1 1 240px;
             box-sizing: border-box;
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease;
         }
@@ -238,7 +237,7 @@
         .bg-purple-action { background-color: var(--btn-map-color); }
         .bg-teal-action { background-color: var(--btn-teal); }
 
-        /* FULL SCREEN MODAL SYSTEM STYLES WITH ZOOM SUPPORT */
+        /* FULL SCREEN MODAL SYSTEM STYLES */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -394,7 +393,7 @@
     <div class="portal-grid-container">
         <div class="layout-grid">
             
-            <!-- DATABASE CARD -->
+            <!-- 1. DATABASE CARD -->
             <div class="ui-card db-theme">
                 <div class="card-top-identity">
                     <div class="icon-wrapper">📂</div>
@@ -406,7 +405,7 @@
                 <a href="database.html" class="card-action-btn bg-green-action">Go to Database &nbsp;➔</a>
             </div>
 
-            <!-- CONSENT FORM CARD -->
+            <!-- 2. CONSENT FORM CARD -->
             <div class="ui-card consent-theme">
                 <div class="card-top-identity">
                     <div class="icon-wrapper">📝</div>
@@ -418,31 +417,7 @@
                 <a href="consent_form.html" class="card-action-btn bg-teal-action">Open Consent Form &nbsp;➔</a>
             </div>
 
-            <!-- DYNAMIC FULL-SCREEN POPUP PROJECT MAP CARD -->
-            <div class="ui-card map-theme">
-                <div class="card-top-identity">
-                    <div class="icon-wrapper">🗺️</div>
-                    <div class="card-inner-text">
-                        <h3>Project Layout Map</h3>
-                        <p>View the comprehensive site topography blueprint directly in-browser.</p>
-                    </div>
-                </div>
-                <button class="card-trigger-btn bg-purple-action" id="openMapBtn">View Project Map &nbsp;➔</button>
-            </div>
-
-            <!-- LEASE RENT CALCULATOR CARD -->
-            <div class="ui-card calc-theme">
-                <div class="card-top-identity">
-                    <div class="icon-wrapper">🧮</div>
-                    <div class="card-inner-text">
-                        <h3>Lease Rent Calculator</h3>
-                        <p>Calculate lease / rent for your land with our easy to use calculator.</p>
-                    </div>
-                </div>
-                <a href="https://nakulkpadi.github.io/LeaseRent-Pro/" class="card-action-btn bg-gold-action">Open Calculator &nbsp;➔</a>
-            </div>
-
-            <!-- AREA CALCULATOR CARD -->
+            <!-- 3. AREA CALCULATOR CARD -->
             <div class="ui-card area-theme">
                 <div class="card-top-identity">
                     <div class="icon-wrapper">📐</div>
@@ -454,10 +429,34 @@
                 <a href="calculator.html" class="card-action-btn bg-blue-action">Open Area Calc &nbsp;➔</a>
             </div>
 
+            <!-- 4. LEASE RENT CALCULATOR CARD -->
+            <div class="ui-card calc-theme">
+                <div class="card-top-identity">
+                    <div class="icon-wrapper">🧮</div>
+                    <div class="card-inner-text">
+                        <h3>Lease Rent Calculator</h3>
+                        <p>Calculate lease / rent for your land with our easy to use calculator.</p>
+                    </div>
+                </div>
+                <a href="https://nakulkpadi.github.io/LeaseRent-Pro/" class="card-action-btn bg-gold-action">Open Calculator &nbsp;➔</a>
+            </div>
+
+            <!-- 5. PROJECT LAYOUT MAP CARD -->
+            <div class="ui-card map-theme">
+                <div class="card-top-identity">
+                    <div class="icon-wrapper">🗺️</div>
+                    <div class="card-inner-text">
+                        <h3>Project Layout Map</h3>
+                        <p>View the comprehensive site topography blueprint directly in-browser.</p>
+                    </div>
+                </div>
+                <button class="card-trigger-btn bg-purple-action" id="openMapBtn">View Project Map &nbsp;➔</button>
+            </div>
+
         </div>
     </div>
 
-    <!-- 100% FULL SCREEN MAP POPUP OVERLAY LAYOUT -->
+    <!-- FULL SCREEN MAP POPUP OVERLAY LAYOUT -->
     <div id="mapModal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
