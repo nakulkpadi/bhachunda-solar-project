@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Consent & Undertaking Form Generator</title>
-<!-- html2pdf Library for direct PDF generation and sharing -->
+<!-- html2pdf Library for direct PDF generation and downloading -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
     * {
@@ -139,17 +139,7 @@
     .btn-reprint {
         background-color: #007bff;
         color: white;
-        padding: 6px 10px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: bold;
-        font-size: 12px;
-    }
-    .btn-reshare {
-        background-color: #25D366;
-        color: white;
-        padding: 6px 10px;
+        padding: 6px 12px;
         border: none;
         border-radius: 4px;
         cursor: pointer;
@@ -209,7 +199,6 @@
         font-weight: 500;
     }
 
-    /* Hidden layout used for direct browser print and PDF generation */
     .print-area {
         display: none;
     }
@@ -676,8 +665,7 @@
                 <td>${data.firstOwner || ''}</td>
                 <td>${data.mobile || ''}</td>
                 <td style="text-align: center; white-space: nowrap;">
-                    <button type="button" class="btn-reprint" onclick="reprintConsent('${data.surveyNo}')">Print</button>
-                    <button type="button" class="btn-reshare" onclick="reshareConsent('${data.surveyNo}')">Share</button>
+                    <button type="button" class="btn-reprint" onclick="reprintConsent('${data.surveyNo}')">Print / Download</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -772,97 +760,6 @@
         const record = window.consentListCache.find(item => String(item.surveyNo) === String(surveyNo));
         if (record) {
             triggerPrintLayout(record);
-        }
-    };
-
-    window.reshareConsent = async function(surveyNo) {
-        if (!window.consentListCache) return;
-        const record = window.consentListCache.find(item => String(item.surveyNo) === String(surveyNo));
-        if (!record) return;
-
-        populateSpanClass('out_date', record.dateGenerated);
-        populateSpanClass('out_khata', record.khataNo);
-        populateSpanClass('out_v_en', record.villageEn);
-        populateSpanClass('out_v_gu', record.villageGu);
-        populateSpanClass('out_taluka', record.taluka);
-        populateSpanClass('out_district', record.district);
-        populateSpanClass('out_survey', record.surveyNo);
-        populateSpanClass('out_has', record.has);
-        populateSpanClass('out_acres', record.acres);
-        populateSpanClass('out_guntha', record.guntha);
-        populateSpanClass('out_mobile', record.mobile);
-
-        const p2Tbody = document.getElementById('page2_owner_rows');
-        if (p2Tbody) {
-            p2Tbody.innerHTML = '';
-            let totalRows = Math.max(record.owners.length, 10);
-            for (let i = 0; i < totalRows; i++) {
-                const tr = document.createElement('tr');
-                const name = record.owners[i] ? record.owners[i] : '';
-                tr.innerHTML = `
-                    <td class="center">${i + 1}</td>
-                    <td>${name}</td>
-                    <td></td>
-                `;
-                p2Tbody.appendChild(tr);
-            }
-        }
-
-        const p3OwnerTable = document.getElementById('p3_owner_table');
-        if (p3OwnerTable) {
-            p3OwnerTable.innerText = record.owners.join(' / ');
-        }
-
-        const printElement = document.querySelector('.print-area');
-        printElement.style.display = 'block';
-
-        // Explicit width/height sizing on individual pages to lock correct layout formatting
-        const pages = printElement.querySelectorAll('.page');
-        pages.forEach(p => {
-            p.style.width = '794px';
-            p.style.minHeight = '1123px';
-            p.style.maxHeight = '1123px';
-            p.style.padding = '56px 68px';
-            p.style.backgroundColor = '#ffffff';
-            p.style.boxSizing = 'border-box';
-            p.style.position = 'relative';
-            p.style.overflow = 'hidden';
-            p.style.pageBreakAfter = 'always';
-            p.style.fontFamily = "'Times New Roman', Times, serif";
-            p.style.fontSize = '14px';
-            p.style.color = '#000000';
-        });
-
-        const pdfOptions = {
-            margin:       0,
-            filename:     `Consent_Form_Survey_${record.surveyNo}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, letterRendering: true, width: 794 },
-            jsPDF:        { unit: 'px', format: [794, 1123], orientation: 'portrait' }
-        };
-
-        try {
-            const pdfBlob = await html2pdf().set(pdfOptions).from(printElement).output('blob');
-            printElement.style.display = 'none';
-
-            const file = new File([pdfBlob], `Consent_Form_Survey_${record.surveyNo}.pdf`, { type: 'application/pdf' });
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    title: `Consent Form - Survey ${record.surveyNo}`,
-                    text: `Consent & Undertaking Form for Survey No. ${record.surveyNo}.`,
-                    files: [file]
-                });
-            } else {
-                const fileURL = URL.createObjectURL(pdfBlob);
-                const a = document.createElement('a');
-                a.href = fileURL;
-                a.download = `Consent_Form_Survey_${record.surveyNo}.pdf`;
-                a.click();
-            }
-        } catch (error) {
-            printElement.style.display = 'none';
-            alert("Error generating PDF: " + error.message);
         }
     };
 
