@@ -230,7 +230,6 @@
             color: #000;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-            overflow: visible !important;
         }
 
         .no-print {
@@ -246,9 +245,9 @@
 
         .page {
             width: 210mm !important;
-            height: 296mm !important;
-            max-height: 296mm !important;
-            padding: 12mm 18mm !important;
+            height: 297mm !important;
+            max-height: 297mm !important;
+            padding: 15mm 18mm !important;
             margin: 0 auto !important;
             box-sizing: border-box !important;
             page-break-before: always !important;
@@ -256,6 +255,7 @@
             page-break-inside: avoid !important;
             overflow: hidden !important;
             position: relative !important;
+            background: #ffffff !important;
         }
 
         .page:first-child {
@@ -309,7 +309,7 @@
         }
 
         .page-3 {
-            padding: 10mm 15mm !important;
+            padding: 12mm 15mm !important;
             font-size: 9pt !important;
         }
 
@@ -820,7 +820,7 @@
             margin:       0,
             filename:     `Consent_Form_Survey_${record.surveyNo}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
+            html2canvas:  { scale: 2, useCORS: true, letterRendering: true },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
         };
 
