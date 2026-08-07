@@ -19,7 +19,7 @@
             --btn-gold: #D97706;
             --btn-teal: #00796B;
             --footer-bg: #1B4332;
-            --btn-map-color: #7B2CBF; /* Unique color theme for the map card */
+            --btn-map-color: #7B2CBF;
         }
 
         html, body {
@@ -96,7 +96,7 @@
             background: linear-gradient(to right, rgba(255,255,255,0.95) 25%, rgba(255,255,255,0.2) 60%), url('banner.jpg') center center / cover no-repeat;
             display: flex;
             align-items: center;
-            padding: 160px 5% 60px 5%;
+            padding: 160px 5% 120px 5%;
             box-sizing: border-box;
         }
 
@@ -136,7 +136,7 @@
         }
 
         .portal-grid-container {
-            max-width: 1200px;
+            max-width: 1280px;
             width: 100%;
             margin: -90px auto 60px auto;
             padding: 0 25px;
@@ -145,23 +145,28 @@
             position: relative;
         }
 
+        /* FIXED FLEXBOX LAYOUT FOR PERFECT ALIGNMENT */
         .layout-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 25px;
+            display: flex;
+            flex-wrap: wrap;
             justify-content: center;
+            gap: 24px;
+            width: 100%;
         }
 
         .ui-card {
             background: #FFFFFF;
             border-radius: 24px;
-            padding: 35px 30px;
+            padding: 30px 25px;
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.06);
             border: 1px solid rgba(0, 0, 0, 0.03);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             min-height: 250px;
+            width: 100%;
+            max-width: 270px; /* Controls maximum card width */
+            flex: 1 1 240px;  /* Allows cards to scale and adapt smoothly */
             box-sizing: border-box;
             transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.3s ease;
         }
@@ -173,18 +178,18 @@
 
         .card-top-identity {
             display: flex;
-            gap: 20px;
+            gap: 16px;
             align-items: flex-start;
         }
 
         .icon-wrapper {
-            width: 70px;
-            height: 70px;
+            width: 60px;
+            height: 60px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2rem;
+            font-size: 1.8rem;
             flex-shrink: 0;
         }
 
@@ -196,24 +201,24 @@
 
         .card-inner-text h3 {
             margin: 0 0 8px 0;
-            font-size: 1.35rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--navy-blue);
         }
 
         .card-inner-text p {
             margin: 0;
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             color: var(--text-muted);
             line-height: 1.5;
         }
 
         .card-action-btn, .card-trigger-btn {
             width: 100%;
-            padding: 14px 24px;
+            padding: 14px 20px;
             border-radius: 10px;
             font-weight: 600;
-            font-size: 0.95rem;
+            font-size: 0.92rem;
             color: #FFFFFF;
             text-decoration: none;
             display: flex;
@@ -358,13 +363,10 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        @media (max-width: 992px) {
-            .layout-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
-        }
-
         @media (max-width: 768px) {
-            .hero-banner-container { min-height: auto; padding: 180px 20px 130px 20px; }
-            .portal-grid-container { margin-top: -50px; }
+            .hero-banner-container { min-height: auto; padding: 160px 20px 100px 20px; }
+            .portal-grid-container { margin-top: -40px; padding: 0 15px; }
+            .ui-card { max-width: 100%; }
             .footer-max-bounds, .dev-signature-row { flex-direction: column; align-items: flex-start; gap: 15px; }
         }
     </style>
