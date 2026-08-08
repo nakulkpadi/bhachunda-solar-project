@@ -267,9 +267,12 @@
         display: none;
     }
 
+    /* ========================================================= */
+    /* PRINT STYLES - PAGE 3 OPTIMIZED TO PREVENT CUTTING         */
+    /* ========================================================= */
     @page {
         size: A4 portrait;
-        margin: 15mm 15mm 15mm 15mm !important;
+        margin: 10mm 12mm 10mm 12mm !important;
     }
 
     @media print {
@@ -280,7 +283,7 @@
             padding: 0 !important;
             margin: 0 !important;
             font-family: Arial, sans-serif;
-            font-size: 10pt;
+            font-size: 13pt !important;
             color: #000;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -316,7 +319,7 @@
             width: 210mm !important;
             height: 297mm !important;
             max-height: 297mm !important;
-            padding: 15mm 18mm !important;
+            padding: 12mm 15mm 12mm 15mm !important;
             margin: 0 auto !important;
             box-sizing: border-box !important;
             page-break-before: always !important;
@@ -336,89 +339,110 @@
         }
 
         p {
-            line-height: 1.3;
-            margin-bottom: 6px;
+            line-height: 1.65 !important;
+            margin-bottom: 16px !important;
             margin-top: 0;
             text-align: justify;
+            font-size: 12.5pt !important;
         }
 
         .data-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 16px !important;
         }
 
         .data-table th, .data-table td {
             border: 1px solid #000;
-            padding: 4px 6px;
-            font-size: 10pt;
+            padding: 8px 10px !important;
+            font-size: 12pt !important;
         }
 
         .header-layout-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
+            margin-bottom: 20px !important;
         }
 
         .header-layout-table td {
             border: none;
-            padding: 0;
+            padding: 4px 0 !important;
             vertical-align: top;
-            font-size: 10.5pt;
+            font-size: 13pt !important;
         }
 
         .center { text-align: center; }
         .bold { font-weight: bold; }
-        .title { font-size: 13.5pt; font-weight: bold; text-align: center; margin-bottom: 12px; text-transform: uppercase; }
+        .title { 
+            font-size: 18pt !important; 
+            font-weight: bold; 
+            text-align: center; 
+            margin-bottom: 20px !important; 
+            text-transform: uppercase; 
+        }
         
         .flex-between {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
+            margin-bottom: 12px !important;
+            font-size: 12.5pt !important;
         }
 
+        /* Page 3 Tightened Layout to Avoid Signature Cutting */
         .page-3 {
-            padding: 12mm 15mm !important;
-            font-size: 9pt !important;
-        }
-
-        .page-3 p {
-            line-height: 1.2 !important;
-            margin-bottom: 4px !important;
-            font-size: 9pt !important;
+            padding: 8mm 12mm 8mm 12mm !important;
         }
 
         .page-3 .title {
-            font-size: 11.5pt !important;
+            font-size: 15pt !important;
+            margin-bottom: 8px !important;
+        }
+
+        .page-3 .flex-between {
+            margin-bottom: 6px !important;
+            font-size: 11pt !important;
+        }
+
+        .page-3 p {
+            line-height: 1.32 !important;
+            margin-bottom: 6px !important;
+            font-size: 10.2pt !important;
+        }
+
+        .page-3 hr {
+            margin: 4px 0 !important;
+        }
+
+        .page-3 .data-table {
             margin-bottom: 6px !important;
         }
 
         .page-3 .data-table td {
-            padding: 2px 5px !important;
-            font-size: 8.5pt !important;
+            padding: 3px 6px !important;
+            font-size: 10pt !important;
         }
 
         .signature-section {
-            margin-top: 10px;
+            margin-top: 10px !important;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
-            font-size: 9pt;
+            font-size: 10.5pt !important;
         }
 
         .revenue-stamp-box {
-            width: 25mm;
-            height: 20mm;
-            border: 1.5px dashed #555;
+            width: 24mm !important;
+            height: 17mm !important;
+            border: 1px dashed #555;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
-            font-size: 7pt;
+            font-size: 6.5pt !important;
             color: #666;
             background-color: #fafafa;
             padding: 2px;
-            line-height: 1;
+            line-height: 1.1;
         }
 
         .gu-text {
@@ -432,8 +456,8 @@
         }
         .print-list-table th, .print-list-table td {
             border: 1px solid #333;
-            padding: 6px 8px;
-            font-size: 10pt;
+            padding: 8px 10px;
+            font-size: 11pt;
             text-align: left;
         }
         .print-list-table th {
@@ -558,12 +582,12 @@
 
         <table class="header-layout-table">
             <tr>
-                <td style="width: 30%; white-space: nowrap;"><b>Date / તારીખ:</b> <span class="out_date"></span></td>
-                <td style="width: 70%;"><b>Place / સ્થળ:</b> Village. <span class="out_v_en"></span>, Tal. <span class="out_taluka"></span>, <span class="out_district"></span> / ગામ. <span class="out_v_gu"></span> તા. <span class="out_taluka"></span>, <span class="out_district"></span></td>
+                <td style="width: 35%; white-space: nowrap;"><b>Date / તારીખ:</b> <span class="out_date"></span></td>
+                <td style="width: 65%;"><b>Place / સ્થળ:</b> Village. <span class="out_v_en"></span>, Tal. <span class="out_taluka"></span>, <span class="out_district"></span> / ગામ. <span class="out_v_gu"></span> તા. <span class="out_taluka"></span>, <span class="out_district"></span></td>
             </tr>
         </table>
 
-        <div class="bold" style="margin-bottom: 4px;">ENGLISH VERSION</div>
+        <div class="bold" style="margin-bottom: 8px;">ENGLISH VERSION</div>
         <p>
             We, the undersigned, are providing our land located in <span class="out_taluka"></span>, District <span class="out_district"></span> having survey number <span class="out_survey"></span> village <span class="out_v_en"></span>, Tehsil <span class="out_taluka"></span>, and admeasuring H.Are.Sq.Mt. <span class="out_has"></span> acres <span class="out_acres"></span> guntha <span class="out_guntha"></span> (Said Land) on yearly lease to <b>Balarama Novagrid Private Limited (BNPL)</b>, for 29 years and 11 months for development of a Solar Project on the Said Land.
         </p>
@@ -577,7 +601,7 @@
             It is mutually agreed that after the signing of this consent letter, if the title of the land is found to be clear, we will execute the formal lease agreement within two (2) months of the signing of this consent letter.
         </p>
 
-        <div class="bold gu-text" style="margin-top: 12px; margin-bottom: 4px;">GUJARATI VERSION</div>
+        <div class="bold gu-text" style="margin-top: 14px; margin-bottom: 8px;">GUJARATI VERSION</div>
         <p class="gu-text">
             અમો નીચે હસ્તાક્ષર કરનારાઓ, અમારી જમીન જે ગામ: <span class="out_v_gu"></span>, તાલુકો <span class="out_taluka"></span>, જીલ્લો <span class="out_district"></span> ખાતે આવેલી છે, જેનો સર્વે નંબર <span class="out_survey"></span> છે અને કુલ વિસ્તાર હે.આરે.ચો.મી <span class="out_has"></span>, એકર <span class="out_acres"></span> ગુંઠા <span class="out_guntha"></span> છે (ઉલ્લેખિત જમીન) - તેને ૨૯ વર્ષ અને ૧૧ મહિનાની વાર્ષિક લીઝ પર બાલારામા નોવાગ્રિડ પ્રાઇવેટ લિમિટેડ (BNPL) ને સોલાર પ્રોજેક્ટના વિકાસ માટે આપી રહ્યા છીએ.
         </p>
@@ -605,13 +629,13 @@
             </tbody>
         </table>
 
-        <div style="margin-top: 12px;" class="bold">
+        <div style="margin-top: 14px;" class="bold">
             Khata No. / ખાતા નં.: <span class="out_khata"></span>
         </div>
 
-        <div style="margin-top: 15px;">
-            <div class="bold gu-text">Enclosures / અમે અમારી સંમતિ સાથે નીચે મુજબના દસ્તાવેજો જોડી રહ્યા છીએ:</div>
-            <ol class="gu-text" style="line-height: 1.6;">
+        <div style="margin-top: 18px;">
+            <div class="bold gu-text" style="font-size: 13pt;">Enclosures / અમે અમારી સંમતિ સાથે નીચે મુજબના દસ્તાવેજો જોડી રહ્યા છીએ:</div>
+            <ol class="gu-text" style="line-height: 1.6; margin-top: 8px; margin-bottom: 0; font-size: 12pt;">
                 <li>કેવાયસી દસ્તાવેજો (આધાર કાર્ડ, પાન કાર્ડ) / KYC Documents</li>
                 <li>જમીન ૭/૧૨ / Land Form - 7/12</li>
                 <li>કેન્સલ ચેક અથવા બેંક પાસબુક / Cancelled Cheque or Bank Passbook</li>
@@ -643,7 +667,7 @@
             આ ચિઠ્ઠી/બાંહેધરી મેં/અમે મારી/અમારી સ્વેચ્છાએ અને કોઈપણ દબાણ વગર આપી છે.
         </p>
 
-        <hr style="margin: 4px 0;">
+        <hr>
 
         <p>
             <b>English:</b> I/We, the undersigned farmer/farmers listed below, owner/possessor of land, hereby confirm that I/we have accepted Rs. 10,000/- as token fee in my/our bank account from the land facilitator and EPC contractor M/s Pahal Green Energy Private Limited, on behalf of M/s Balaram Novagrid Private Limited, the project developer for the 350 MW power project to be fed into the 400 kV Bhachunda (Abdasa) Substation.
@@ -661,9 +685,9 @@
             This letter/undertaking is given by me/us voluntarily and without any pressure.
         </p>
 
-        <table class="data-table" style="margin-top: 4px;">
+        <table class="data-table">
             <tr>
-                <td style="width: 45%;"><b>સર્વે નં. / Survey No.:</b></td>
+                <td style="width: 42%;"><b>સર્વે નં. / Survey No.:</b></td>
                 <td><span class="out_survey"></span></td>
             </tr>
             <tr>
@@ -694,14 +718,14 @@
 
         <div class="signature-section">
             <div style="width: 50%;">
-                <b>સાક્ષીનું નામ / Witness Name:</b> ____________________<br><br><br>
+                <b>સાક્ષીનું નામ / Witness Name:</b> ____________________<br><br>
                 <b>સાક્ષીની સહી / Signature of Witness:</b> ________________
             </div>
             <div style="display: flex; flex-direction: column; align-items: center; width: 45%;">
                 <div class="revenue-stamp-box">
                     PASTE REVENUE TICKET HERE<br>(રેવન્યુ સ્ટેમ્પ અહીં ચોંટાડો)
                 </div>
-                <div style="margin-top: 6px; text-align: center; width: 100%;" class="bold">
+                <div style="margin-top: 4px; text-align: center; width: 100%; font-size: 10pt;" class="bold">
                     ખેડૂતની સહી / Farmer's Signature
                 </div>
             </div>
