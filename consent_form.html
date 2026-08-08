@@ -344,11 +344,27 @@
             font-size: 8.5pt !important;
         }
 
-        .signature-grid {
-            margin-top: 12px;
+        .signature-section {
+            margin-top: 10px;
             display: flex;
             justify-content: space-between;
+            align-items: flex-end;
             font-size: 9pt;
+        }
+
+        .revenue-stamp-box {
+            width: 25mm;
+            height: 20mm;
+            border: 1.5px dashed #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 7pt;
+            color: #666;
+            background-color: #fafafa;
+            padding: 2px;
+            line-height: 1;
         }
 
         .gu-text {
@@ -604,14 +620,18 @@
             </tr>
         </table>
 
-        <div class="signature-grid">
-            <div style="width: 48%;">
-                <b>સાક્ષીનું નામ / Witness Name:</b> ____________________<br><br>
+        <div class="signature-section">
+            <div style="width: 50%;">
+                <b>સાક્ષીનું નામ / Witness Name:</b> ____________________<br><br><br>
                 <b>સાક્ષીની સહી / Signature of Witness:</b> ________________
             </div>
-            <div style="width: 48%; text-align: right;">
-                <br><br>
-                <b>ખેડૂતની સહી / Farmer's Signature:</b> ________________
+            <div style="display: flex; flex-direction: column; align-items: center; width: 45%;">
+                <div class="revenue-stamp-box">
+                    PASTE REVENUE TICKET HERE<br>(રેવન્યુ સ્ટેમ્પ અહીં ચોંટાડો)
+                </div>
+                <div style="margin-top: 6px; text-align: center; width: 100%;" class="bold">
+                    ખેડૂતની સહી / Farmer's Signature
+                </div>
             </div>
         </div>
     </div>
@@ -803,7 +823,7 @@
 
         document.getElementById('edit_record_id').value = record.id;
         document.getElementById('in_survey').value = record.surveyNo || '';
-        document.getElementById('in_survey').readOnly = true; // prevent changing primary key survey no during update
+        document.getElementById('in_survey').readOnly = true; 
         document.getElementById('in_khata').value = record.khataNo || '';
         document.getElementById('in_village_en').value = record.villageEn || 'Bhavanipur';
         handleVillageChange(record.villageEn || 'Bhavanipur');
@@ -814,7 +834,6 @@
         document.getElementById('in_guntha').value = record.guntha || '';
         document.getElementById('in_mobile').value = record.mobile || '';
 
-        // Handle date
         if (record.dateGenerated) {
             const parts = record.dateGenerated.split('-');
             if (parts.length === 3) {
@@ -824,7 +843,6 @@
             }
         }
 
-        // Handle owners
         const container = document.getElementById('ownersContainer');
         container.innerHTML = '';
         const owners = record.owners && record.owners.length > 0 ? record.owners : [''];
