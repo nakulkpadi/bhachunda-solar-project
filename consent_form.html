@@ -189,14 +189,43 @@
     .search-container {
         margin-top: 15px;
         margin-bottom: 15px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
     }
     .search-input {
         padding: 10px 14px;
         border: 2px solid #007bff;
         border-radius: 6px;
         font-size: 15px;
-        width: 100%;
+        flex: 1;
+        min-width: 250px;
     }
+    .list-action-btns {
+        display: flex;
+        gap: 8px;
+    }
+    .btn-list-action {
+        padding: 10px 14px;
+        border: none;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 13px;
+        cursor: pointer;
+        color: white;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .btn-print-list {
+        background-color: #17a2b8;
+    }
+    .btn-export-list {
+        background-color: #28a745;
+    }
+
     .records-table-container {
         overflow-x: auto;
         margin-top: 10px;
@@ -234,9 +263,13 @@
         display: none;
     }
 
+    .list-print-container {
+        display: none;
+    }
+
     @page {
         size: A4 portrait;
-        margin: 0mm !important;
+        margin: 15mm 15mm 15mm 15mm !important;
     }
 
     @media print {
@@ -246,8 +279,8 @@
             background: #ffffff !important;
             padding: 0 !important;
             margin: 0 !important;
-            font-family: 'Times New Roman', Times, serif;
-            font-size: 11pt;
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
             color: #000;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -257,9 +290,24 @@
             display: none !important;
         }
 
-        .print-area {
+        body.printing-forms .print-area {
             display: block !important;
             width: 210mm !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        body.printing-forms .list-print-container {
+            display: none !important;
+        }
+
+        body.printing-list .print-area {
+            display: none !important;
+        }
+
+        body.printing-list .list-print-container {
+            display: block !important;
+            width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
         }
@@ -376,12 +424,26 @@
         .gu-text {
             font-family: 'Shruti', 'Gujarati Mohini', 'Nirmala UI', sans-serif;
         }
+
+        .print-list-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .print-list-table th, .print-list-table td {
+            border: 1px solid #333;
+            padding: 6px 8px;
+            font-size: 10pt;
+            text-align: left;
+        }
+        .print-list-table th {
+            background-color: #eaeaea !important;
+        }
     }
 </style>
 </head>
-<body>
+<body class="">
 
-<!-- INPUT FORM SECTION -->
 <div class="no-print">
     <h2 id="formTitle">Data Input Form</h2>
     <form id="landForm">
@@ -452,12 +514,15 @@
         <button type="button" id="cancelEditBtn" class="btn btn-cancel-edit" onclick="cancelEditMode()">Cancel Edit</button>
     </form>
 
-    <!-- GENERATED CONSENT RECORDS LIST VIEW & SEARCH -->
     <div class="records-card">
         <h2>Generated Consent Records</h2>
         
         <div class="search-container">
             <input type="text" id="searchBox" class="search-input" placeholder="🔍 Search by Survey No, Owner Name, or Mobile Number..." oninput="filterRecords()">
+            <div class="list-action-btns">
+                <button type="button" class="btn-list-action btn-print-list" onclick="printRecordsList()">🖨️ Print List</button>
+                <button type="button" class="btn-list-action btn-export-list" onclick="exportRecordsCSV()">📥 Export CSV</button>
+            </div>
         </div>
 
         <div class="records-table-container">
@@ -487,9 +552,7 @@
     </div>
 </div>
 
-<!-- PRINTABLE DOCUMENTS LAYOUT -->
 <div class="print-area">
-    <!-- PAGE 01 -->
     <div class="page">
         <div class="title">CONSENT LETTER / સંમતિ પત્ર</div>
 
@@ -529,7 +592,6 @@
         </p>
     </div>
 
-    <!-- PAGE 02 -->
     <div class="page">
         <table class="data-table">
             <thead>
@@ -557,7 +619,6 @@
         </div>
     </div>
 
-    <!-- PAGE 03 -->
     <div class="page page-3">
         <div class="title">ચિઠ્ઠી-કમ-બાંહેધરી / Letter-cum-Undertaking</div>
 
@@ -648,7 +709,28 @@
     </div>
 </div>
 
-<!-- FIREBASE REALTIME DATABASE MODULE SCRIPT -->
+<div class="list-print-container" id="listPrintContainer">
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h2 style="margin: 0; font-size: 16pt;">Generated Consent Records Report</h2>
+        <p style="margin: 5px 0 0 0; font-size: 10pt; color: #555;">Bhachunda Solar Project - Consent Tracking</p>
+    </div>
+    <table class="print-list-table">
+        <thead>
+            <tr>
+                <th>Sr. No.</th>
+                <th>Survey No.</th>
+                <th>Khata No.</th>
+                <th>Date Generated</th>
+                <th>First Owner Name</th>
+                <th>Mobile Number</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="printListTableBody">
+        </tbody>
+    </table>
+</div>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
@@ -718,14 +800,14 @@
         let index = 1;
         records.forEach((data) => {
             const tr = document.createElement('tr');
-            const status = data.status || 'missing'; // default white/missing
+            const status = data.status || 'missing';
 
             if (status === 'received') {
-                tr.style.backgroundColor = '#d4edda'; // light green
+                tr.style.backgroundColor = '#d4edda';
             } else if (status === 'sent') {
-                tr.style.backgroundColor = '#fff3cd'; // light yellow
+                tr.style.backgroundColor = '#fff3cd';
             } else {
-                tr.style.backgroundColor = '#ffffff'; // white for missing details
+                tr.style.backgroundColor = '#ffffff';
             }
 
             tr.innerHTML = `
@@ -736,9 +818,9 @@
                 <td>${data.mobile || ''}</td>
                 <td style="text-align: center;">
                     <select class="status-select" onchange="updateRecordStatus('${data.id}', this.value)" style="background-color: ${status === 'received' ? '#c3e6cb' : status === 'sent' ? '#ffeeba' : '#fff'};">
-                        <option value="missing" ${status === 'missing' ? 'selected' : ''}>Missing Details (White)</option>
-                        <option value="sent" ${status === 'sent' ? 'selected' : ''}>Sent (Yellow)</option>
-                        <option value="received" ${status === 'received' ? 'selected' : ''}>Received Consent (Green)</option>
+                        <option value="missing" ${status === 'missing' ? 'selected' : ''}>Missing Details</option>
+                        <option value="sent" ${status === 'sent' ? 'selected' : ''}>Sent</option>
+                        <option value="received" ${status === 'received' ? 'selected' : ''}>Received Consent</option>
                     </select>
                 </td>
                 <td style="text-align: center; white-space: nowrap;">
@@ -976,6 +1058,9 @@
     }
 
     window.triggerPrintLayout = function(data) {
+        document.body.classList.remove('printing-list');
+        document.body.classList.add('printing-forms');
+
         populateSpanClass('out_date', data.dateGenerated);
         populateSpanClass('out_khata', data.khataNo);
         populateSpanClass('out_v_en', data.villageEn);
@@ -1012,6 +1097,80 @@
         setTimeout(() => {
             window.print();
         }, 100);
+    };
+
+    window.printRecordsList = function() {
+        document.body.classList.remove('printing-forms');
+        document.body.classList.add('printing-list');
+
+        const tbody = document.getElementById('printListTableBody');
+        tbody.innerHTML = '';
+
+        if (!window.consentListCache || window.consentListCache.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">No records available.</td></tr>`;
+        } else {
+            let index = 1;
+            window.consentListCache.forEach(item => {
+                const status = item.status || 'missing';
+                const statusText = status === 'received' ? 'Received Consent' : status === 'sent' ? 'Sent' : 'Missing Details';
+                
+                let bgHex = '#ffffff';
+                if (status === 'received') bgHex = '#d4edda';
+                else if (status === 'sent') bgHex = '#fff3cd';
+
+                const tr = document.createElement('tr');
+                tr.style.backgroundColor = bgHex;
+                tr.innerHTML = `
+                    <td>${index++}</td>
+                    <td><b>${item.surveyNo || ''}</b></td>
+                    <td>${item.khataNo || ''}</td>
+                    <td>${item.dateGenerated || ''}</td>
+                    <td>${item.firstOwner || ''}</td>
+                    <td>${item.mobile || ''}</td>
+                    <td><b>${statusText}</b></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        setTimeout(() => {
+            window.print();
+        }, 100);
+    };
+
+    window.exportRecordsCSV = function() {
+        if (!window.consentListCache || window.consentListCache.length === 0) {
+            alert("No records to export.");
+            return;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Sr. No.,Survey Number,Khata Number,Date Generated,First Owner Name,All Owners,Mobile Number,Village,Taluka,District,Status\r\n";
+
+        let index = 1;
+        window.consentListCache.forEach(item => {
+            const sr = index++;
+            const survey = `"${(item.surveyNo || '').replace(/"/g, '""')}"`;
+            const khata = `"${(item.khataNo || '').replace(/"/g, '""')}"`;
+            const date = `"${(item.dateGenerated || '').replace(/"/g, '""')}"`;
+            const firstOwner = `"${(item.firstOwner || '').replace(/"/g, '""')}"`;
+            const allOwners = `"${(item.owners || []).join(' / ').replace(/"/g, '""')}"`;
+            const mobile = `"${(item.mobile || '').replace(/"/g, '""')}"`;
+            const village = `"${(item.villageEn || '').replace(/"/g, '""')}"`;
+            const taluka = `"${(item.taluka || '').replace(/"/g, '""')}"`;
+            const district = `"${(item.district || '').replace(/"/g, '""')}"`;
+            const status = `"${(item.status || '').replace(/"/g, '""')}"`;
+
+            csvContent += [sr, survey, khata, date, firstOwner, allOwners, mobile, village, taluka, district, status].join(",") + "\r\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `Consent_Records_${new Date().toISOString().slice(0,10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 </script>
 
