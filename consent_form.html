@@ -134,9 +134,36 @@
         font-size: 16px; 
         margin-top: 18px; 
     }
+    .btn-update { 
+        background-color: #ffc107; 
+        color: #212529; 
+        width: 100%; 
+        font-size: 16px; 
+        margin-top: 18px; 
+        display: none;
+    }
+    .btn-cancel-edit { 
+        background-color: #6c757d; 
+        color: white; 
+        width: 100%; 
+        font-size: 14px; 
+        margin-top: 8px; 
+        display: none;
+    }
     .btn-reprint {
         background-color: #007bff;
         color: white;
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 12px;
+        margin-right: 4px;
+    }
+    .btn-edit {
+        background-color: #ffc107;
+        color: #212529;
         padding: 6px 12px;
         border: none;
         border-radius: 4px;
@@ -334,8 +361,9 @@
 
 <!-- INPUT FORM SECTION -->
 <div class="no-print">
-    <h2>Data Input Form</h2>
+    <h2 id="formTitle">Data Input Form</h2>
     <form id="landForm">
+        <input type="hidden" id="edit_record_id" value="">
         <div class="form-grid">
             <div class="form-group">
                 <label>Date / તારીખ (Calendar Select)</label>
@@ -397,7 +425,9 @@
             </div>
         </div>
 
-        <button type="button" class="btn btn-print" onclick="saveAndPrint()">SAVE & PRINT</button>
+        <button type="button" id="savePrintBtn" class="btn btn-print" onclick="saveAndPrint()">SAVE & PRINT</button>
+        <button type="button" id="updateBtn" class="btn btn-update" onclick="updateRecord()">UPDATE RECORD</button>
+        <button type="button" id="cancelEditBtn" class="btn btn-cancel-edit" onclick="cancelEditMode()">Cancel Edit</button>
     </form>
 
     <!-- GENERATED CONSENT RECORDS LIST VIEW & SEARCH -->
@@ -594,6 +624,7 @@
         getDatabase, 
         ref, 
         push, 
+        set,
         onValue 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -664,6 +695,7 @@
                 <td>${data.mobile || ''}</td>
                 <td style="text-align: center; white-space: nowrap;">
                     <button type="button" class="btn-reprint" onclick="reprintConsent('${data.surveyNo}')">Print / Download</button>
+                    <button type="button" class="btn-edit" onclick="editConsent('${data.surveyNo}')">Edit</button>
                 </td>
             `;
             tbody.appendChild(tr);
@@ -691,12 +723,13 @@
         renderTable(filtered);
     };
 
-    function checkDuplicateSurvey(surveyNo) {
-        return window.consentListCache.some(item => String(item.surveyNo) === String(surveyNo));
+    function checkDuplicateSurvey(surveyNo, currentEditingId = null) {
+        return window.consentListCache.some(item => String(item.surveyNo) === String(surveyNo) && item.id !== currentEditingId);
     }
 
     window.resetFormFields = function() {
         document.getElementById('landForm').reset();
+        document.getElementById('edit_record_id').value = '';
         
         document.getElementById('in_village_en').value = 'Bhavanipur';
         document.getElementById('in_village_gu').value = 'ભવાનીપર';
@@ -711,7 +744,17 @@
             </div>
         `;
         
+        document.getElementById('formTitle').innerText = "Data Input Form";
+        document.getElementById('savePrintBtn').style.display = "block";
+        document.getElementById('updateBtn').style.display = "none";
+        document.getElementById('cancelEditBtn').style.display = "none";
+        document.getElementById('in_survey').readOnly = false;
+        
         setInitialCurrentDate();
+    };
+
+    window.cancelEditMode = function() {
+        resetFormFields();
     };
 
     window.saveAndPrint = async function() {
@@ -750,6 +793,91 @@
         }
 
         triggerPrintLayout(formData);
+        resetFormFields();
+    };
+
+    window.editConsent = function(surveyNo) {
+        if (!window.consentListCache) return;
+        const record = window.consentListCache.find(item => String(item.surveyNo) === String(surveyNo));
+        if (!record) return;
+
+        document.getElementById('edit_record_id').value = record.id;
+        document.getElementById('in_survey').value = record.surveyNo || '';
+        document.getElementById('in_survey').readOnly = true; // prevent changing primary key survey no during update
+        document.getElementById('in_khata').value = record.khataNo || '';
+        document.getElementById('in_village_en').value = record.villageEn || 'Bhavanipur';
+        handleVillageChange(record.villageEn || 'Bhavanipur');
+        document.getElementById('in_taluka').value = record.taluka || 'Abdasa';
+        document.getElementById('in_district').value = record.district || 'Kutch';
+        document.getElementById('in_has').value = record.has || '';
+        document.getElementById('in_acres').value = record.acres || '';
+        document.getElementById('in_guntha').value = record.guntha || '';
+        document.getElementById('in_mobile').value = record.mobile || '';
+
+        // Handle date
+        if (record.dateGenerated) {
+            const parts = record.dateGenerated.split('-');
+            if (parts.length === 3) {
+                document.getElementById('in_date').value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+            } else {
+                document.getElementById('in_date').value = record.dateGenerated;
+            }
+        }
+
+        // Handle owners
+        const container = document.getElementById('ownersContainer');
+        container.innerHTML = '';
+        const owners = record.owners && record.owners.length > 0 ? record.owners : [''];
+        owners.forEach(owner => {
+            const div = document.createElement('div');
+            div.className = 'owner-row';
+            div.innerHTML = `
+                <input type="text" class="owner-input" value="${owner}" placeholder="Owner Name">
+                <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
+            `;
+            container.appendChild(div);
+        });
+
+        document.getElementById('formTitle').innerText = "Edit Consent Record (Survey No: " + surveyNo + ")";
+        document.getElementById('savePrintBtn').style.display = "none";
+        document.getElementById('updateBtn').style.display = "block";
+        document.getElementById('cancelEditBtn').style.display = "block";
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.updateRecord = async function() {
+        convertLandArea();
+
+        const recordId = document.getElementById('edit_record_id').value;
+        const survey = document.getElementById('in_survey').value.trim();
+        if (!survey || !recordId) {
+            alert("Invalid record identification.");
+            return;
+        }
+
+        const ownerInputs = document.querySelectorAll('.owner-input');
+        const ownerNames = [];
+        ownerInputs.forEach(input => {
+            if (input.value.trim() !== '') {
+                ownerNames.push(input.value.trim());
+            }
+        });
+
+        const formData = buildFormDataObject(survey, ownerNames);
+
+        if (database && consentRef) {
+            try {
+                const recordRef = ref(database, `consent-forms/${recordId}`);
+                await set(recordRef, formData);
+                alert("Record updated successfully!");
+            } catch (error) {
+                alert("Failed to update Firebase: " + error.message);
+                console.error("Firebase Update Error:", error);
+                return;
+            }
+        }
+
         resetFormFields();
     };
 
