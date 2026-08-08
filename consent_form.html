@@ -172,6 +172,15 @@
         font-size: 12px;
     }
 
+    .status-select {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        border: 1px solid #ccc;
+        cursor: pointer;
+    }
+
     .records-card {
         margin-top: 35px;
         border-top: 2px dashed #e0e0e0;
@@ -209,9 +218,6 @@
         padding: 10px;
         border-bottom: 1px solid #dee2e6;
         vertical-align: middle;
-    }
-    .records-table tr:hover {
-        background-color: #f1f3f5;
     }
 
     .site-footer {
@@ -386,8 +392,24 @@
                 <input type="date" id="in_date">
             </div>
             <div class="form-group">
+                <label>Survey No. / સર્વે નં.</label>
+                <input type="text" id="in_survey" placeholder="e.g. 542">
+            </div>
+            <div class="form-group">
                 <label>Khata No. / ખાતા નં.</label>
                 <input type="text" id="in_khata" placeholder="e.g. 558">
+            </div>
+            <div class="form-group">
+                <label>H.A.S. (Format: e.g. 1.60.57 or 2.50.70)</label>
+                <input type="text" id="in_has" placeholder="e.g. 1.60.57" oninput="convertLandArea()">
+            </div>
+            <div class="form-group">
+                <label>Acres (Auto-calculated)</label>
+                <input type="text" id="in_acres" placeholder="Auto-calculated" readonly style="background-color: #e9ecef;">
+            </div>
+            <div class="form-group">
+                <label>Guntha (Auto-calculated)</label>
+                <input type="text" id="in_guntha" placeholder="Auto-calculated" readonly style="background-color: #e9ecef;">
             </div>
             <div class="form-group">
                 <label>Village English</label>
@@ -407,22 +429,6 @@
             <div class="form-group">
                 <label>District / જીલ્લો</label>
                 <input type="text" id="in_district" value="Kutch" placeholder="e.g. Kutch">
-            </div>
-            <div class="form-group">
-                <label>Survey No. / સર્વે નં.</label>
-                <input type="text" id="in_survey" placeholder="e.g. 542">
-            </div>
-            <div class="form-group">
-                <label>H.A.S. (Format: e.g. 1.60.57 or 2.50.70)</label>
-                <input type="text" id="in_has" placeholder="e.g. 1.60.57" oninput="convertLandArea()">
-            </div>
-            <div class="form-group">
-                <label>Acres (Auto-calculated)</label>
-                <input type="text" id="in_acres" placeholder="Auto-calculated" readonly style="background-color: #e9ecef;">
-            </div>
-            <div class="form-group">
-                <label>Guntha (Auto-calculated)</label>
-                <input type="text" id="in_guntha" placeholder="Auto-calculated" readonly style="background-color: #e9ecef;">
             </div>
             <div class="form-group full-width">
                 <label>Mobile No.</label>
@@ -463,12 +469,13 @@
                         <th>Date Generated</th>
                         <th>First Owner Name</th>
                         <th>Mobile Number</th>
+                        <th style="text-align: center;">Status</th>
                         <th style="text-align: center;">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="consentRecordsBody">
                     <tr>
-                        <td colspan="6" style="text-align: center; color: #888;">Loading records from cloud database...</td>
+                        <td colspan="7" style="text-align: center; color: #888;">Loading records from cloud database...</td>
                     </tr>
                 </tbody>
             </table>
@@ -595,16 +602,20 @@
 
         <table class="data-table" style="margin-top: 4px;">
             <tr>
-                <td style="width: 45%;"><b>જમીન માલિકનું નામ / Name of Land Owner:</b></td>
+                <td style="width: 45%;"><b>સર્વે નં. / Survey No.:</b></td>
+                <td><span class="out_survey"></span></td>
+            </tr>
+            <tr>
+                <td><b>ખાતા નં. / Khata No.:</b></td>
+                <td><span class="out_khata"></span></td>
+            </tr>
+            <tr>
+                <td><b>જમીન માલિકનું નામ / Name of Land Owner:</b></td>
                 <td><span id="p3_owner_table"></span></td>
             </tr>
             <tr>
                 <td><b>ગામ / Village:</b></td>
                 <td><span class="out_v_en"></span> / <span class="out_v_gu"></span></td>
-            </tr>
-            <tr>
-                <td><b>સર્વે નં. / Survey No.:</b></td>
-                <td><span class="out_survey"></span></td>
             </tr>
             <tr>
                 <td><b>તાલુકો / Taluka:</b></td>
@@ -700,19 +711,36 @@
         tbody.innerHTML = '';
 
         if (!records || records.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #888;">No consent form records created yet. Submit a form above.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #888;">No consent form records created yet. Submit a form above.</td></tr>`;
             return;
         }
 
         let index = 1;
         records.forEach((data) => {
             const tr = document.createElement('tr');
+            const status = data.status || 'missing'; // default white/missing
+
+            if (status === 'received') {
+                tr.style.backgroundColor = '#d4edda'; // light green
+            } else if (status === 'sent') {
+                tr.style.backgroundColor = '#fff3cd'; // light yellow
+            } else {
+                tr.style.backgroundColor = '#ffffff'; // white for missing details
+            }
+
             tr.innerHTML = `
                 <td>${index++}</td>
                 <td><b>${data.surveyNo || ''}</b></td>
                 <td>${data.dateGenerated || ''}</td>
                 <td>${data.firstOwner || ''}</td>
                 <td>${data.mobile || ''}</td>
+                <td style="text-align: center;">
+                    <select class="status-select" onchange="updateRecordStatus('${data.id}', this.value)" style="background-color: ${status === 'received' ? '#c3e6cb' : status === 'sent' ? '#ffeeba' : '#fff'};">
+                        <option value="missing" ${status === 'missing' ? 'selected' : ''}>Missing Details (White)</option>
+                        <option value="sent" ${status === 'sent' ? 'selected' : ''}>Sent (Yellow)</option>
+                        <option value="received" ${status === 'received' ? 'selected' : ''}>Received Consent (Green)</option>
+                    </select>
+                </td>
                 <td style="text-align: center; white-space: nowrap;">
                     <button type="button" class="btn-reprint" onclick="reprintConsent('${data.surveyNo}')">Print / Download</button>
                     <button type="button" class="btn-edit" onclick="editConsent('${data.surveyNo}')">Edit</button>
@@ -720,6 +748,24 @@
             `;
             tbody.appendChild(tr);
         });
+    };
+
+    window.updateRecordStatus = async function(recordId, newStatus) {
+        const record = window.consentListCache.find(item => item.id === recordId);
+        if (!record) return;
+
+        record.status = newStatus;
+        localStorage.setItem('consentRecords', JSON.stringify(window.consentListCache));
+        renderTable(window.consentListCache);
+
+        if (database) {
+            try {
+                const recordRef = ref(database, `consent-forms/${recordId}`);
+                await set(recordRef, record);
+            } catch (error) {
+                console.error("Firebase Status Update Error:", error);
+            }
+        }
     };
 
     window.filterRecords = function() {
@@ -882,7 +928,9 @@
             }
         });
 
-        const formData = buildFormDataObject(survey, ownerNames);
+        const existingRecord = window.consentListCache.find(item => item.id === recordId) || {};
+        const formData = buildFormDataObject(survey, ownerNames, existingRecord.status || 'missing');
+        formData.id = recordId;
 
         if (database && consentRef) {
             try {
@@ -907,7 +955,7 @@
         }
     };
 
-    function buildFormDataObject(survey, ownerNames) {
+    function buildFormDataObject(survey, ownerNames, status = 'missing') {
         return {
             surveyNo: survey,
             dateGenerated: getFormattedDateForPrint(),
@@ -922,6 +970,7 @@
             acres: Number(document.getElementById('in_acres').value) || 0,
             guntha: Number(document.getElementById('in_guntha').value) || 0,
             owners: ownerNames,
+            status: status,
             createdAt: new Date().toISOString()
         };
     }
