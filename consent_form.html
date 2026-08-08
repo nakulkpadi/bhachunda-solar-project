@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Consent & Undertaking Form Generator</title>
-<!-- html2pdf Library for direct PDF generation and downloading -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
     * {
         box-sizing: border-box;
@@ -211,7 +209,7 @@
     @media print {
         html, body {
             width: 210mm !important;
-            height: 100% !important;
+            height: auto !important;
             background: #ffffff !important;
             padding: 0 !important;
             margin: 0 !important;
