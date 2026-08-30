@@ -237,7 +237,7 @@
         .bg-purple-action { background-color: var(--btn-map-color); }
         .bg-teal-action { background-color: var(--btn-teal); }
 
-        /* FULL SCREEN MODAL SYSTEM STYLES */
+        /* FULL SCREEN MODAL STYLES */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -306,7 +306,7 @@
             position: relative;
         }
 
-        .modal-body object, .modal-body iframe {
+        .modal-body embed {
             width: 100%;
             height: 100%;
             border: none;
@@ -464,10 +464,8 @@
                 <button class="close-btn" id="closeMapBtn">Close ×</button>
             </div>
             <div class="modal-body">
-                <!-- Uses HTML5 object tag for native PDF rendering -->
-                <object id="pdfViewer" type="application/pdf">
-                    <iframe id="mapIframe"></iframe>
-                </object>
+                <!-- Native browser PDF plugin embed -->
+                <embed id="pdfEmbed" type="application/pdf">
             </div>
         </div>
     </div>
@@ -490,21 +488,15 @@
         const modalElement = document.getElementById("mapModal");
         const triggerOpenBtn = document.getElementById("openMapBtn");
         const triggerCloseBtn = document.getElementById("closeMapBtn");
-        const pdfViewer = document.getElementById("pdfViewer");
-        const mapIframe = document.getElementById("mapIframe");
+        const pdfEmbed = document.getElementById("pdfEmbed");
 
-        // IF HOSTED LOCALLY OR ON GITHUB PAGES / FIREBASE:
-        // Set this to your local relative path (e.g., 'layout.pdf') for 100% reliability.
-        // IF USING GOOGLE DRIVE DIRECT LINK:
-        const googleDriveFileId = "1Z-4bFuxqiT9shaDw-r5Zoht0ZFv828b_";
-        const pdfUrl = `https://drive.google.com/uc?export=download&id=${googleDriveFileId}`;
+        // Set path to your local PDF file
+        const localPdfPath = "blueprint.pdf";
 
         triggerOpenBtn.addEventListener("click", () => {
+            // Append cache-busting timestamp to load freshly updated local files instantly
             const timestamp = new Date().getTime();
-            const freshUrl = `${pdfUrl}&v=${timestamp}`;
-            
-            pdfViewer.data = freshUrl;
-            mapIframe.src = freshUrl;
+            pdfEmbed.src = `${localPdfPath}?v=${timestamp}`;
             
             modalElement.style.display = "flex";
             document.body.style.overflow = "hidden";
@@ -513,8 +505,7 @@
         triggerCloseBtn.addEventListener("click", () => {
             modalElement.style.display = "none";
             document.body.style.overflow = "auto";
-            pdfViewer.data = "";
-            mapIframe.src = "";
+            pdfEmbed.src = ""; // Clears source to free memory
         });
     </script>
 </body>
