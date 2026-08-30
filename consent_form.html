@@ -31,11 +31,39 @@
         box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     }
 
+    /* HEADER & HOME BUTTON STYLES */
+    .form-header-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        gap: 10px;
+    }
+
+    .btn-home {
+        background-color: #6c757d;
+        color: white;
+        text-decoration: none;
+        padding: 8px 14px;
+        border-radius: 6px;
+        font-weight: bold;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: background-color 0.2s ease;
+    }
+
+    .btn-home:hover {
+        background-color: #5a6268;
+    }
+
     h2 {
-        margin-top: 0;
+        margin: 0;
         color: #333;
         text-align: center;
         font-size: 20px;
+        flex-grow: 1;
     }
 
     .form-grid {
@@ -267,9 +295,7 @@
         display: none;
     }
 
-    /* ========================================================= */
-    /* PRINT STYLES - PAGE 3 OPTIMIZED TO PREVENT CUTTING         */
-    /* ========================================================= */
+    /* PRINT STYLES */
     @page {
         size: A4 portrait;
         margin: 10mm 12mm 10mm 12mm !important;
@@ -388,7 +414,6 @@
             font-size: 12.5pt !important;
         }
 
-        /* Page 3 Tightened Layout to Avoid Signature Cutting */
         .page-3 {
             padding: 8mm 12mm 8mm 12mm !important;
         }
@@ -469,7 +494,13 @@
 <body class="">
 
 <div class="no-print">
-    <h2 id="formTitle">Data Input Form</h2>
+    <!-- TOP HEADER WITH HOME BUTTON -->
+    <div class="form-header-bar">
+        <a href="index.html" class="btn-home">🏠 Home</a>
+        <h2 id="formTitle">Data Input Form</h2>
+        <div style="width: 80px;"></div> <!-- Spacer to balance header alignment -->
+    </div>
+
     <form id="landForm">
         <input type="hidden" id="edit_record_id" value="">
         <div class="form-grid">
@@ -781,6 +812,9 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         renderTable(window.consentListCache);
+        // Set today's date default
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('in_date').value = today;
     });
 
     try {
@@ -884,282 +918,265 @@
         }
 
         const filtered = window.consentListCache.filter(item => {
-            const survey = (item.surveyNo || '').toLowerCase();
-            const owner = (item.firstOwner || '').toLowerCase();
-            const mobile = (item.mobile || '').toLowerCase();
-            const allOwners = (item.owners || []).join(' ').toLowerCase();
-
-            return survey.includes(queryVal) || owner.includes(queryVal) || mobile.includes(queryVal) || allOwners.includes(queryVal);
+            const surveyMatch = (item.surveyNo || '').toLowerCase().includes(queryVal);
+            const mobileMatch = (item.mobile || '').toLowerCase().includes(queryVal);
+            const ownerMatch = (item.owners || []).some(o => o.toLowerCase().includes(queryVal));
+            return surveyMatch || mobileMatch || ownerMatch;
         });
 
         renderTable(filtered);
     };
 
-    function checkDuplicateSurvey(surveyNo, currentEditingId = null) {
-        return window.consentListCache.some(item => String(item.surveyNo) === String(surveyNo) && item.id !== currentEditingId);
-    }
-
-    window.resetFormFields = function() {
-        document.getElementById('landForm').reset();
-        document.getElementById('edit_record_id').value = '';
-        
-        document.getElementById('in_village_en').value = 'Bhavanipur';
-        document.getElementById('in_village_gu').value = 'ભવાનીપર';
-        document.getElementById('in_taluka').value = 'Abdasa';
-        document.getElementById('in_district').value = 'Kutch';
-        
+    window.addOwnerField = function() {
         const container = document.getElementById('ownersContainer');
-        container.innerHTML = `
-            <div class="owner-row">
-                <input type="text" class="owner-input" placeholder="e.g. JITENDRA VALJI BHANUSHALI">
-                <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
-            </div>
+        const row = document.createElement('div');
+        row.className = 'owner-row';
+        row.innerHTML = `
+            <input type="text" class="owner-input" placeholder="e.g. Additional Owner Name">
+            <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
         `;
-        
-        document.getElementById('formTitle').innerText = "Data Input Form";
-        document.getElementById('savePrintBtn').style.display = "block";
-        document.getElementById('updateBtn').style.display = "none";
-        document.getElementById('cancelEditBtn').style.display = "none";
-        document.getElementById('in_survey').readOnly = false;
-        
-        setInitialCurrentDate();
+        container.appendChild(row);
     };
 
-    window.cancelEditMode = function() {
-        resetFormFields();
+    window.removeOwnerField = function(btn) {
+        const rows = document.querySelectorAll('.owner-row');
+        if (rows.length > 1) {
+            btn.parentElement.remove();
+        } else {
+            alert("At least one owner name is required.");
+        }
+    };
+
+    window.handleVillageChange = function(village) {
+        const guInput = document.getElementById('in_village_gu');
+        if (village === 'Bhavanipur') {
+            guInput.value = 'ભવાનીપર';
+        } else if (village === 'Bitta') {
+            guInput.value = 'બીટા';
+        }
+    };
+
+    window.convertLandArea = function() {
+        const hasVal = document.getElementById('in_has').value.trim();
+        if (!hasVal) {
+            document.getElementById('in_acres').value = '';
+            document.getElementById('in_guntha').value = '';
+            return;
+        }
+
+        const parts = hasVal.split('.');
+        if (parts.length === 3) {
+            const h = parseFloat(parts[0]) || 0;
+            const a = parseFloat(parts[1]) || 0;
+            const s = parseFloat(parts[2]) || 0;
+
+            const totalSqm = (h * 10000) + (a * 100) + s;
+            const totalAcres = totalSqm / 4046.8564224;
+            const acres = Math.floor(totalAcres);
+            const guntha = Math.round((totalAcres - acres) * 40);
+
+            document.getElementById('in_acres').value = acres;
+            document.getElementById('in_guntha').value = guntha;
+        }
+    };
+
+    window.populatePrintDocument = function(data) {
+        document.querySelectorAll('.out_date').forEach(el => el.textContent = data.dateGenerated || '');
+        document.querySelectorAll('.out_survey').forEach(el => el.textContent = data.surveyNo || '');
+        document.querySelectorAll('.out_khata').forEach(el => el.textContent = data.khataNo || '');
+        document.querySelectorAll('.out_has').forEach(el => el.textContent = data.has || '');
+        document.querySelectorAll('.out_acres').forEach(el => el.textContent = data.acres || '');
+        document.querySelectorAll('.out_guntha').forEach(el => el.textContent = data.guntha || '');
+        document.querySelectorAll('.out_v_en').forEach(el => el.textContent = data.villageEn || '');
+        document.querySelectorAll('.out_v_gu').forEach(el => el.textContent = data.villageGu || '');
+        document.querySelectorAll('.out_taluka').forEach(el => el.textContent = data.taluka || '');
+        document.querySelectorAll('.out_district').forEach(el => el.textContent = data.district || '');
+        document.querySelectorAll('.out_mobile').forEach(el => el.textContent = data.mobile || '');
+
+        const p2Body = document.getElementById('page2_owner_rows');
+        p2Body.innerHTML = '';
+        (data.owners || []).forEach((owner, idx) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="text-align: center;">${idx + 1}</td>
+                <td><b>${owner}</b></td>
+                <td></td>
+            `;
+            p2Body.appendChild(tr);
+        });
+
+        document.getElementById('p3_owner_table').textContent = (data.owners || []).join(', ');
     };
 
     window.saveAndPrint = async function() {
-        convertLandArea();
-
-        const survey = document.getElementById('in_survey').value.trim();
-        if (!survey) {
-            alert("Please enter a valid Survey Number.");
-            return;
-        }
-
-        const isDuplicate = checkDuplicateSurvey(survey);
-        if (isDuplicate) {
-            alert(`Warning: Consent form for Survey No. "${survey}" is already generated! Duplicate entries are not allowed.`);
-            return;
-        }
+        const dateGenerated = document.getElementById('in_date').value;
+        const surveyNo = document.getElementById('in_survey').value.trim();
+        const khataNo = document.getElementById('in_khata').value.trim();
+        const has = document.getElementById('in_has').value.trim();
+        const acres = document.getElementById('in_acres').value.trim();
+        const guntha = document.getElementById('in_guntha').value.trim();
+        const villageEn = document.getElementById('in_village_en').value;
+        const villageGu = document.getElementById('in_village_gu').value;
+        const taluka = document.getElementById('in_taluka').value.trim();
+        const district = document.getElementById('in_district').value.trim();
+        const mobile = document.getElementById('in_mobile').value.trim();
 
         const ownerInputs = document.querySelectorAll('.owner-input');
-        const ownerNames = [];
+        const owners = [];
         ownerInputs.forEach(input => {
-            if (input.value.trim() !== '') {
-                ownerNames.push(input.value.trim());
-            }
+            if (input.value.trim()) owners.push(input.value.trim());
         });
 
-        const formData = buildFormDataObject(survey, ownerNames);
-
-        if (consentRef) {
-            try {
-                await push(consentRef, formData);
-            } catch (error) {
-                alert("Failed to write to Firebase: " + error.message);
-                console.error("Firebase Push Error:", error);
-                return;
-            }
-        }
-
-        triggerPrintLayout(formData);
-        resetFormFields();
-    };
-
-    window.editConsent = function(surveyNo) {
-        if (!window.consentListCache) return;
-        const record = window.consentListCache.find(item => String(item.surveyNo) === String(surveyNo));
-        if (!record) return;
-
-        document.getElementById('edit_record_id').value = record.id;
-        document.getElementById('in_survey').value = record.surveyNo || '';
-        document.getElementById('in_survey').readOnly = true; 
-        document.getElementById('in_khata').value = record.khataNo || '';
-        document.getElementById('in_village_en').value = record.villageEn || 'Bhavanipur';
-        handleVillageChange(record.villageEn || 'Bhavanipur');
-        document.getElementById('in_taluka').value = record.taluka || 'Abdasa';
-        document.getElementById('in_district').value = record.district || 'Kutch';
-        document.getElementById('in_has').value = record.has || '';
-        document.getElementById('in_acres').value = record.acres || '';
-        document.getElementById('in_guntha').value = record.guntha || '';
-        document.getElementById('in_mobile').value = record.mobile || '';
-
-        if (record.dateGenerated) {
-            const parts = record.dateGenerated.split('-');
-            if (parts.length === 3) {
-                document.getElementById('in_date').value = `${parts[2]}-${parts[1]}-${parts[0]}`;
-            } else {
-                document.getElementById('in_date').value = record.dateGenerated;
-            }
-        }
-
-        const container = document.getElementById('ownersContainer');
-        container.innerHTML = '';
-        const owners = record.owners && record.owners.length > 0 ? record.owners : [''];
-        owners.forEach(owner => {
-            const div = document.createElement('div');
-            div.className = 'owner-row';
-            div.innerHTML = `
-                <input type="text" class="owner-input" value="${owner}" placeholder="Owner Name">
-                <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
-            `;
-            container.appendChild(div);
-        });
-
-        document.getElementById('formTitle').innerText = "Edit Consent Record (Survey No: " + surveyNo + ")";
-        document.getElementById('savePrintBtn').style.display = "none";
-        document.getElementById('updateBtn').style.display = "block";
-        document.getElementById('cancelEditBtn').style.display = "block";
-
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    window.updateRecord = async function() {
-        convertLandArea();
-
-        const recordId = document.getElementById('edit_record_id').value;
-        const survey = document.getElementById('in_survey').value.trim();
-        if (!survey || !recordId) {
-            alert("Invalid record identification.");
+        if (!surveyNo || owners.length === 0) {
+            alert("Please fill in Survey Number and at least one Owner Name.");
             return;
         }
 
-        const ownerInputs = document.querySelectorAll('.owner-input');
-        const ownerNames = [];
-        ownerInputs.forEach(input => {
-            if (input.value.trim() !== '') {
-                ownerNames.push(input.value.trim());
-            }
-        });
+        const formData = {
+            dateGenerated,
+            surveyNo,
+            khataNo,
+            has,
+            acres,
+            guntha,
+            villageEn,
+            villageGu,
+            taluka,
+            district,
+            mobile,
+            owners,
+            firstOwner: owners[0] || '',
+            status: 'missing'
+        };
 
-        const existingRecord = window.consentListCache.find(item => item.id === recordId) || {};
-        const formData = buildFormDataObject(survey, ownerNames, existingRecord.status || 'missing');
-        formData.id = recordId;
-
-        if (database && consentRef) {
+        if (database) {
             try {
-                const recordRef = ref(database, `consent-forms/${recordId}`);
-                await set(recordRef, formData);
-                alert("Record updated successfully!");
-            } catch (error) {
-                alert("Failed to update Firebase: " + error.message);
-                console.error("Firebase Update Error:", error);
-                return;
+                const newRecordRef = push(consentRef);
+                formData.id = newRecordRef.key;
+                await set(newRecordRef, formData);
+            } catch (err) {
+                console.error("Error saving to Firebase:", err);
             }
         }
 
-        resetFormFields();
+        populatePrintDocument(formData);
+        document.body.className = 'printing-forms';
+        window.print();
     };
 
     window.reprintConsent = function(surveyNo) {
-        if (!window.consentListCache) return;
-        const record = window.consentListCache.find(item => String(item.surveyNo) === String(surveyNo));
+        const record = window.consentListCache.find(r => r.surveyNo === surveyNo);
         if (record) {
-            triggerPrintLayout(record);
+            populatePrintDocument(record);
+            document.body.className = 'printing-forms';
+            window.print();
         }
     };
 
-    function buildFormDataObject(survey, ownerNames, status = 'missing') {
-        return {
-            surveyNo: survey,
-            dateGenerated: getFormattedDateForPrint(),
-            firstOwner: ownerNames[0] || '',
-            mobile: document.getElementById('in_mobile').value,
-            khataNo: document.getElementById('in_khata').value,
+    window.editConsent = function(surveyNo) {
+        const record = window.consentListCache.find(r => r.surveyNo === surveyNo);
+        if (!record) return;
+
+        document.getElementById('edit_record_id').value = record.id || '';
+        document.getElementById('in_date').value = record.dateGenerated || '';
+        document.getElementById('in_survey').value = record.surveyNo || '';
+        document.getElementById('in_khata').value = record.khataNo || '';
+        document.getElementById('in_has').value = record.has || '';
+        document.getElementById('in_acres').value = record.acres || '';
+        document.getElementById('in_guntha').value = record.guntha || '';
+        document.getElementById('in_village_en').value = record.villageEn || 'Bhavanipur';
+        document.getElementById('in_village_gu').value = record.villageGu || 'ભવાનીપર';
+        document.getElementById('in_taluka').value = record.taluka || 'Abdasa';
+        document.getElementById('in_district').value = record.district || 'Kutch';
+        document.getElementById('in_mobile').value = record.mobile || '';
+
+        const container = document.getElementById('ownersContainer');
+        container.innerHTML = '';
+        (record.owners || ['']).forEach(owner => {
+            const row = document.createElement('div');
+            row.className = 'owner-row';
+            row.innerHTML = `
+                <input type="text" class="owner-input" value="${owner}" placeholder="e.g. Owner Name">
+                <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
+            `;
+            container.appendChild(row);
+        });
+
+        document.getElementById('formTitle').textContent = "Edit Consent Record";
+        document.getElementById('savePrintBtn').style.display = "none";
+        document.getElementById('updateBtn').style.display = "block";
+        document.getElementById('cancelEditBtn').style.display = "block";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.cancelEditMode = function() {
+        document.getElementById('landForm').reset();
+        document.getElementById('edit_record_id').value = '';
+        document.getElementById('formTitle').textContent = "Data Input Form";
+        document.getElementById('savePrintBtn').style.display = "block";
+        document.getElementById('updateBtn').style.display = "none";
+        document.getElementById('cancelEditBtn').style.display = "none";
+    };
+
+    window.updateRecord = async function() {
+        const recordId = document.getElementById('edit_record_id').value;
+        if (!recordId) return;
+
+        const ownerInputs = document.querySelectorAll('.owner-input');
+        const owners = [];
+        ownerInputs.forEach(input => {
+            if (input.value.trim()) owners.push(input.value.trim());
+        });
+
+        const updatedData = {
+            id: recordId,
+            dateGenerated: document.getElementById('in_date').value,
+            surveyNo: document.getElementById('in_survey').value.trim(),
+            khataNo: document.getElementById('in_khata').value.trim(),
+            has: document.getElementById('in_has').value.trim(),
+            acres: document.getElementById('in_acres').value.trim(),
+            guntha: document.getElementById('in_guntha').value.trim(),
             villageEn: document.getElementById('in_village_en').value,
             villageGu: document.getElementById('in_village_gu').value,
-            taluka: document.getElementById('in_taluka').value,
-            district: document.getElementById('in_district').value,
-            has: document.getElementById('in_has').value,
-            acres: Number(document.getElementById('in_acres').value) || 0,
-            guntha: Number(document.getElementById('in_guntha').value) || 0,
-            owners: ownerNames,
-            status: status,
-            createdAt: new Date().toISOString()
+            taluka: document.getElementById('in_taluka').value.trim(),
+            district: document.getElementById('in_district').value.trim(),
+            mobile: document.getElementById('in_mobile').value.trim(),
+            owners,
+            firstOwner: owners[0] || ''
         };
-    }
 
-    window.triggerPrintLayout = function(data) {
-        document.body.classList.remove('printing-list');
-        document.body.classList.add('printing-forms');
-
-        populateSpanClass('out_date', data.dateGenerated);
-        populateSpanClass('out_khata', data.khataNo);
-        populateSpanClass('out_v_en', data.villageEn);
-        populateSpanClass('out_v_gu', data.villageGu);
-        populateSpanClass('out_taluka', data.taluka);
-        populateSpanClass('out_district', data.district);
-        populateSpanClass('out_survey', data.surveyNo);
-        populateSpanClass('out_has', data.has);
-        populateSpanClass('out_acres', data.acres);
-        populateSpanClass('out_guntha', data.guntha);
-        populateSpanClass('out_mobile', data.mobile);
-
-        const p2Tbody = document.getElementById('page2_owner_rows');
-        if (p2Tbody) {
-            p2Tbody.innerHTML = '';
-            let totalRows = Math.max(data.owners.length, 10);
-            for (let i = 0; i < totalRows; i++) {
-                const tr = document.createElement('tr');
-                const name = data.owners[i] ? data.owners[i] : '';
-                tr.innerHTML = `
-                    <td class="center">${i + 1}</td>
-                    <td>${name}</td>
-                    <td></td>
-                `;
-                p2Tbody.appendChild(tr);
+        if (database) {
+            try {
+                const recordRef = ref(database, `consent-forms/${recordId}`);
+                await set(recordRef, updatedData);
+                alert("Record updated successfully!");
+                cancelEditMode();
+            } catch (err) {
+                console.error("Error updating record:", err);
             }
         }
-
-        const p3OwnerTable = document.getElementById('p3_owner_table');
-        if (p3OwnerTable) {
-            p3OwnerTable.innerText = data.owners.join(' / ');
-        }
-
-        setTimeout(() => {
-            window.print();
-        }, 100);
     };
 
     window.printRecordsList = function() {
-        document.body.classList.remove('printing-forms');
-        document.body.classList.add('printing-list');
-
         const tbody = document.getElementById('printListTableBody');
         tbody.innerHTML = '';
+        let idx = 1;
+        (window.consentListCache || []).forEach(record => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${idx++}</td>
+                <td>${record.surveyNo || ''}</td>
+                <td>${record.khataNo || ''}</td>
+                <td>${record.dateGenerated || ''}</td>
+                <td>${record.firstOwner || ''}</td>
+                <td>${record.mobile || ''}</td>
+                <td>${record.status || 'missing'}</td>
+            `;
+            tbody.appendChild(tr);
+        });
 
-        if (!window.consentListCache || window.consentListCache.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">No records available.</td></tr>`;
-        } else {
-            let index = 1;
-            window.consentListCache.forEach(item => {
-                const status = item.status || 'missing';
-                const statusText = status === 'received' ? 'Received Consent' : status === 'sent' ? 'Sent' : 'Missing Details';
-                
-                let bgHex = '#ffffff';
-                if (status === 'received') bgHex = '#d4edda';
-                else if (status === 'sent') bgHex = '#fff3cd';
-
-                const tr = document.createElement('tr');
-                tr.style.backgroundColor = bgHex;
-                tr.innerHTML = `
-                    <td>${index++}</td>
-                    <td><b>${item.surveyNo || ''}</b></td>
-                    <td>${item.khataNo || ''}</td>
-                    <td>${item.dateGenerated || ''}</td>
-                    <td>${item.firstOwner || ''}</td>
-                    <td>${item.mobile || ''}</td>
-                    <td><b>${statusText}</b></td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
-
-        setTimeout(() => {
-            window.print();
-        }, 100);
+        document.body.className = 'printing-list';
+        window.print();
     };
 
     window.exportRecordsCSV = function() {
@@ -1168,129 +1185,18 @@
             return;
         }
 
-        let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Sr. No.,Survey Number,Khata Number,Date Generated,First Owner Name,All Owners,Mobile Number,Village,Taluka,District,Status\r\n";
-
-        let index = 1;
-        window.consentListCache.forEach(item => {
-            const sr = index++;
-            const survey = `"${(item.surveyNo || '').replace(/"/g, '""')}"`;
-            const khata = `"${(item.khataNo || '').replace(/"/g, '""')}"`;
-            const date = `"${(item.dateGenerated || '').replace(/"/g, '""')}"`;
-            const firstOwner = `"${(item.firstOwner || '').replace(/"/g, '""')}"`;
-            const allOwners = `"${(item.owners || []).join(' / ').replace(/"/g, '""')}"`;
-            const mobile = `"${(item.mobile || '').replace(/"/g, '""')}"`;
-            const village = `"${(item.villageEn || '').replace(/"/g, '""')}"`;
-            const taluka = `"${(item.taluka || '').replace(/"/g, '""')}"`;
-            const district = `"${(item.district || '').replace(/"/g, '""')}"`;
-            const status = `"${(item.status || '').replace(/"/g, '""')}"`;
-
-            csvContent += [sr, survey, khata, date, firstOwner, allOwners, mobile, village, taluka, district, status].join(",") + "\r\n";
+        let csvContent = "data:text/csv;charset=utf-8,Sr No,Survey No,Khata No,Date Generated,First Owner,Mobile,Status\n";
+        window.consentListCache.forEach((r, i) => {
+            csvContent += `${i + 1},"${r.surveyNo || ''}","${r.khataNo || ''}","${r.dateGenerated || ''}","${r.firstOwner || ''}","${r.mobile || ''}","${r.status || 'missing'}"\n`;
         });
 
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `Consent_Records_${new Date().toISOString().slice(0,10)}.csv`);
+        link.setAttribute("download", `Consent_Records_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    };
-</script>
-
-<script>
-    function setInitialCurrentDate() {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        
-        document.getElementById('in_date').value = `${year}-${month}-${day}`;
-    }
-
-    function handleVillageChange(villageEn) {
-        const gujaratiField = document.getElementById('in_village_gu');
-        if (villageEn === 'Bhavanipur') {
-            gujaratiField.value = 'ભવાનીપર';
-        } else if (villageEn === 'Bitta') {
-            gujaratiField.value = 'બીટા';
-        } else {
-            gujaratiField.value = '';
-        }
-    }
-
-    function getFormattedDateForPrint() {
-        const rawDate = document.getElementById('in_date').value;
-        if (!rawDate) return '';
-        const parts = rawDate.split('-');
-        if (parts.length === 3) {
-            return `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-        return rawDate;
-    }
-
-    function convertLandArea() {
-        const val = document.getElementById('in_has').value.trim();
-        if (!val) {
-            document.getElementById('in_acres').value = '';
-            document.getElementById('in_guntha').value = '';
-            return;
-        }
-
-        let sqMtr = 0;
-        if (val.includes('.')) {
-            const parts = val.split('.');
-            const hectare = parseInt(parts[0] || '0', 10);
-            const are = parseInt(parts[1] || '0', 10);
-            let cent = parts[2] || '0';
-            if (cent.length === 1) cent = cent + '0';
-            const centVal = parseInt(cent, 10);
-
-            sqMtr = (hectare * 10000) + (are * 100) + centVal;
-        } else {
-            sqMtr = parseFloat(val) || 0;
-        }
-
-        if (sqMtr > 0) {
-            const totalAcres = sqMtr / 4047;
-            const fullAcres = Math.floor(totalAcres);
-            const remainder = totalAcres - fullAcres;
-            const guntha = Math.round(remainder * 40);
-
-            document.getElementById('in_acres').value = fullAcres;
-            document.getElementById('in_guntha').value = guntha;
-        }
-    }
-
-    function addOwnerField() {
-        const container = document.getElementById('ownersContainer');
-        const div = document.createElement('div');
-        div.className = 'owner-row';
-        div.innerHTML = `
-            <input type="text" class="owner-input" placeholder="Owner Name">
-            <button type="button" class="btn-remove" onclick="removeOwnerField(this)">Remove</button>
-        `;
-        container.appendChild(div);
-    }
-
-    function removeOwnerField(btn) {
-        const rows = document.querySelectorAll('.owner-row');
-        if (rows.length > 1) {
-            btn.parentElement.remove();
-        } else {
-            alert("At least one land owner field must remain.");
-        }
-    }
-
-    function populateSpanClass(className, value) {
-        const elements = document.getElementsByClassName(className);
-        for (let el of elements) {
-            el.innerText = value;
-        }
-    }
-
-    window.onload = function() {
-        setInitialCurrentDate();
     };
 </script>
 </body>
