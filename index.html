@@ -244,7 +244,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(12, 35, 64, 0.75);
+            background: rgba(12, 35, 64, 0.85);
             backdrop-filter: blur(6px);
             display: none;
             justify-content: center;
@@ -283,7 +283,7 @@
             background: #CBD5E0;
             border: none;
             color: #4A5568;
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: bold;
             line-height: 1;
             padding: 0.6rem 1.2rem;
@@ -293,7 +293,7 @@
         }
 
         .close-btn:hover {
-            background: #CBD5E0;
+            background: #A0AEC0;
             color: #1A202C;
             transform: scale(1.05);
         }
@@ -302,11 +302,11 @@
             flex: 1;
             width: 100%;
             height: calc(100vh - 70px);
-            background: #EFF1F3;
+            background: #1E293B;
             position: relative;
         }
 
-        .modal-body iframe {
+        .modal-body object, .modal-body iframe {
             width: 100%;
             height: 100%;
             border: none;
@@ -464,8 +464,10 @@
                 <button class="close-btn" id="closeMapBtn">Close ×</button>
             </div>
             <div class="modal-body">
-                <!-- Removed fixed src from iframe so script handles fresh dynamic loading -->
-                <iframe id="mapIframe" allow="autoplay"></iframe>
+                <!-- Uses HTML5 object tag for native PDF rendering -->
+                <object id="pdfViewer" type="application/pdf">
+                    <iframe id="mapIframe"></iframe>
+                </object>
             </div>
         </div>
     </div>
@@ -488,14 +490,21 @@
         const modalElement = document.getElementById("mapModal");
         const triggerOpenBtn = document.getElementById("openMapBtn");
         const triggerCloseBtn = document.getElementById("closeMapBtn");
+        const pdfViewer = document.getElementById("pdfViewer");
         const mapIframe = document.getElementById("mapIframe");
 
+        // IF HOSTED LOCALLY OR ON GITHUB PAGES / FIREBASE:
+        // Set this to your local relative path (e.g., 'layout.pdf') for 100% reliability.
+        // IF USING GOOGLE DRIVE DIRECT LINK:
         const googleDriveFileId = "1Z-4bFuxqiT9shaDw-r5Zoht0ZFv828b_";
+        const pdfUrl = `https://drive.google.com/uc?export=download&id=${googleDriveFileId}`;
 
         triggerOpenBtn.addEventListener("click", () => {
-            // Appends a unique timestamp to force Google Drive to bypass cache and pull the updated file
             const timestamp = new Date().getTime();
-            mapIframe.src = `https://drive.google.com/file/d/${googleDriveFileId}/preview?v=${timestamp}`;
+            const freshUrl = `${pdfUrl}&v=${timestamp}`;
+            
+            pdfViewer.data = freshUrl;
+            mapIframe.src = freshUrl;
             
             modalElement.style.display = "flex";
             document.body.style.overflow = "hidden";
@@ -504,7 +513,8 @@
         triggerCloseBtn.addEventListener("click", () => {
             modalElement.style.display = "none";
             document.body.style.overflow = "auto";
-            mapIframe.src = ""; // Resets the iframe URL when closed to free up memory
+            pdfViewer.data = "";
+            mapIframe.src = "";
         });
     </script>
 </body>
