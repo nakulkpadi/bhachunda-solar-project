@@ -306,7 +306,7 @@
             position: relative;
         }
 
-        .modal-body embed {
+        .modal-body iframe {
             width: 100%;
             height: 100%;
             border: none;
@@ -464,8 +464,8 @@
                 <button class="close-btn" id="closeMapBtn">Close ×</button>
             </div>
             <div class="modal-body">
-                <!-- Native browser PDF plugin embed -->
-                <embed id="pdfEmbed" type="application/pdf">
+                <!-- Using iframe for direct inline browser viewing -->
+                <iframe id="pdfFrame"></iframe>
             </div>
         </div>
     </div>
@@ -488,15 +488,15 @@
         const modalElement = document.getElementById("mapModal");
         const triggerOpenBtn = document.getElementById("openMapBtn");
         const triggerCloseBtn = document.getElementById("closeMapBtn");
-        const pdfEmbed = document.getElementById("pdfEmbed");
+        const pdfFrame = document.getElementById("pdfFrame");
 
         // Set path to your local PDF file
         const localPdfPath = "blueprint.pdf";
 
         triggerOpenBtn.addEventListener("click", () => {
-            // Append cache-busting timestamp to load freshly updated local files instantly
+            // Append cache-buster timestamp and #toolbar=0 to force inline rendering
             const timestamp = new Date().getTime();
-            pdfEmbed.src = `${localPdfPath}?v=${timestamp}`;
+            pdfFrame.src = `${localPdfPath}?v=${timestamp}#toolbar=0`;
             
             modalElement.style.display = "flex";
             document.body.style.overflow = "hidden";
@@ -505,7 +505,7 @@
         triggerCloseBtn.addEventListener("click", () => {
             modalElement.style.display = "none";
             document.body.style.overflow = "auto";
-            pdfEmbed.src = ""; // Clears source to free memory
+            pdfFrame.src = ""; // Clear memory
         });
     </script>
 </body>
