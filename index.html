@@ -464,7 +464,8 @@
                 <button class="close-btn" id="closeMapBtn">Close ×</button>
             </div>
             <div class="modal-body">
-                <iframe src="https://drive.google.com/file/d/1Z-4bFuxqiT9shaDw-r5Zoht0ZFv828b_/preview" allow="autoplay"></iframe>
+                <!-- Removed fixed src from iframe so script handles fresh dynamic loading -->
+                <iframe id="mapIframe" allow="autoplay"></iframe>
             </div>
         </div>
     </div>
@@ -487,8 +488,15 @@
         const modalElement = document.getElementById("mapModal");
         const triggerOpenBtn = document.getElementById("openMapBtn");
         const triggerCloseBtn = document.getElementById("closeMapBtn");
+        const mapIframe = document.getElementById("mapIframe");
+
+        const googleDriveFileId = "1Z-4bFuxqiT9shaDw-r5Zoht0ZFv828b_";
 
         triggerOpenBtn.addEventListener("click", () => {
+            // Appends a unique timestamp to force Google Drive to bypass cache and pull the updated file
+            const timestamp = new Date().getTime();
+            mapIframe.src = `https://drive.google.com/file/d/${googleDriveFileId}/preview?v=${timestamp}`;
+            
             modalElement.style.display = "flex";
             document.body.style.overflow = "hidden";
         });
@@ -496,6 +504,7 @@
         triggerCloseBtn.addEventListener("click", () => {
             modalElement.style.display = "none";
             document.body.style.overflow = "auto";
+            mapIframe.src = ""; // Resets the iframe URL when closed to free up memory
         });
     </script>
 </body>
