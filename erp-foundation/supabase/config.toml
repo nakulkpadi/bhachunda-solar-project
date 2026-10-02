@@ -1,0 +1,14 @@
+# Edge Functions authenticate users inside their handlers so CORS preflight and
+# the Google OAuth redirect can reach the code. The two browser-facing
+# functions verify a Supabase user token and role before doing any work; the
+# callback validates a single-use, short-lived OAuth state before it can write
+# a credential.
+
+[functions.drive-oauth-start]
+verify_jwt = false
+
+[functions.drive-oauth-callback]
+verify_jwt = false
+
+[functions.drive-upload]
+verify_jwt = false

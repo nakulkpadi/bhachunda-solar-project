@@ -4,6 +4,20 @@ A modern, responsive, and secure digital portal built to streamline data logging
 
 ---
 
+## ERP rebuild package
+
+The new Supabase-based ERP is ready in
+[`erp-foundation/`](./erp-foundation/). It includes the React web application,
+database migration, Excel importer, protected personal Google Drive OAuth
+upload flow, reporting filters, and CAD-backed survey map.
+
+The legacy Firebase pages remain untouched until the new database migration,
+Drive OAuth setup, and staging import are approved. Start with
+[`erp-foundation/README.md`](./erp-foundation/README.md) and the
+[production checklist](./erp-foundation/docs/PRODUCTION_SETUP_CHECKLIST.md).
+
+---
+
 ## 🚀 Live Demo
 Access the live deployment here:  
 👉 **[https://nakulkpadi.github.io/bhachunda-solar-project/](https://nakulkpadi.github.io/bhachunda-solar-project/)**

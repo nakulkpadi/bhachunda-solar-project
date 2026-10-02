@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Bhachunda Solar Project ERP layout prototype" />
+    <title>Bhachunda Solar Project ERP</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#dashboard" data-nav-target="dashboard">
+          <span class="brand-mark">BS</span>
+          <span>
+            <strong>Bhachunda Solar</strong>
+            <small>Land Acquisition ERP</small>
+          </span>
+        </a>
+
+        <nav class="nav-list" aria-label="ERP modules">
+          <button class="nav-item is-active" type="button" data-view-target="dashboard">
+            <span>Overview</span><small>Dashboard</small>
+          </button>
+          <button class="nav-item" type="button" data-view-target="parcels">
+            <span>Parcel registry</span><small>Survey data</small>
+          </button>
+          <button class="nav-item" type="button" data-view-target="entry">
+            <span>Land entry</span><small>Patel format</small>
+          </button>
+          <button class="nav-item" type="button" data-view-target="documents">
+            <span>Documents</span><small>Google Drive</small>
+          </button>
+          <button class="nav-item" type="button" data-view-target="reports">
+            <span>Reports</span><small>Export centre</small>
+          </button>
+          <button class="nav-item" type="button" data-view-target="map">
+            <span>Project map</span><small>Consent status</small>
+          </button>
+        </nav>
+
+        <div class="sidebar-note">
+          <strong>Access model</strong>
+          <span>Admin, Data Entry, Legal, Finance and Viewer roles are enforced in Supabase.</span>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Bhachunda Solar Project</p>
+            <h1 id="page-title">Land acquisition overview</h1>
+          </div>
+          <div class="topbar-actions">
+            <button class="secondary-button" type="button" data-view-target="reports">Generate report</button>
+            <button class="primary-button" type="button" data-view-target="entry">New land entry</button>
+          </div>
+        </header>
+
+        <section class="view is-active" id="dashboard" data-view="dashboard">
+          <div class="hero-panel">
+            <div>
+              <p class="eyebrow">One source of truth</p>
+              <h2>Every survey parcel connects to consent, documents, legal work, payments and its map status.</h2>
+              <p>Use the dashboard to find the next action, then open the same parcel record everywhere in the ERP.</p>
+            </div>
+            <button class="light-button" type="button" data-view-target="parcels">Open parcel registry</button>
+          </div>
+
+          <div class="metric-grid">
+            <article class="metric-card"><span>Registered parcels</span><strong>479</strong><small>Across three villages</small></article>
+            <article class="metric-card"><span>Consent received</span><strong>106</strong><small class="green-text">Green map status</small></article>
+            <article class="metric-card"><span>Consent not received</span><strong>373</strong><small class="amber-text">Classify as pending or not ready</small></article>
+            <article class="metric-card"><span>Document workflow</span><strong>Drive</strong><small>Folder created on first upload</small></article>
+          </div>
+
+          <div class="two-column">
+            <article class="card">
+              <div class="card-heading"><div><p class="eyebrow">Consent progress</p><h3>Village status</h3></div><button class="text-button" type="button" data-view-target="reports">View report</button></div>
+              <div class="progress-row"><div><span>Bhavanipar</span><small>96 received of 288 parcels</small></div><div class="progress-track"><span class="progress-green" style="width: 33%"></span></div><strong>33%</strong></div>
+              <div class="progress-row"><div><span>Bitta</span><small>10 received of 31 parcels</small></div><div class="progress-track"><span class="progress-green" style="width: 32%"></span></div><strong>32%</strong></div>
+              <div class="progress-row"><div><span>Vandh Timbo</span><small>Consent status to be entered</small></div><div class="progress-track"><span class="progress-grey" style="width: 0%"></span></div><strong>0%</strong></div>
+            </article>
+
+            <article class="card">
+              <div class="card-heading"><div><p class="eyebrow">Work queue</p><h3>Next operational actions</h3></div><button class="text-button" type="button" data-view-target="documents">Open documents</button></div>
+              <ul class="action-list">
+                <li><span class="status-dot amber"></span><div><strong>Classify pending consent parcels</strong><small>Set each parcel to pending, not ready, blocked or received.</small></div></li>
+                <li><span class="status-dot blue"></span><div><strong>Connect existing Drive folders</strong><small>Record Drive file IDs without changing public sharing settings.</small></div></li>
+                <li><span class="status-dot purple"></span><div><strong>Validate the CAD survey layer</strong><small>Match each CAD parcel to its normalized survey number.</small></div></li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="view" id="parcels" data-view="parcels" hidden>
+          <div class="section-intro"><div><p class="eyebrow">Master register</p><h2>Parcel registry</h2><p>One searchable record per village and survey number. The production grid will filter by every workflow field.</p></div><button class="primary-button" type="button" data-view-target="entry">Add parcel activity</button></div>
+          <div class="filter-bar">
+            <button class="filter-pill is-selected" type="button">All villages</button><button class="filter-pill" type="button">Bhavanipar</button><button class="filter-pill" type="button">Bitta</button><button class="filter-pill" type="button">Vandh Timbo</button>
+            <label class="search-field"><span>Search</span><input type="search" placeholder="Survey number, bunch or owner" /></label>
+          </div>
+          <div class="table-card">
+            <table>
+              <thead><tr><th>Village</th><th>Survey No.</th><th>Area</th><th>Consent</th><th>Documents</th><th>Acquisition</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>Bhavanipar</td><td><strong>450</strong></td><td>3.65 acres</td><td><span class="status received">Received</span></td><td>Consent letter verified</td><td><span class="status neutral">Legal review</span></td><td><button class="row-action" type="button" data-view-target="entry">Open</button></td></tr>
+                <tr><td>Bhavanipar</td><td><strong>451</strong></td><td>3.26 acres</td><td><span class="status pending">Pending</span></td><td>Checklist not started</td><td><span class="status neutral">Consent</span></td><td><button class="row-action" type="button" data-view-target="entry">Open</button></td></tr>
+                <tr><td>Bitta</td><td><strong>128/2</strong></td><td>3.27 acres</td><td><span class="status received">Received</span></td><td>Drive folder linked</td><td><span class="status neutral">Payment</span></td><td><button class="row-action" type="button" data-view-target="entry">Open</button></td></tr>
+                <tr><td>Vandh Timbo</td><td><strong>3</strong></td><td>4.09 acres</td><td><span class="status not-ready">Not ready</span></td><td>Checklist not started</td><td><span class="status neutral">Identified</span></td><td><button class="row-action" type="button" data-view-target="entry">Open</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="entry" data-view="entry" hidden>
+          <div class="section-intro"><div><p class="eyebrow">Structured entry</p><h2>Land acquisition record</h2><p>Survey and village are chosen first. The rest of the Patel-format fields are grouped by the work team that uses them.</p></div><span class="status pending">Draft preview</span></div>
+          <div class="form-layout">
+            <article class="form-card form-wide"><div class="card-heading"><div><p class="eyebrow">Step 1</p><h3>Parcel master</h3></div><span>Required</span></div><div class="form-grid"><label>Village<select><option>Choose village</option><option>Bhavanipar</option><option>Bitta</option><option>Vandh Timbo</option></select></label><label>Survey number<input placeholder="Select registered survey number" /></label><label>Khata / account number<input placeholder="Autofilled from parcel" /></label><label>Acres<input placeholder="Autofilled from parcel" disabled /></label></div></article>
+            <article class="form-card"><div class="card-heading"><div><p class="eyebrow">Step 2</p><h3>Consent and documents</h3></div></div><div class="stack-fields"><label>Consent status<select><option>Pending</option><option>Received</option><option>Not ready</option><option>Blocked</option></select></label><label>Consent date<input type="date" /></label><button class="upload-placeholder" type="button">Upload consent letter to Drive</button></div></article>
+            <article class="form-card"><div class="card-heading"><div><p class="eyebrow">Step 3</p><h3>Acquisition and payment</h3></div></div><div class="stack-fields"><label>Category<select><option>Lease</option><option>Sale</option></select></label><label>Target date<input type="date" /></label><label>Token payment UTR<input placeholder="Enter UTR after payment" /></label></div></article>
+            <article class="form-card"><div class="card-heading"><div><p class="eyebrow">Step 4</p><h3>Legal and NFA</h3></div></div><div class="check-list"><span>Public notice</span><span>SRO search</span><span>Law firm verification</span><span>NFA status</span></div></article>
+            <article class="form-card"><div class="card-heading"><div><p class="eyebrow">Step 5</p><h3>Notes and history</h3></div></div><textarea placeholder="Add administrative remarks or a follow-up note"></textarea><small>Every save creates an auditable activity entry.</small></article>
+          </div>
+        </section>
+
+        <section class="view" id="documents" data-view="documents" hidden>
+          <div class="section-intro"><div><p class="eyebrow">Drive-backed records</p><h2>Document centre</h2><p>Files are uploaded by document type and stored in the correct village and survey folder.</p></div><button class="primary-button" type="button" data-view-target="entry">Upload a document</button></div>
+          <div class="document-grid">
+            <article class="document-card"><span class="status received">Verified</span><h3>Consent letter</h3><p>Maps to green only when consent status is received. Upload status remains separate.</p></article>
+            <article class="document-card"><span class="status pending">Needed</span><h3>Current 7/12</h3><p>Required item in the land and legal workflow.</p></article>
+            <article class="document-card"><span class="status pending">Needed</span><h3>Bank details</h3><p>Private document, visible only to authorized operational roles.</p></article>
+            <article class="document-card"><span class="status neutral">Optional</span><h3>Mutation certificate</h3><p>Tracked where relevant to the parcel and legal review.</p></article>
+          </div>
+          <article class="card compact-card"><h3>Secure upload flow</h3><p>The browser requests an upload. A Supabase Edge Function validates the user, file and parcel, then creates or finds the correct Drive folder. Drive credentials stay on the server.</p></article>
+        </section>
+
+        <section class="view" id="reports" data-view="reports" hidden>
+          <div class="section-intro"><div><p class="eyebrow">Live data exports</p><h2>Report centre</h2><p>Filters are applied once and visible in the on-screen, Excel and print/PDF result.</p></div><button class="primary-button" type="button">Create filtered report</button></div>
+          <div class="report-grid">
+            <article class="report-card"><h3>Full acquisition register</h3><p>Exact Patel Infra column order, filtered by village, stage and date.</p><button class="text-button" type="button">Configure</button></article>
+            <article class="report-card"><h3>Consent register</h3><p>Received, pending, not ready and blocked parcels with acreage and bunch.</p><button class="text-button" type="button">Configure</button></article>
+            <article class="report-card"><h3>Pending documents</h3><p>Document checklist gaps by village, parcel, document type and aging.</p><button class="text-button" type="button">Configure</button></article>
+            <article class="report-card"><h3>Legal and NFA tracker</h3><p>Public notice, SRO, TSR, clearance and NFA dates in one view.</p><button class="text-button" type="button">Configure</button></article>
+            <article class="report-card"><h3>Payment and lease register</h3><p>Token/lease amounts, dates and UTR reference, restricted to Finance.</p><button class="text-button" type="button">Configure</button></article>
+            <article class="report-card"><h3>Map status summary</h3><p>Consent colour, acreage and last update per survey parcel.</p><button class="text-button" type="button">Configure</button></article>
+          </div>
+        </section>
+
+        <section class="view" id="map" data-view="map" hidden>
+          <div class="section-intro"><div><p class="eyebrow">CAD to SVG workflow</p><h2>Interactive project map</h2><p>The uploaded combined CAD map is now a zoomable SVG. Green is applied only to received Bhavanipar consent candidates; all other shapes stay neutral until their village and survey links are validated.</p></div><span class="status neutral" id="map-source-badge">Loading CAD SVG</span></div>
+          <article class="map-card">
+            <div class="map-toolbar"><span>Map legend</span><span><i class="legend-dot green"></i> Consent received</span><span><i class="legend-dot amber"></i> Pending (after live sync)</span><span><i class="legend-dot grey"></i> Unclassified / not ready</span><span><i class="legend-dot red"></i> Blocked (after live sync)</span></div>
+            <div class="map-workspace">
+              <div class="map-controls" aria-label="Map controls">
+                <button type="button" class="map-control" data-map-action="zoom-in" aria-label="Zoom in">+</button>
+                <button type="button" class="map-control" data-map-action="zoom-out" aria-label="Zoom out">−</button>
+                <button type="button" class="map-control map-reset" data-map-action="reset">Reset</button>
+              </div>
+              <div class="map-canvas" id="cad-map" aria-busy="true" aria-label="Interactive CAD-derived survey map">
+                <p class="map-loading">Preparing the CAD survey map…</p>
+              </div>
+            </div>
+            <div class="map-details">
+              <div class="map-source-note"><p class="eyebrow">Current map proof</p><strong>866 CAD survey labels are linked to parcel polygons.</strong><p>Click a shape to inspect its survey number. The production app will read status from Supabase, not from this preview asset.</p></div>
+              <aside class="map-inspector" id="map-inspector" aria-live="polite"><p class="eyebrow">Parcel detail</p><strong data-map-inspector-title>Select a parcel</strong><p data-map-inspector-description>Click any CAD shape to see its current matching state.</p><small data-map-inspector-meta>Geometry matching is ready for review.</small><a href="assets/combined-villages-features.json" class="text-button" target="_blank" rel="noreferrer">Open map review manifest</a></aside>
+            </div>
+          </article>
+        </section>
+      </main>
+    </div>
+    <script src="app.js"></script>
+  </body>
+</html>
