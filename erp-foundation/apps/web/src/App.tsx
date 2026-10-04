@@ -4,6 +4,7 @@ import {
   consentLabel,
   getSession,
   isSupabaseConfigured,
+  loadGoogleDriveConnectionStatus,
   loadMapStatuses,
   loadParcels,
   saveParcelWorkflow,
@@ -157,6 +158,7 @@ function App() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [connectingDrive, setConnectingDrive] = useState(false);
+  const [driveConnected, setDriveConnected] = useState(false);
   const [mapSelection, setMapSelection] = useState<string | null>(null);
   const mapRef = useRef<HTMLObjectElement | null>(null);
 
@@ -164,9 +166,14 @@ function App() {
     if (!supabase) return;
     setLoading(true);
     try {
-      const [liveParcels, liveStatuses] = await Promise.all([loadParcels(), loadMapStatuses()]);
+      const [liveParcels, liveStatuses, connected] = await Promise.all([
+        loadParcels(),
+        loadMapStatuses(),
+        loadGoogleDriveConnectionStatus().catch(() => false)
+      ]);
       setParcels(liveParcels);
       setMapStatuses(liveStatuses);
+      setDriveConnected(connected);
       setIsLiveData(true);
       setNotice({ kind: "success", text: "Live records refreshed." });
     } catch (error) {
@@ -201,6 +208,8 @@ function App() {
         setIsLiveData(false);
         setParcels(demoParcels);
         setMapStatuses([]);
+        setDriveConnected(false);
+        setConnectingDrive(false);
       }
     });
     return () => {
@@ -208,6 +217,47 @@ function App() {
       data.subscription.unsubscribe();
     };
   }, [refreshLiveData]);
+
+  useEffect(() => {
+    const onGoogleDriveResult = (event: MessageEvent<unknown>) => {
+      if (event.origin !== window.location.origin || !event.data || typeof event.data !== "object") return;
+      const data = event.data as { type?: unknown };
+      if (data.type === "bhachunda-google-drive-connected") {
+        setDriveConnected(true);
+        setConnectingDrive(false);
+        setNotice({ kind: "success", text: "Google Drive connected. This ERP is ready to create protected survey folders." });
+      }
+      if (data.type === "bhachunda-google-drive-failed") {
+        setDriveConnected(false);
+        setConnectingDrive(false);
+        setNotice({ kind: "error", text: "Google Drive was not connected. Check the selected Google account and try again." });
+      }
+    };
+    window.addEventListener("message", onGoogleDriveResult);
+    return () => window.removeEventListener("message", onGoogleDriveResult);
+  }, []);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get("drive");
+    if (result !== "connected" && result !== "failed") return;
+    url.searchParams.delete("drive");
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+    const type = result === "connected" ? "bhachunda-google-drive-connected" : "bhachunda-google-drive-failed";
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage({ type }, window.location.origin);
+      window.setTimeout(() => window.close(), 100);
+      return;
+    }
+    setConnectingDrive(false);
+    if (result === "connected") {
+      setDriveConnected(true);
+      setNotice({ kind: "success", text: "Google Drive connected. This ERP is ready to create protected survey folders." });
+    } else {
+      setDriveConnected(false);
+      setNotice({ kind: "error", text: "Google Drive was not connected. Check the selected Google account and try again." });
+    }
+  }, []);
 
   const metrics = useMemo(() => buildMetrics(parcels), [parcels]);
   const villages = useMemo(() => [...new Set(parcels.map((row) => row.village_name))], [parcels]);
@@ -313,10 +363,18 @@ function App() {
       setNotice({ kind: "info", text: "Sign in with an administrator account after the staging import is complete." });
       return;
     }
+    const popup = window.open("", "bhachunda-google-drive-oauth", "popup=yes,width=560,height=720");
     setConnectingDrive(true);
     try {
-      await startGoogleDriveConnection();
+      const authorizeUrl = await startGoogleDriveConnection();
+      if (popup && !popup.closed) {
+        popup.location.assign(authorizeUrl);
+        setNotice({ kind: "info", text: "Complete Google sign-in in the opened window. This ERP page will stay open." });
+      } else {
+        window.location.assign(authorizeUrl);
+      }
     } catch (error) {
+      if (popup && !popup.closed) popup.close();
       setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not start Google Drive connection." });
       setConnectingDrive(false);
     }
@@ -464,6 +522,7 @@ function App() {
               onSubmit={uploadDocument}
               canConnectDrive={Boolean(session && isLiveData)}
               connectingDrive={connectingDrive}
+              driveConnected={driveConnected}
               onConnectDrive={connectPersonalDrive}
             />
           )}
@@ -719,6 +778,7 @@ function Documents({
   onSubmit,
   canConnectDrive,
   connectingDrive,
+  driveConnected,
   onConnectDrive
 }: {
   rows: ParcelSummary[];
@@ -733,10 +793,11 @@ function Documents({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   canConnectDrive: boolean;
   connectingDrive: boolean;
+  driveConnected: boolean;
   onConnectDrive: () => void;
 }) {
   return <div className="documents-layout">
-    <section className="card document-info"><div className="eyebrow">GOOGLE DRIVE INTEGRATION</div><h2>Protected survey documents</h2><p>Each upload is routed by the server to the correct village and survey-number folder. Staff never paste a Google Drive URL manually.</p><div className="security-list"><div><span>1</span><p>Server verifies the signed-in role and the selected survey.</p></div><div><span>2</span><p>Server creates or reuses the parcel folder below the configured Drive root.</p></div><div><span>3</span><p>Only the Drive file ID and metadata are recorded in Supabase.</p></div></div><button className="button button-secondary button-wide" disabled={!canConnectDrive || connectingDrive} onClick={onConnectDrive} type="button">{connectingDrive ? "Opening Google…" : "Connect personal Google Drive"}</button><p className="small-note">Administrator only. Files are not made public or shared as “anyone with the link”.</p></section>
+    <section className="card document-info"><div className="eyebrow">GOOGLE DRIVE INTEGRATION</div><h2>Protected survey documents</h2><p>Each upload is routed by the server to the correct village and survey-number folder. Staff never paste a Google Drive URL manually.</p><div className="security-list"><div><span>1</span><p>Server verifies the signed-in role and the selected survey.</p></div><div><span>2</span><p>Server creates or reuses the parcel folder below the configured Drive root.</p></div><div><span>3</span><p>Only the Drive file ID and metadata are recorded in Supabase.</p></div></div>{driveConnected && <p className="small-note"><strong>✓ Google Drive is connected.</strong> Reconnect only to switch the Drive account.</p>}<button className="button button-secondary button-wide" disabled={!canConnectDrive || connectingDrive} onClick={onConnectDrive} type="button">{connectingDrive ? "Opening Google…" : driveConnected ? "Reconnect personal Google Drive" : "Connect personal Google Drive"}</button><p className="small-note">Administrator only. Files are not made public or shared as “anyone with the link”.</p></section>
     <form className="card upload-card" onSubmit={onSubmit}>
       <div className="card-heading"><div><div className="eyebrow">UPLOAD DOCUMENT</div><h2>Attach a document to a survey</h2><p>{selectedParcel ? `${selectedParcel.village_name} / Survey ${selectedParcel.survey_number}` : "Choose a survey"}</p></div>{!isWritable && <span className="lock-badge">Preview locked</span>}</div>
       <fieldset disabled={!isWritable || uploading}>

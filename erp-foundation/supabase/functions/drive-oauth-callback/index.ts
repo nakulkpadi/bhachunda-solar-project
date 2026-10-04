@@ -6,18 +6,21 @@ import {
   sha256Text,
 } from "../_shared/google-drive-oauth.ts";
 
-function page(title: string, message: string, success = false): Response {
-  const colour = success ? "#16643b" : "#9b3034";
-  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3f6fa;font:16px system-ui,sans-serif;color:#1d2d45}.card{max-width:480px;padding:32px;border:1px solid #dce5ef;border-radius:16px;background:white;box-shadow:0 18px 48px #142c4a17}h1{color:${colour};margin:0 0 10px;font-size:24px}p{line-height:1.55;color:#617188}</style></head><body><main class="card"><h1>${title}</h1><p>${message}</p></main></body></html>`;
-  return new Response(html, { status: success ? 200 : 400, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
+function returnToErp(result: "connected" | "failed"): Response {
+  const allowedOrigin = Deno.env.get("ALLOWED_ORIGIN")?.replace(/\/$/, "");
+  if (!allowedOrigin) return new Response("Google Drive callback is not configured.", { status: 500 });
+  const appPath = (Deno.env.get("ERP_APP_PATH") || "/bhachunda-solar-project/").trim();
+  const destination = new URL(appPath.startsWith("/") ? appPath : `/${appPath}`, allowedOrigin);
+  destination.searchParams.set("drive", result);
+  return Response.redirect(destination.toString(), 303);
 }
 
 Deno.serve(async (request) => {
-  if (request.method !== "GET") return page("Method not allowed", "Return to the ERP and start the connection again.");
+  if (request.method !== "GET") return returnToErp("failed");
   const url = new URL(request.url);
   const state = url.searchParams.get("state");
   const code = url.searchParams.get("code");
-  if (url.searchParams.get("error") || !state || !code) return page("Google Drive was not connected", "No Drive credential was saved. Return to the ERP and try again when ready.");
+  if (url.searchParams.get("error") || !state || !code) return returnToErp("failed");
   try {
     const admin = createAdminClient();
     const stateHash = await sha256Text(state);
@@ -28,7 +31,7 @@ Deno.serve(async (request) => {
       .eq("provider", "google_drive")
       .maybeSingle();
     if (stateError || !savedState || new Date(savedState.expires_at).getTime() < Date.now()) {
-      return page("Connection link expired", "Return to the ERP and start a new Google Drive connection.");
+      return returnToErp("failed");
     }
     await admin.from("integration_oauth_states").delete().eq("state_hash", stateHash);
     const refreshToken = await exchangeGoogleAuthorizationCode(code);
@@ -45,8 +48,8 @@ Deno.serve(async (request) => {
       entity_type: "integration",
       summary: "Personal Google Drive OAuth connection updated",
     });
-    return page("Google Drive connected", "The project can now create survey folders and upload new documents to the Drive account you approved. You may close this tab and return to the ERP.", true);
+    return returnToErp("connected");
   } catch {
-    return page("Google Drive was not connected", "No usable Drive credential was saved. Return to the ERP, check the Google OAuth setup, and try again.");
+    return returnToErp("failed");
   }
 });

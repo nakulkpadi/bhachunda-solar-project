@@ -10,5 +10,8 @@ verify_jwt = false
 [functions.drive-oauth-callback]
 verify_jwt = false
 
+[functions.drive-connection-status]
+verify_jwt = false
+
 [functions.drive-upload]
 verify_jwt = false

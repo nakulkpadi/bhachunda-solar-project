@@ -58,6 +58,10 @@ ALLOWED_ORIGIN=https://nakulkpadi.github.io
 DRIVE_TOKEN_ENCRYPTION_KEY=a-random-32-byte-base64-secret
 ```
 
+The callback returns to the deployed GitHub Pages ERP automatically. If the
+site is later moved to a different path, add the optional `ERP_APP_PATH` secret
+with that path, for example `/bhachunda-solar-project/`.
+
 Generate `DRIVE_TOKEN_ENCRYPTION_KEY` once on your own computer, for example:
 
 ```bash

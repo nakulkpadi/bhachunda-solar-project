@@ -110,7 +110,23 @@ export async function uploadDriveDocument(parcelId: string, documentTypeCode: st
   return { fileId: payload.file_id, webViewLink: payload.web_view_link ?? null };
 }
 
-export async function startGoogleDriveConnection(): Promise<void> {
+export async function loadGoogleDriveConnectionStatus(): Promise<boolean> {
+  const client = requiredClient();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!sessionData.session) return false;
+  const response = await fetch(`${supabaseUrl}/functions/v1/drive-connection-status`, {
+    headers: {
+      Authorization: `Bearer ${sessionData.session.access_token}`,
+      apikey: supabaseKey!
+    }
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Could not check the Google Drive connection.");
+  return payload.connected === true;
+}
+
+export async function startGoogleDriveConnection(): Promise<string> {
   const client = requiredClient();
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError) throw sessionError;
@@ -126,7 +142,7 @@ export async function startGoogleDriveConnection(): Promise<void> {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || typeof payload.authorize_url !== "string") throw new Error(payload.error || "Could not start Google Drive connection.");
-  window.location.assign(payload.authorize_url);
+  return payload.authorize_url;
 }
 
 export const consentLabel: Record<ConsentStatus, string> = {
