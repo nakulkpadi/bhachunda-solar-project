@@ -18,6 +18,14 @@ function statusClass(status: ConsentStatus): string {
   return "status status-" + status;
 }
 
+function referenceFromSource(source: string | null | undefined): string {
+  const manualPrefix = "Manual ERP consent entry";
+  if (!source || source === manualPrefix) return "";
+  return source.startsWith(manualPrefix + " · ")
+    ? source.slice((manualPrefix + " · ").length)
+    : source;
+}
+
 function DetailGrid({ items }: { items: Array<{ label: string; value: unknown }> }) {
   return <dl className="detail-grid">{items.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{display(item.value)}</dd></div>)}</dl>;
 }
@@ -58,7 +66,7 @@ export function ConsentEntry({
     setVillage(selectedParcel.village_name);
     setStatus("received");
     setReceivedOn(detail?.consent?.received_on ?? today());
-    setReference(detail?.consent?.source_value === "Manual ERP consent entry" ? "" : detail?.consent?.source_value ?? "");
+    setReference(referenceFromSource(detail?.consent?.source_value));
     setRemarks(detail?.consent?.remarks ?? "");
   }, [selectedParcel?.id, detail?.consent?.received_on, detail?.consent?.remarks, detail?.consent?.source_value]);
 
