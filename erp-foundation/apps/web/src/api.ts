@@ -1,5 +1,14 @@
 import { createClient, type Session, type SupabaseClient } from "@supabase/supabase-js";
-import type { ConsentStatus, MapStatus, ParcelSummary, ParcelWorkflowInput } from "./types";
+import type {
+  ConsentStatus,
+  CurrentProfile,
+  MapFeatureDefinition,
+  MapFeatureLink,
+  MapStatus,
+  ParcelDetail,
+  ParcelSummary,
+  ParcelWorkflowInput
+} from "./types";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY)?.trim();
@@ -33,6 +42,20 @@ export async function signOut(): Promise<void> {
   if (error) throw error;
 }
 
+export async function loadMyProfile(): Promise<CurrentProfile | null> {
+  const client = requiredClient();
+  const { data: userData, error: userError } = await client.auth.getUser();
+  if (userError) throw userError;
+  if (!userData.user) return null;
+  const { data, error } = await client
+    .from("profiles")
+    .select("full_name,role,is_active")
+    .eq("id", userData.user.id)
+    .maybeSingle();
+  if (error) throw error;
+  return data as CurrentProfile | null;
+}
+
 export async function loadParcels(): Promise<ParcelSummary[]> {
   const { data, error } = await requiredClient()
     .from("parcel_overview")
@@ -50,6 +73,79 @@ export async function loadMapStatuses(): Promise<MapStatus[]> {
     .select("feature_key,status,linked_parcel_count");
   if (error) throw error;
   return (data ?? []) as MapStatus[];
+}
+
+export async function loadMapFeatureDefinitions(): Promise<MapFeatureDefinition[]> {
+  const { data, error } = await requiredClient()
+    .from("map_features")
+    .select("feature_key,svg_element_id")
+    .limit(2000);
+  if (error) throw error;
+  return (data ?? []) as MapFeatureDefinition[];
+}
+
+export async function loadMapFeatureLinks(): Promise<MapFeatureLink[]> {
+  const { data, error } = await requiredClient()
+    .from("map_feature_parcel_links")
+    .select("feature_key,svg_element_id,parcel_id,survey_number,village_code,village_name,match_method,match_confidence")
+    .limit(3000);
+  if (error) throw error;
+  return (data ?? []) as MapFeatureLink[];
+}
+
+async function sessionHeaders(): Promise<Record<string, string>> {
+  const client = requiredClient();
+  const { data, error } = await client.auth.getSession();
+  if (error) throw error;
+  if (!data.session) throw new Error("Please sign in first.");
+  return { Authorization: `Bearer ${data.session.access_token}`, apikey: supabaseKey! };
+}
+
+export async function loadParcelDetail(parcelId: string): Promise<ParcelDetail> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/parcel-detail?parcel_id=${encodeURIComponent(parcelId)}`, {
+    headers: await sessionHeaders()
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.parcel) throw new Error(payload.error || "Could not load survey details.");
+  return payload.parcel as ParcelDetail;
+}
+
+export async function recordConsent(input: {
+  parcelId: string;
+  status: ConsentStatus;
+  receivedOn?: string;
+  remarks?: string;
+}): Promise<void> {
+  const client = requiredClient();
+  const { data: userData, error: userError } = await client.auth.getUser();
+  if (userError) throw userError;
+  if (!userData.user) throw new Error("Please sign in first.");
+  const sourceValue = input.status === "received" ? "Manual ERP consent entry" : null;
+  const { error } = await client
+    .from("consent_records")
+    .upsert({
+      parcel_id: input.parcelId,
+      status: input.status,
+      received_on: input.status === "received" ? (input.receivedOn || new Date().toISOString().slice(0, 10)) : null,
+      source_value: sourceValue,
+      remarks: input.remarks || null,
+      updated_by: userData.user.id
+    }, { onConflict: "parcel_id" });
+  if (error) throw error;
+}
+
+export async function downloadPatelReport(filters: { village: string; consent: string; stage: string }): Promise<{ blob: Blob; filename: string }> {
+  const query = new URLSearchParams({ village: filters.village, consent: filters.consent, stage: filters.stage });
+  const response = await fetch(`${supabaseUrl}/functions/v1/patel-report?${query.toString()}`, {
+    headers: await sessionHeaders()
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || "Could not generate the Patel Infra report.");
+  }
+  const disposition = response.headers.get("content-disposition") ?? "";
+  const filename = /filename=([^;]+)/i.exec(disposition)?.[1]?.replaceAll('"', "") || "bhachunda-patel-infra-report.xlsx";
+  return { blob: await response.blob(), filename };
 }
 
 export async function saveParcelWorkflow(input: ParcelWorkflowInput): Promise<void> {

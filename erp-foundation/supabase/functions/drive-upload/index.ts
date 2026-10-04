@@ -202,7 +202,7 @@ Deno.serve(async (request) => {
 
     const { data: profile, error: profileError } = await admin.from("profiles").select("role,is_active").eq("id", userResult.user.id).maybeSingle();
     const role = profile?.role as AppRole | undefined;
-    if (profileError || !profile?.is_active || !role || !["admin", "data_entry", "legal"].includes(role)) return response({ error: "Your role cannot upload documents." }, 403, headers);
+    if (profileError || !profile?.is_active || role !== "admin") return response({ error: "Only the administrator can upload documents." }, 403, headers);
 
     const { data: parcel, error: parcelError } = await admin
       .from("parcels")

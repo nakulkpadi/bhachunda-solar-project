@@ -2,11 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import type { Session } from "@supabase/supabase-js";
 import {
   consentLabel,
+  downloadPatelReport,
   getSession,
   isSupabaseConfigured,
   loadGoogleDriveConnectionStatus,
+  loadMapFeatureDefinitions,
+  loadMapFeatureLinks,
   loadMapStatuses,
+  loadMyProfile,
+  loadParcelDetail,
   loadParcels,
+  recordConsent,
   saveParcelWorkflow,
   signIn,
   signOut,
@@ -15,21 +21,28 @@ import {
   uploadDriveDocument
 } from "./api";
 import { demoParcels } from "./demo";
+import { FullSurveyMap, type LiveMapSelection } from "./FullSurveyMap";
+import { SurveyDetails } from "./SurveyDetails";
 import type {
   AcquisitionStage,
   ConsentStatus,
+  CurrentProfile,
   DashboardMetrics,
+  MapFeatureDefinition,
+  MapFeatureLink,
   MapStatus,
+  ParcelDetail,
   ParcelSummary,
   ParcelWorkflowInput
 } from "./types";
 
-type ViewId = "dashboard" | "registry" | "entry" | "documents" | "reports" | "map";
+type ViewId = "dashboard" | "registry" | "details" | "entry" | "documents" | "reports" | "map";
 type Notice = { kind: "success" | "error" | "info"; text: string } | null;
 
 const viewTitles: Record<ViewId, string> = {
   dashboard: "Project overview",
   registry: "Land registry",
+  details: "Survey details",
   entry: "Workflow entry",
   documents: "Documents",
   reports: "Reports",
@@ -39,6 +52,7 @@ const viewTitles: Record<ViewId, string> = {
 const navItems: Array<{ id: ViewId; icon: string; label: string }> = [
   { id: "dashboard", icon: "▦", label: "Overview" },
   { id: "registry", icon: "☷", label: "Land registry" },
+  { id: "details", icon: "◫", label: "Survey details" },
   { id: "entry", icon: "✎", label: "Workflow entry" },
   { id: "documents", icon: "▱", label: "Documents" },
   { id: "reports", icon: "▤", label: "Reports" },
@@ -70,6 +84,13 @@ function formatAcres(value: number | null): string {
 
 function statusClass(status: ConsentStatus): string {
   return `status status-${status}`;
+}
+
+function mapColors(status: ConsentStatus): { fill: string; stroke: string } {
+  if (status === "received") return { fill: "#45b96f", stroke: "#17633d" };
+  if (status === "pending") return { fill: "#edbf5a", stroke: "#8a5f17" };
+  if (status === "blocked" || status === "rejected") return { fill: "#dd7777", stroke: "#8c2631" };
+  return { fill: "#dce5e1", stroke: "#71877d" };
 }
 
 function createWorkflow(parcel: ParcelSummary): ParcelWorkflowInput {
@@ -137,9 +158,12 @@ function downloadCsv(rows: ParcelSummary[], fileName: string): void {
 function App() {
   const [activeView, setActiveView] = useState<ViewId>("dashboard");
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<CurrentProfile | null>(null);
   const [sessionChecked, setSessionChecked] = useState(!isSupabaseConfigured);
   const [parcels, setParcels] = useState<ParcelSummary[]>(demoParcels);
   const [mapStatuses, setMapStatuses] = useState<MapStatus[]>([]);
+  const [mapDefinitions, setMapDefinitions] = useState<MapFeatureDefinition[]>([]);
+  const [mapLinks, setMapLinks] = useState<MapFeatureLink[]>([]);
   const [isLiveData, setIsLiveData] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
@@ -154,31 +178,44 @@ function App() {
   const [selectedParcelId, setSelectedParcelId] = useState(demoParcels[0].id);
   const [workflow, setWorkflow] = useState<ParcelWorkflowInput>(() => createWorkflow(demoParcels[0]));
   const [savingWorkflow, setSavingWorkflow] = useState(false);
+  const [surveyDetail, setSurveyDetail] = useState<ParcelDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [documentType, setDocumentType] = useState("consent_letter");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [connectingDrive, setConnectingDrive] = useState(false);
   const [driveConnected, setDriveConnected] = useState(false);
-  const [mapSelection, setMapSelection] = useState<string | null>(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [mapSelection, setMapSelection] = useState<LiveMapSelection>(null);
   const mapRef = useRef<HTMLObjectElement | null>(null);
+
+  const isAdmin = profile?.role === "admin" && profile.is_active;
 
   const refreshLiveData = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
     try {
-      const [liveParcels, liveStatuses, connected] = await Promise.all([
+      const [liveParcels, liveStatuses, definitions, links, nextProfile, connected] = await Promise.all([
         loadParcels(),
         loadMapStatuses(),
+        loadMapFeatureDefinitions(),
+        loadMapFeatureLinks(),
+        loadMyProfile(),
         loadGoogleDriveConnectionStatus().catch(() => false)
       ]);
       setParcels(liveParcels);
       setMapStatuses(liveStatuses);
+      setMapDefinitions(definitions);
+      setMapLinks(links);
+      setProfile(nextProfile);
       setDriveConnected(connected);
       setIsLiveData(true);
-      setNotice({ kind: "success", text: "Live records refreshed." });
     } catch (error) {
       setIsLiveData(false);
       setParcels(demoParcels);
+      setMapDefinitions([]);
+      setMapLinks([]);
+      setProfile(null);
       setNotice({
         kind: "error",
         text: error instanceof Error ? `Live database is not ready: ${error.message}` : "Live database is not ready yet."
@@ -205,9 +242,13 @@ function App() {
       setSession(nextSession);
       if (nextSession) void refreshLiveData();
       if (!nextSession) {
+        setProfile(null);
         setIsLiveData(false);
         setParcels(demoParcels);
         setMapStatuses([]);
+        setMapDefinitions([]);
+        setMapLinks([]);
+        setSurveyDetail(null);
         setDriveConnected(false);
         setConnectingDrive(false);
       }
@@ -289,7 +330,27 @@ function App() {
     if (selectedParcel) setWorkflow(createWorkflow(selectedParcel));
   }, [selectedParcel?.id]);
 
-  const chooseParcel = (parcel: ParcelSummary, nextView: ViewId = "entry") => {
+  useEffect(() => {
+    if (!session || !isLiveData || !selectedParcel) {
+      setSurveyDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setDetailLoading(true);
+    void loadParcelDetail(selectedParcel.id)
+      .then((detail) => {
+        if (!cancelled) setSurveyDetail(detail);
+      })
+      .catch((error) => {
+        if (!cancelled) setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not load full survey details." });
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [isLiveData, selectedParcel?.id, session]);
+
+  const chooseParcel = (parcel: ParcelSummary, nextView: ViewId = "details") => {
     setSelectedParcelId(parcel.id);
     setActiveView(nextView);
   };
@@ -315,8 +376,8 @@ function App() {
 
   const saveWorkflow = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!session || !isLiveData) {
-      setNotice({ kind: "info", text: "Sign in and complete the staging import before writing workflow records." });
+    if (!isAdmin || !isLiveData) {
+      setNotice({ kind: "info", text: "Only the administrator can update workflow records." });
       return;
     }
     setSavingWorkflow(true);
@@ -337,8 +398,8 @@ function App() {
       setNotice({ kind: "info", text: "Choose a parcel and a document file first." });
       return;
     }
-    if (!session || !isLiveData) {
-      setNotice({ kind: "info", text: "Sign in and complete the staging import before uploading to Drive." });
+    if (!isAdmin || !isLiveData) {
+      setNotice({ kind: "info", text: "Only the administrator can upload documents." });
       return;
     }
     if (uploadFile.size > 15 * 1024 * 1024) {
@@ -359,8 +420,8 @@ function App() {
   };
 
   const connectPersonalDrive = async () => {
-    if (!session || !isLiveData) {
-      setNotice({ kind: "info", text: "Sign in with an administrator account after the staging import is complete." });
+    if (!isAdmin || !isLiveData) {
+      setNotice({ kind: "info", text: "Only the administrator can connect personal Google Drive." });
       return;
     }
     const popup = window.open("", "bhachunda-google-drive-oauth", "popup=yes,width=560,height=720");
@@ -380,26 +441,106 @@ function App() {
     }
   };
 
-  const applyMapStatuses = useCallback(() => {
+  const saveReceivedConsent = async (receivedOn: string, remarks: string): Promise<void> => {
+    if (!selectedParcel || !isAdmin || !isLiveData) throw new Error("Only the administrator can record consent.");
+    await recordConsent({ parcelId: selectedParcel.id, status: "received", receivedOn, remarks });
+    await refreshLiveData();
+    const refreshed = await loadParcelDetail(selectedParcel.id);
+    setSurveyDetail(refreshed);
+    setNotice({ kind: "success", text: "Consent received was recorded. The linked map shape is now green." });
+  };
+
+  const generatePatelReport = async () => {
+    if (!isAdmin) {
+      setNotice({ kind: "info", text: "The Patel Infra report contains restricted owner fields and is available only to the administrator." });
+      return;
+    }
+    setGeneratingReport(true);
+    try {
+      const report = await downloadPatelReport({ village: villageFilter, consent: consentFilter, stage: stageFilter });
+      const url = URL.createObjectURL(report.blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = report.filename;
+      anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setNotice({ kind: "success", text: "Patel Infra Excel report generated from live data." });
+    } catch (error) {
+      setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not generate the report." });
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
+  const handleMapFeatureClick = useCallback((featureKey: string) => {
+    const links = mapLinks.filter((link) => link.feature_key === featureKey);
+    setMapSelection({ featureKey, links });
+    if (links.length === 1) {
+      const linkedParcel = parcels.find((parcel) => parcel.id === links[0].parcel_id);
+      if (linkedParcel) chooseParcel(linkedParcel, "details");
+    }
+  }, [mapLinks, parcels]);
+
+  const applyMapStyles = useCallback(() => {
     const svgDocument = mapRef.current?.contentDocument;
     if (!svgDocument) return;
+    const root = svgDocument.documentElement;
+    if (!root.dataset.initialViewBox && root.getAttribute("viewBox")) root.dataset.initialViewBox = root.getAttribute("viewBox") ?? "";
+    // The CAD labels sit above their boundaries. Let a click pass through the
+    // text to the linked survey boundary below it.
+    svgDocument.querySelectorAll("text").forEach((label) => { label.style.pointerEvents = "none"; });
     const statusByFeature = new Map(mapStatuses.map((item) => [item.feature_key, item.status]));
-    svgDocument.querySelectorAll<SVGElement>("[data-feature-key]").forEach((element) => {
-      const key = element.dataset.featureKey ?? "";
-      // In live mode a map must be driven only by imported, mapped records. In preview
-      // mode the reviewed CAD candidate styling is retained for stakeholder review.
-      const nextStatus = isLiveData ? statusByFeature.get(key) ?? "not_ready" : (element.dataset.displayConsent as ConsentStatus) ?? "not_ready";
-      consentOptions.forEach((status) => element.classList.remove(`consent-${status}`));
-      element.classList.remove("consent-unclassified");
-      element.classList.add(`consent-${nextStatus}`);
-      element.dataset.displayConsent = nextStatus;
-      element.addEventListener("click", () => setMapSelection(key));
+    mapDefinitions.forEach((feature) => {
+      if (!feature.svg_element_id) return;
+      const element = svgDocument.getElementById(feature.svg_element_id) as SVGElement | null;
+      if (!element) return;
+      const status = statusByFeature.get(feature.feature_key) ?? "not_ready";
+      const colors = mapColors(status);
+      element.style.fill = colors.fill;
+      element.style.fillOpacity = status === "not_ready" ? "0.52" : "0.84";
+      element.style.stroke = colors.stroke;
+      element.style.strokeWidth = "1.15px";
+      element.style.cursor = "pointer";
+      element.style.pointerEvents = "all";
+      element.setAttribute("tabindex", "0");
+      element.setAttribute("role", "button");
+      element.onclick = () => handleMapFeatureClick(feature.feature_key);
+      element.onkeydown = (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          handleMapFeatureClick(feature.feature_key);
+        }
+      };
     });
-  }, [isLiveData, mapStatuses]);
+  }, [handleMapFeatureClick, mapDefinitions, mapStatuses]);
 
   useEffect(() => {
-    applyMapStatuses();
-  }, [applyMapStatuses]);
+    applyMapStyles();
+  }, [applyMapStyles]);
+
+  const zoomMap = useCallback((factor: number) => {
+    const root = mapRef.current?.contentDocument?.documentElement;
+    const initial = root?.dataset.initialViewBox;
+    if (!root || !initial) return;
+    const current = (root.getAttribute("viewBox") ?? initial).trim().split(/[\s,]+/).map(Number);
+    const boundary = initial.trim().split(/[\s,]+/).map(Number);
+    if (current.length !== 4 || boundary.length !== 4 || current.some(Number.isNaN)) return;
+    const x = current[0];
+    const y = current[1];
+    const width = current[2];
+    const height = current[3];
+    const initialWidth = boundary[2];
+    const initialHeight = boundary[3];
+    const nextWidth = Math.max(initialWidth * 0.03, Math.min(initialWidth, width * factor));
+    const nextHeight = Math.max(initialHeight * 0.03, Math.min(initialHeight, height * factor));
+    root.setAttribute("viewBox", String(x + (width - nextWidth) / 2) + " " + String(y + (height - nextHeight) / 2) + " " + String(nextWidth) + " " + String(nextHeight));
+  }, []);
+
+  const resetMap = useCallback(() => {
+    const root = mapRef.current?.contentDocument?.documentElement;
+    const initial = root?.dataset.initialViewBox;
+    if (root && initial) root.setAttribute("viewBox", initial);
+  }, []);
 
   const reportRows = useMemo(() => {
     if (activeView !== "reports") return visibleRows;
@@ -443,7 +584,7 @@ function App() {
             {loading && <span className="muted">Refreshing…</span>}
             {session ? (
               <>
-                <span className="account-chip" title={session.user.email ?? "Signed-in user"}>{session.user.email ?? "Signed in"}</span>
+                <span className="account-chip" title={session.user.email ?? "Signed-in user"}>{profile?.role === "admin" ? "Administrator · " : "Read-only · "}{session.user.email ?? "Signed in"}</span>
                 <button className="button button-secondary" onClick={() => void signOut()} type="button">Sign out</button>
               </>
             ) : (
@@ -464,8 +605,8 @@ function App() {
 
         {!isLiveData && (
           <section className="preview-banner">
-            <div><strong>Safe preview mode.</strong> The dashboard uses de-identified sample records and aggregate Excel counts until the Supabase migration and import are completed.</div>
-            <button className="text-button" onClick={() => setActiveView("reports")} type="button">Review reports →</button>
+            <div><strong>Safe preview mode.</strong> Sign in to see the imported live land register, full survey details and CAD map.</div>
+            <button className="text-button" onClick={() => setShowSignIn(true)} type="button">Sign in →</button>
           </section>
         )}
 
@@ -495,12 +636,24 @@ function App() {
               onClear={() => { setSearch(""); setVillageFilter("all"); setConsentFilter("all"); setStageFilter("all"); }}
             />
           )}
+          {activeView === "details" && (
+            <SurveyDetails
+              rows={parcels}
+              selectedParcel={selectedParcel}
+              detail={surveyDetail}
+              loading={detailLoading}
+              isAdmin={isAdmin}
+              onSelect={setSelectedParcelId}
+              onRecordConsent={saveReceivedConsent}
+              onGoDocuments={() => setActiveView("documents")}
+            />
+          )}
           {activeView === "entry" && (
             <WorkflowEntry
               rows={parcels}
               selectedParcel={selectedParcel}
               workflow={workflow}
-              isWritable={Boolean(session && isLiveData)}
+              isWritable={Boolean(isAdmin && isLiveData)}
               saving={savingWorkflow}
               onSelect={setSelectedParcelId}
               onChange={setWorkflow}
@@ -514,13 +667,13 @@ function App() {
               selectedParcel={selectedParcel}
               documentType={documentType}
               uploadFile={uploadFile}
-              isWritable={Boolean(session && isLiveData)}
+              isWritable={Boolean(isAdmin && isLiveData)}
               uploading={uploading}
               onSelect={setSelectedParcelId}
               onDocumentType={setDocumentType}
               onFile={setUploadFile}
               onSubmit={uploadDocument}
-              canConnectDrive={Boolean(session && isLiveData)}
+              canConnectDrive={Boolean(isAdmin && isLiveData)}
               connectingDrive={connectingDrive}
               driveConnected={driveConnected}
               onConnectDrive={connectPersonalDrive}
@@ -540,14 +693,25 @@ function App() {
               onConsent={setConsentFilter}
               onStage={setStageFilter}
               onDownload={() => downloadCsv(reportRows, "bhachunda-solar-filtered-report.csv")}
+              canGeneratePatel={isAdmin}
+              generating={generatingReport}
+              onGeneratePatel={generatePatelReport}
             />
           )}
           {activeView === "map" && (
-            <SurveyMap
+            <FullSurveyMap
               mapRef={mapRef}
               isLiveData={isLiveData}
-              mapSelection={mapSelection}
-              onLoad={applyMapStatuses}
+              featureCount={mapDefinitions.length}
+              selection={mapSelection}
+              onLoad={applyMapStyles}
+              onZoomIn={() => zoomMap(0.72)}
+              onZoomOut={() => zoomMap(1.38)}
+              onReset={resetMap}
+              onOpenParcel={(parcelId) => {
+                const parcel = parcels.find((item) => item.id === parcelId);
+                if (parcel) chooseParcel(parcel, "details");
+              }}
               onGoRegistry={() => setActiveView("registry")}
             />
           )}
@@ -626,9 +790,9 @@ function Dashboard({
       <section className="card action-panel">
         <div className="card-heading"><div><div className="eyebrow">WORK QUEUE</div><h3>Next operational actions</h3></div></div>
         <ol className="action-list">
-          <li><span>01</span><div><strong>Import and reconcile workbook</strong><p>Run the staging import, confirm the counts and approve exceptions.</p></div></li>
-          <li><span>02</span><div><strong>Invite operational users</strong><p>Assign Data Entry, Legal, Finance and Viewer roles before live work begins.</p></div></li>
-          <li><span>03</span><div><strong>Connect protected Drive root</strong><p>Uploads will create a dedicated village / survey folder automatically.</p></div></li>
+          <li><span>01</span><div><strong>Review survey details</strong><p>Select a village and survey number to check the imported land and workflow data.</p></div></li>
+          <li><span>02</span><div><strong>Record received consent</strong><p>Only an administrator can save it; the exact linked CAD boundary then turns green.</p></div></li>
+          <li><span>03</span><div><strong>Attach protected documents</strong><p>Upload into the automatically created village / survey folder in Google Drive.</p></div></li>
         </ol>
       </section>
 
@@ -746,7 +910,7 @@ function WorkflowEntry({
       <button className="button button-secondary button-wide" onClick={onGoDocuments} type="button">Upload a document for this survey</button>
     </section>
     <form className="card workflow-form" onSubmit={onSubmit}>
-      <div className="card-heading"><div><div className="eyebrow">PATEL INFRA WORKFLOW</div><h2>Update land-acquisition record</h2><p>{isWritable ? "Changes are saved with your role and timestamp." : "Preview values are editable locally but cannot be saved until live access is ready."}</p></div>{!isWritable && <span className="lock-badge">Preview locked</span>}</div>
+      <div className="card-heading"><div><div className="eyebrow">PATEL INFRA WORKFLOW</div><h2>Update land-acquisition record</h2><p>{isWritable ? "Changes are saved with your role and timestamp." : "This information is read-only. Only the administrator can save a change."}</p></div>{!isWritable && <span className="lock-badge">Read-only</span>}</div>
       <fieldset disabled={!isWritable || saving}>
         <div className="form-grid">
           <label>Old survey number<input onChange={(event) => update("oldSurveyNumber", event.target.value)} value={workflow.oldSurveyNumber} /></label>
@@ -822,7 +986,10 @@ function Reports({
   onVillage,
   onConsent,
   onStage,
-  onDownload
+  onDownload,
+  canGeneratePatel,
+  generating,
+  onGeneratePatel
 }: {
   rows: ParcelSummary[];
   metrics: DashboardMetrics;
@@ -836,32 +1003,20 @@ function Reports({
   onConsent: (value: "all" | ConsentStatus) => void;
   onStage: (value: "all" | AcquisitionStage) => void;
   onDownload: () => void;
+  canGeneratePatel: boolean;
+  generating: boolean;
+  onGeneratePatel: () => void;
 }) {
   const received = rows.filter((row) => row.consent_status === "received").length;
   const stages = stageOptions.map((stage) => ({ stage, count: rows.filter((row) => row.acquisition_stage === stage).length })).filter((item) => item.count > 0);
   return <div className="reports-layout">
-    <section className="card report-header"><div><div className="eyebrow">FILTERED REPORTING</div><h2>Build an operational report from the current filter</h2><p>Use the same filters as the register, then export a clean Excel-compatible CSV. Future scheduled PDF and MIS reports can use the same reporting views.</p></div><button className="button button-primary" onClick={onDownload} type="button">Download CSV</button></section>
+    <section className="card report-header"><div><div className="eyebrow">FILTERED REPORTING</div><h2>Generate a Patel Infra report from live data</h2><p>The Excel report uses the supplied Patel Infra column layout and includes acquisition, legal, document and restricted owner fields.</p></div><div className="report-actions"><button className="button button-secondary" onClick={onDownload} type="button">Download register CSV</button><button className="button button-primary" disabled={!canGeneratePatel || generating} onClick={onGeneratePatel} type="button">{generating ? "Generating…" : "Generate Patel Infra Excel"}</button></div></section>
+    {!canGeneratePatel && <p className="small-note report-lock-note">Sign in as the administrator to generate the confidential Patel Infra Excel report.</p>}
     <FilterBar {...{ search, villages, villageFilter, consentFilter, stageFilter, onSearch, onVillage, onConsent, onStage }} />
     <section className="report-metrics"><MetricCard label="Filtered records" value={String(rows.length)} detail={`${metrics.totalParcels} total records`} accent="blue" /><MetricCard label="Consent received" value={String(received)} detail="Within current filter" accent="green" /><MetricCard label="No documents" value={String(rows.filter((row) => row.document_count === 0).length)} detail="Document exception report" accent="amber" /></section>
     <section className="card report-breakdown"><div className="card-heading"><div><div className="eyebrow">WORKFLOW BREAKDOWN</div><h3>Acquisition stages in this report</h3></div></div><div className="stage-breakdown">{stages.length ? stages.map(({ stage, count }) => <div key={stage}><span>{stageLabel[stage]}</span><strong>{count}</strong><i style={{ width: `${rows.length ? Math.round((count / rows.length) * 100) : 0}%` }} /></div>) : <div className="empty-state"><strong>No stage records match.</strong></div>}</div></section>
     <section className="card report-table"><div className="card-heading"><div><div className="eyebrow">REPORT PREVIEW</div><h3>{rows.length} filtered surveys</h3></div><span className="muted">CSV export contains the same rows</span></div><ParcelTable rows={rows.slice(0, 100)} onChoose={() => undefined} /></section>
   </div>;
-}
-
-function SurveyMap({
-  mapRef,
-  isLiveData,
-  mapSelection,
-  onLoad,
-  onGoRegistry
-}: {
-  mapRef: React.RefObject<HTMLObjectElement | null>;
-  isLiveData: boolean;
-  mapSelection: string | null;
-  onLoad: () => void;
-  onGoRegistry: () => void;
-}) {
-  return <div className="map-layout"><section className="card map-intro"><div><div className="eyebrow">CAD-DERIVED MAP</div><h2>Survey consent map</h2><p>{isLiveData ? "Map color is driven from the imported consent record for each reviewed CAD feature." : "This is a reviewed CAD preview. It currently shows only Bhavanipar consent candidates from the source workbook; remaining village bindings need review."}</p></div><button className="button button-secondary" onClick={onGoRegistry} type="button">Open matching register</button></section><section className="map-legend"><span><i className="swatch-green" /> Consent received</span><span><i className="swatch-amber" /> Pending</span><span><i className="swatch-grey" /> Not ready / unconfirmed</span><span><i className="swatch-red" /> Blocked / rejected</span></section><section className="card map-card"><object aria-label="Interactive combined village survey map" className="survey-map" data="./maps/combined-villages-interactive.svg" onLoad={onLoad} ref={mapRef} type="image/svg+xml"><p>Your browser could not render the survey SVG. Open the map asset directly.</p></object></section><section className="card map-footer"><div><strong>Map feature {mapSelection ?? "not selected"}</strong><p>Select a visible parcel boundary to inspect its CAD feature key. The final import creates explicit parcel-to-shape links; unmatched or ambiguous CAD features stay grey.</p></div><span className="map-proof">866 labelled CAD shapes · review required for cross-village bindings</span></section></div>;
 }
 
 export default App;
