@@ -502,7 +502,7 @@ function App() {
     const svgDocument = mapRef.current?.contentDocument;
     if (!svgDocument) return;
     const root = svgDocument.documentElement;
-    if (!root.dataset.initialViewBox && root.getAttribute("viewBox")) root.dataset.initialViewBox = root.getAttribute("viewBox") ?? "";
+    if (!root.dataset.cadViewBox && root.getAttribute("viewBox")) root.dataset.cadViewBox = root.getAttribute("viewBox") ?? "";
     // The CAD labels sit above their boundaries. Let a click pass through the
     // text to the linked survey boundary below it.
     svgDocument.querySelectorAll("text").forEach((label) => { label.style.pointerEvents = "none"; });
@@ -529,6 +529,39 @@ function App() {
         }
       };
     });
+
+    // The original DWG viewBox also contains construction marks and empty CAD
+    // canvas. Once the real survey boundaries are available, fit the initial
+    // view to those boundaries so the three villages are easy to read without
+    // hiding any survey shape. The untouched CAD view remains in the SVG.
+    if (!root.dataset.fitViewBox && mapDefinitions.length > 0) {
+      let minX = Number.POSITIVE_INFINITY;
+      let minY = Number.POSITIVE_INFINITY;
+      let maxX = Number.NEGATIVE_INFINITY;
+      let maxY = Number.NEGATIVE_INFINITY;
+      mapDefinitions.forEach((feature) => {
+        if (!feature.svg_element_id) return;
+        const element = svgDocument.getElementById(feature.svg_element_id) as SVGGraphicsElement | null;
+        if (!element) return;
+        try {
+          const box = element.getBBox();
+          if (box.width <= 0 || box.height <= 0) return;
+          minX = Math.min(minX, box.x);
+          minY = Math.min(minY, box.y);
+          maxX = Math.max(maxX, box.x + box.width);
+          maxY = Math.max(maxY, box.y + box.height);
+        } catch {
+          // A malformed CAD primitive must not stop the rest of the map.
+        }
+      });
+      if (Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)) {
+        const paddingX = Math.max(24, (maxX - minX) * 0.07);
+        const paddingY = Math.max(24, (maxY - minY) * 0.07);
+        const fitViewBox = [minX - paddingX, minY - paddingY, maxX - minX + paddingX * 2, maxY - minY + paddingY * 2].join(" ");
+        root.dataset.fitViewBox = fitViewBox;
+        root.setAttribute("viewBox", fitViewBox);
+      }
+    }
   }, [handleMapFeatureClick, mapDefinitions, mapStatuses]);
 
   useEffect(() => {
@@ -537,7 +570,7 @@ function App() {
 
   const zoomMap = useCallback((factor: number) => {
     const root = mapRef.current?.contentDocument?.documentElement;
-    const initial = root?.dataset.initialViewBox;
+    const initial = root?.dataset.fitViewBox ?? root?.dataset.cadViewBox;
     if (!root || !initial) return;
     const current = (root.getAttribute("viewBox") ?? initial).trim().split(/[\s,]+/).map(Number);
     const boundary = initial.trim().split(/[\s,]+/).map(Number);
@@ -555,7 +588,7 @@ function App() {
 
   const resetMap = useCallback(() => {
     const root = mapRef.current?.contentDocument?.documentElement;
-    const initial = root?.dataset.initialViewBox;
+    const initial = root?.dataset.fitViewBox ?? root?.dataset.cadViewBox;
     if (root && initial) root.setAttribute("viewBox", initial);
   }, []);
 
