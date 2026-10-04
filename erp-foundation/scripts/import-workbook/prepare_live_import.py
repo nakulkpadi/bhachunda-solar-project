@@ -45,6 +45,14 @@ PRIVATE_REPORT_HEADERS = {
     "owner name",
 }
 
+# The combined drawing contains two complete survey boundary / label pairs.
+# Earlier imports used only the primary pair, which left the secondary survey
+# area visible but unlinked in the browser map.
+MAP_LAYER_SOURCES = (
+    ("primary", "0", "NEW SVY NO"),
+    ("secondary", "Survey_Limit", "Survey No New"),
+)
+
 
 def as_text(value: Any) -> str:
     if value is None:
@@ -351,54 +359,60 @@ def build_map_records(cad_json_path: Path, cad_helper_path: Path, land_records: 
     helper = load_cad_helpers(cad_helper_path)
     objects = cad["OBJECTS"]
     layers = helper.layer_name_lookup(objects)
-    polygons = helper.collect_polygons(objects, layers, helper.PRIMARY_POLYGON_LAYER)
-    labels = helper.collect_labels(objects, layers, helper.PRIMARY_LABEL_LAYER)
-    assignments, _ = helper.assign_labels_to_polygons(labels, polygons)
     by_survey: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for record in land_records:
         by_survey[record["survey_normalized"]].append(record)
-    labels_by_polygon: dict[int, list[Any]] = defaultdict(list)
-    for assignment in assignments.values():
-        polygon = assignment["polygon"]
-        if polygon is not None:
-            labels_by_polygon[polygon.object_index].append(assignment["label"])
 
     features: list[dict[str, Any]] = []
     links: list[dict[str, Any]] = []
     stats: Counter[str] = Counter()
-    for object_index, polygon_labels in sorted(labels_by_polygon.items()):
-        candidates = []
-        seen_keys: set[tuple[str, str]] = set()
-        for label in polygon_labels:
-            for parcel in by_survey.get(label.normalized, []):
-                key = (parcel["village_code"], parcel["survey_normalized"])
-                if key not in seen_keys:
-                    seen_keys.add(key)
-                    candidates.append(parcel)
-        feature_key = f"cad-primary-{object_index}"
-        validation_status = "matched" if len(candidates) == 1 else "ambiguous" if candidates else "unmatched"
-        features.append({
-            "feature_key": feature_key,
-            "svg_element_id": f"dwg-object-{object_index}",
-            "source_cad_layer": helper.PRIMARY_POLYGON_LAYER,
-            "validation_status": validation_status,
-        })
-        if candidates:
-            stats["matched_features"] += 1
-        else:
-            stats["unmatched_features"] += 1
-        if len(candidates) > 1:
-            stats["ambiguous_features"] += 1
-        for parcel in candidates:
-            links.append({
+    for source_name, polygon_layer, label_layer in MAP_LAYER_SOURCES:
+        polygons = helper.collect_polygons(objects, layers, polygon_layer)
+        labels = helper.collect_labels(objects, layers, label_layer)
+        assignments, candidate_counts = helper.assign_labels_to_polygons(labels, polygons)
+        labels_by_polygon: dict[int, list[Any]] = defaultdict(list)
+        for assignment in assignments.values():
+            polygon = assignment["polygon"]
+            if polygon is not None:
+                labels_by_polygon[polygon.object_index].append(assignment["label"])
+
+        stats[f"{source_name}_polygons"] = len(polygons)
+        stats[f"{source_name}_labels"] = len(labels)
+        stats[f"{source_name}_unassigned_labels"] = candidate_counts.get(0, 0)
+        for object_index, polygon_labels in sorted(labels_by_polygon.items()):
+            candidates = []
+            seen_keys: set[tuple[str, str]] = set()
+            for label in polygon_labels:
+                for parcel in by_survey.get(label.normalized, []):
+                    key = (parcel["village_code"], parcel["survey_normalized"])
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        candidates.append(parcel)
+            feature_key = f"cad-{source_name}-{object_index}"
+            validation_status = "matched" if len(candidates) == 1 else "ambiguous" if candidates else "unmatched"
+            features.append({
                 "feature_key": feature_key,
-                "village_code": parcel["village_code"],
-                "survey_normalized": parcel["survey_normalized"],
-                "match_method": "cad_label_exact",
-                "match_confidence": "high" if len(candidates) == 1 else "needs_review",
-                "notes": "Exact CAD label match" if len(candidates) == 1 else "Exact label occurs in more than one imported village/survey record",
+                "svg_element_id": f"dwg-object-{object_index}",
+                "source_cad_layer": polygon_layer,
+                "validation_status": validation_status,
             })
-            stats["mapped_parcels"] += 1
+            stats[f"{source_name}_features"] += 1
+            if candidates:
+                stats["matched_features"] += 1
+            else:
+                stats["unmatched_features"] += 1
+            if len(candidates) > 1:
+                stats["ambiguous_features"] += 1
+            for parcel in candidates:
+                links.append({
+                    "feature_key": feature_key,
+                    "village_code": parcel["village_code"],
+                    "survey_normalized": parcel["survey_normalized"],
+                    "match_method": "cad_label_exact",
+                    "match_confidence": "high" if len(candidates) == 1 else "needs_review",
+                    "notes": f"Exact CAD label match on {source_name} survey layer" if len(candidates) == 1 else "Exact label occurs in more than one imported village/survey record",
+                })
+                stats["mapped_parcels"] += 1
     stats["cad_features"] = len(features)
     return features, links, dict(stats)
 

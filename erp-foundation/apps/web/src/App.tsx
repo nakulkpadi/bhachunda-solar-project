@@ -21,6 +21,7 @@ import {
   uploadDriveDocument
 } from "./api";
 import { demoParcels } from "./demo";
+import { ConsentEntry } from "./ConsentEntry";
 import { FullSurveyMap, type LiveMapSelection } from "./FullSurveyMap";
 import { SurveyDetails } from "./SurveyDetails";
 import type {
@@ -36,13 +37,14 @@ import type {
   ParcelWorkflowInput
 } from "./types";
 
-type ViewId = "dashboard" | "registry" | "details" | "entry" | "documents" | "reports" | "map";
+type ViewId = "dashboard" | "registry" | "details" | "consent" | "entry" | "documents" | "reports" | "map";
 type Notice = { kind: "success" | "error" | "info"; text: string } | null;
 
 const viewTitles: Record<ViewId, string> = {
   dashboard: "Project overview",
   registry: "Land registry",
   details: "Survey details",
+  consent: "Consent entry",
   entry: "Workflow entry",
   documents: "Documents",
   reports: "Reports",
@@ -53,6 +55,7 @@ const navItems: Array<{ id: ViewId; icon: string; label: string }> = [
   { id: "dashboard", icon: "▦", label: "Overview" },
   { id: "registry", icon: "☷", label: "Land registry" },
   { id: "details", icon: "◫", label: "Survey details" },
+  { id: "consent", icon: "✓", label: "Consent entry" },
   { id: "entry", icon: "✎", label: "Workflow entry" },
   { id: "documents", icon: "▱", label: "Documents" },
   { id: "reports", icon: "▤", label: "Reports" },
@@ -441,13 +444,27 @@ function App() {
     }
   };
 
-  const saveReceivedConsent = async (receivedOn: string, remarks: string): Promise<void> => {
+  const saveConsentEntry = async (input: { status: ConsentStatus; receivedOn: string; reference: string; remarks: string }): Promise<void> => {
     if (!selectedParcel || !isAdmin || !isLiveData) throw new Error("Only the administrator can record consent.");
-    await recordConsent({ parcelId: selectedParcel.id, status: "received", receivedOn, remarks });
+    const sourceValue = input.reference.trim()
+      ? `Manual ERP consent entry · ${input.reference.trim()}`
+      : "Manual ERP consent entry";
+    await recordConsent({
+      parcelId: selectedParcel.id,
+      status: input.status,
+      receivedOn: input.status === "received" ? input.receivedOn : undefined,
+      sourceValue,
+      remarks: input.remarks
+    });
     await refreshLiveData();
     const refreshed = await loadParcelDetail(selectedParcel.id);
     setSurveyDetail(refreshed);
-    setNotice({ kind: "success", text: "Consent received was recorded. The linked map shape is now green." });
+    setNotice({
+      kind: "success",
+      text: input.status === "received"
+        ? "Consent received was recorded. The linked map shape is now green."
+        : `Consent status was saved as ${consentLabel[input.status]}.`
+    });
   };
 
   const generatePatelReport = async () => {
@@ -644,8 +661,20 @@ function App() {
               loading={detailLoading}
               isAdmin={isAdmin}
               onSelect={setSelectedParcelId}
-              onRecordConsent={saveReceivedConsent}
+              onGoConsent={() => setActiveView("consent")}
               onGoDocuments={() => setActiveView("documents")}
+            />
+          )}
+          {activeView === "consent" && (
+            <ConsentEntry
+              rows={parcels}
+              selectedParcel={selectedParcel}
+              detail={surveyDetail}
+              loading={detailLoading}
+              isAdmin={isAdmin}
+              onSelect={setSelectedParcelId}
+              onSave={saveConsentEntry}
+              onGoDetails={() => setActiveView("details")}
             />
           )}
           {activeView === "entry" && (
@@ -693,6 +722,7 @@ function App() {
               onConsent={setConsentFilter}
               onStage={setStageFilter}
               onDownload={() => downloadCsv(reportRows, "bhachunda-solar-filtered-report.csv")}
+              onChooseParcel={chooseParcel}
               canGeneratePatel={isAdmin}
               generating={generatingReport}
               onGeneratePatel={generatePatelReport}
@@ -987,6 +1017,7 @@ function Reports({
   onConsent,
   onStage,
   onDownload,
+  onChooseParcel,
   canGeneratePatel,
   generating,
   onGeneratePatel
@@ -1003,6 +1034,7 @@ function Reports({
   onConsent: (value: "all" | ConsentStatus) => void;
   onStage: (value: "all" | AcquisitionStage) => void;
   onDownload: () => void;
+  onChooseParcel: (parcel: ParcelSummary, view?: ViewId) => void;
   canGeneratePatel: boolean;
   generating: boolean;
   onGeneratePatel: () => void;
@@ -1015,7 +1047,7 @@ function Reports({
     <FilterBar {...{ search, villages, villageFilter, consentFilter, stageFilter, onSearch, onVillage, onConsent, onStage }} />
     <section className="report-metrics"><MetricCard label="Filtered records" value={String(rows.length)} detail={`${metrics.totalParcels} total records`} accent="blue" /><MetricCard label="Consent received" value={String(received)} detail="Within current filter" accent="green" /><MetricCard label="No documents" value={String(rows.filter((row) => row.document_count === 0).length)} detail="Document exception report" accent="amber" /></section>
     <section className="card report-breakdown"><div className="card-heading"><div><div className="eyebrow">WORKFLOW BREAKDOWN</div><h3>Acquisition stages in this report</h3></div></div><div className="stage-breakdown">{stages.length ? stages.map(({ stage, count }) => <div key={stage}><span>{stageLabel[stage]}</span><strong>{count}</strong><i style={{ width: `${rows.length ? Math.round((count / rows.length) * 100) : 0}%` }} /></div>) : <div className="empty-state"><strong>No stage records match.</strong></div>}</div></section>
-    <section className="card report-table"><div className="card-heading"><div><div className="eyebrow">REPORT PREVIEW</div><h3>{rows.length} filtered surveys</h3></div><span className="muted">CSV export contains the same rows</span></div><ParcelTable rows={rows.slice(0, 100)} onChoose={() => undefined} /></section>
+    <section className="card report-table"><div className="card-heading"><div><div className="eyebrow">REPORT PREVIEW</div><h3>{rows.length} filtered surveys</h3></div><span className="muted">Open any survey to see its full details</span></div><ParcelTable rows={rows.slice(0, 100)} onChoose={onChooseParcel} /></section>
   </div>;
 }
 

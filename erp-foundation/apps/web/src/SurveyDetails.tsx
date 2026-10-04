@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { consentLabel } from "./api";
 import type { AcquisitionStage, ConsentStatus, ParcelDetail, ParcelSummary } from "./types";
 
@@ -38,7 +38,7 @@ export function SurveyDetails({
   loading,
   isAdmin,
   onSelect,
-  onRecordConsent,
+  onGoConsent,
   onGoDocuments
 }: {
   rows: ParcelSummary[];
@@ -47,14 +47,10 @@ export function SurveyDetails({
   loading: boolean;
   isAdmin: boolean;
   onSelect: (parcelId: string) => void;
-  onRecordConsent: (receivedOn: string, remarks: string) => Promise<void>;
+  onGoConsent: () => void;
   onGoDocuments: () => void;
 }) {
   const [village, setVillage] = useState(selectedParcel?.village_name ?? "");
-  const [showConsentForm, setShowConsentForm] = useState(false);
-  const [receivedOn, setReceivedOn] = useState(new Date().toISOString().slice(0, 10));
-  const [remarks, setRemarks] = useState("");
-  const [savingConsent, setSavingConsent] = useState(false);
   const villages = useMemo(() => [...new Set(rows.map((row) => row.village_name))], [rows]);
   const villageRows = useMemo(
     () => rows.filter((row) => row.village_name === village).sort((left, right) => left.survey_number.localeCompare(right.survey_number, undefined, { numeric: true })),
@@ -63,24 +59,11 @@ export function SurveyDetails({
 
   useEffect(() => {
     if (selectedParcel) setVillage(selectedParcel.village_name);
-    setShowConsentForm(false);
   }, [selectedParcel?.id]);
 
   if (!selectedParcel) return <section className="card empty-state"><strong>No survey selected.</strong></section>;
 
   const sourceFields = Object.entries(detail?.acquisition?.source_fields ?? {}).filter(([, value]) => value !== null && value !== undefined && value !== "");
-  const submitConsent = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSavingConsent(true);
-    try {
-      await onRecordConsent(receivedOn, remarks);
-      setShowConsentForm(false);
-      setRemarks("");
-    } finally {
-      setSavingConsent(false);
-    }
-  };
-
   return <div className="details-layout">
     <section className="card survey-selector">
       <div className="eyebrow">SELECT SURVEY</div>
@@ -99,20 +82,11 @@ export function SurveyDetails({
         <div><span>Area</span><strong>{selectedParcel.acreage === null ? "—" : display(selectedParcel.acreage) + " ac"}</strong></div>
       </div>
       <button className="button button-secondary button-wide" onClick={onGoDocuments} type="button">View document status</button>
-      {isAdmin && selectedParcel.consent_status !== "received" && <button className="button button-primary button-wide detail-action" onClick={() => setShowConsentForm((visible) => !visible)} type="button">+ Record received consent</button>}
+      {isAdmin && <button className="button button-primary button-wide detail-action" onClick={onGoConsent} type="button">{selectedParcel.consent_status === "received" ? "Update consent entry" : "+ Create consent entry"}</button>}
       {!isAdmin && <p className="small-note">Read-only access: only the administrator can change consent or upload a document.</p>}
     </section>
 
     <div className="detail-content">
-      {showConsentForm && <form className="card consent-entry-card" onSubmit={submitConsent}>
-        <div className="card-heading"><div><div className="eyebrow">ADMIN ACTION</div><h3>Record received consent</h3><p>This is the only action that can turn a linked CAD shape green.</p></div></div>
-        <div className="form-grid">
-          <label>Received date<input onChange={(event) => setReceivedOn(event.target.value)} required type="date" value={receivedOn} /></label>
-          <label className="field-full">Remarks<textarea onChange={(event) => setRemarks(event.target.value)} placeholder="Optional consent reference or note" rows={3} value={remarks} /></label>
-        </div>
-        <div className="form-footer"><span>Consent is independent from Google Drive document upload.</span><button className="button button-primary" disabled={savingConsent} type="submit">{savingConsent ? "Saving…" : "Save received consent"}</button></div>
-      </form>}
-
       {loading && <section className="card empty-state"><strong>Loading survey details…</strong></section>}
       {!loading && !detail && <section className="card empty-state"><strong>Sign in to load the full survey details.</strong></section>}
       {detail && <>

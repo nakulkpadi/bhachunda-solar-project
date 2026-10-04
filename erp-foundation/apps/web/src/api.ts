@@ -114,13 +114,14 @@ export async function recordConsent(input: {
   parcelId: string;
   status: ConsentStatus;
   receivedOn?: string;
+  sourceValue?: string;
   remarks?: string;
 }): Promise<void> {
   const client = requiredClient();
   const { data: userData, error: userError } = await client.auth.getUser();
   if (userError) throw userError;
   if (!userData.user) throw new Error("Please sign in first.");
-  const sourceValue = input.status === "received" ? "Manual ERP consent entry" : null;
+  const sourceValue = input.status === "received" ? (input.sourceValue?.trim() || "Manual ERP consent entry") : null;
   const { error } = await client
     .from("consent_records")
     .upsert({
