@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
 import { consentLabel } from "./api";
 import type { AcquisitionStage, ConsentStatus, ParcelDetail, ParcelSummary } from "./types";
+import { SurveyPicker } from "./ui";
 
 const stageLabel: Record<AcquisitionStage, string> = {
   identified: "Identified",
@@ -50,40 +50,23 @@ export function SurveyDetails({
   onGoConsent: () => void;
   onGoDocuments: () => void;
 }) {
-  const [village, setVillage] = useState(selectedParcel?.village_name ?? "");
-  const villages = useMemo(() => [...new Set(rows.map((row) => row.village_name))], [rows]);
-  const villageRows = useMemo(
-    () => rows.filter((row) => row.village_name === village).sort((left, right) => left.survey_number.localeCompare(right.survey_number, undefined, { numeric: true })),
-    [rows, village]
-  );
-
-  useEffect(() => {
-    if (selectedParcel) setVillage(selectedParcel.village_name);
-  }, [selectedParcel?.id]);
-
   if (!selectedParcel) return <section className="card empty-state"><strong>No survey selected.</strong></section>;
 
   const sourceFields = Object.entries(detail?.acquisition?.source_fields ?? {}).filter(([, value]) => value !== null && value !== undefined && value !== "");
   return <div className="details-layout">
     <section className="card survey-selector">
-      <div className="eyebrow">SELECT SURVEY</div>
-      <h2>Village and survey number</h2>
-      <p>Choose a village first, then select the survey number to see its full imported details.</p>
-      <label>Village<select onChange={(event) => {
-        const nextVillage = event.target.value;
-        setVillage(nextVillage);
-        const first = rows.find((row) => row.village_name === nextVillage);
-        if (first) onSelect(first.id);
-      }} value={village}>{villages.map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-      <label>Survey number<select onChange={(event) => onSelect(event.target.value)} value={selectedParcel.id}>{villageRows.map((row) => <option key={row.id} value={row.id}>{row.survey_number}{row.old_survey_number ? " — old " + row.old_survey_number : ""}</option>)}</select></label>
+      <div className="eyebrow">Land register</div>
+      <h2>Choose a survey</h2>
+      <p>Select a village to see its survey numbers.</p>
+      <SurveyPicker rows={rows} selectedParcel={selectedParcel} onSelect={onSelect} />
       <div className="parcel-facts">
         <div><span>Consent status</span><strong className={statusClass(selectedParcel.consent_status)}>{consentLabel[selectedParcel.consent_status]}</strong></div>
         <div><span>Workflow stage</span><strong>{stageLabel[selectedParcel.acquisition_stage]}</strong></div>
         <div><span>Area</span><strong>{selectedParcel.acreage === null ? "—" : display(selectedParcel.acreage) + " ac"}</strong></div>
       </div>
-      <button className="button button-secondary button-wide" onClick={onGoDocuments} type="button">View document status</button>
-      {isAdmin && <button className="button button-primary button-wide detail-action" onClick={onGoConsent} type="button">{selectedParcel.consent_status === "received" ? "Update consent entry" : "+ Create consent entry"}</button>}
-      {!isAdmin && <p className="small-note">Read-only access: only the administrator can change consent or upload a document.</p>}
+      {isAdmin && <button className="button button-primary button-wide" onClick={onGoConsent} type="button">{selectedParcel.consent_status === "received" ? "Update consent" : "Create consent entry"}</button>}
+      <button className="button button-secondary button-wide detail-action" onClick={onGoDocuments} type="button">View documents</button>
+      {!isAdmin && <p className="small-note">View access. An administrator can edit this record.</p>}
     </section>
 
     <div className="detail-content">
@@ -116,7 +99,7 @@ export function SurveyDetails({
           ]} /></section>
         </section>
 
-        <section className="card detail-card"><div className="eyebrow">PATEL INFRA WORKFLOW</div><h3>Acquisition and legal details</h3><DetailGrid items={[
+        <details className="card detail-disclosure"><summary><span>Acquisition and legal details<small>Patel Infra workflow</small></span></summary><div className="disclosure-body"><DetailGrid items={[
           { label: "Project", value: detail.acquisition?.project_name },
           { label: "SPV", value: detail.acquisition?.spv_name },
           { label: "MW", value: detail.acquisition?.mw },
@@ -132,13 +115,13 @@ export function SurveyDetails({
           { label: "Law firm verification", value: detail.legal?.law_firm_verification_status },
           { label: "NFA no.", value: detail.legal?.nfa_number },
           { label: "Legal remarks", value: detail.legal?.legal_remarks }
-        ]} /></section>
+        ]} /></div></details>
 
-        {sourceFields.length > 0 && <section className="card detail-card"><div className="eyebrow">SOURCE REPORT FIELDS</div><h3>Additional Patel Infra fields</h3><DetailGrid items={sourceFields.map(([field, value]) => ({ label: label(field), value }))} /></section>}
+        {sourceFields.length > 0 && <details className="card detail-disclosure"><summary><span>Additional report fields<small>{sourceFields.length} imported Patel Infra fields</small></span></summary><div className="disclosure-body"><DetailGrid items={sourceFields.map(([field, value]) => ({ label: label(field), value }))} /></div></details>}
 
         <section className="card detail-card"><div className="eyebrow">DOCUMENT CHECKLIST</div><h3>Current document status</h3>{detail.documents.length ? <div className="document-status-list">{detail.documents.map((document) => <div key={document.document_type_code + document.created_at}><span>{label(document.document_type_code)}</span><strong>{label(document.status)}</strong></div>)}</div> : <p className="muted">No Drive document has been attached yet. This does not change the consent status.</p>}</section>
 
-        {isAdmin && <section className="card detail-card sensitive-card"><div className="eyebrow">ADMIN-ONLY SENSITIVE DATA</div><h3>Restricted identity and bank fields</h3>{detail.private_owner_details.length ? detail.private_owner_details.map((privateDetail) => <DetailGrid key={privateDetail.owner_id} items={[
+        {isAdmin && <details className="card detail-disclosure sensitive-card"><summary><span>Identity and bank details<small>Administrator access</small></span></summary><div className="disclosure-body">{detail.private_owner_details.length ? detail.private_owner_details.map((privateDetail) => <DetailGrid key={privateDetail.owner_id} items={[
           { label: "Bank owner name", value: privateDetail.bank_owner_name },
           { label: "Vendor code", value: privateDetail.vendor_code },
           { label: "PAN", value: privateDetail.pan_number },
@@ -146,7 +129,7 @@ export function SurveyDetails({
           { label: "Bank account", value: privateDetail.bank_account_number },
           { label: "Bank name", value: privateDetail.bank_name },
           { label: "IFSC", value: privateDetail.ifsc_code }
-        ]} />) : <p className="muted">No restricted fields were supplied for this survey.</p>}</section>}
+        ]} />) : <p className="muted">No restricted fields were supplied for this survey.</p>}</div></details>}
       </>}
     </div>
   </div>;

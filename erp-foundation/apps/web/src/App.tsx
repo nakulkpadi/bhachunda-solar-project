@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   consentLabel,
@@ -24,6 +24,7 @@ import { demoParcels } from "./demo";
 import { ConsentEntry } from "./ConsentEntry";
 import { FullSurveyMap, type LiveMapSelection } from "./FullSurveyMap";
 import { SurveyDetails } from "./SurveyDetails";
+import { Icon, SurveyPicker, type IconName } from "./ui";
 import type {
   AcquisitionStage,
   ConsentStatus,
@@ -41,8 +42,8 @@ type ViewId = "dashboard" | "registry" | "details" | "consent" | "entry" | "docu
 type Notice = { kind: "success" | "error" | "info"; text: string } | null;
 
 const viewTitles: Record<ViewId, string> = {
-  dashboard: "Project overview",
-  registry: "Land registry",
+  dashboard: "Overview",
+  registry: "Land register",
   details: "Survey details",
   consent: "Consent entry",
   entry: "Workflow entry",
@@ -51,15 +52,18 @@ const viewTitles: Record<ViewId, string> = {
   map: "Survey map"
 };
 
-const navItems: Array<{ id: ViewId; icon: string; label: string }> = [
-  { id: "dashboard", icon: "▦", label: "Overview" },
-  { id: "registry", icon: "☷", label: "Land registry" },
-  { id: "details", icon: "◫", label: "Survey details" },
-  { id: "consent", icon: "✓", label: "Consent entry" },
-  { id: "entry", icon: "✎", label: "Workflow entry" },
-  { id: "documents", icon: "▱", label: "Documents" },
-  { id: "reports", icon: "▤", label: "Reports" },
-  { id: "map", icon: "⌖", label: "Survey map" }
+const navItems: Array<{ id: ViewId; icon: IconName; label: string }> = [
+  { id: "dashboard", icon: "overview", label: "Overview" },
+  { id: "registry", icon: "register", label: "Land register" },
+  { id: "map", icon: "map", label: "Survey map" },
+  { id: "consent", icon: "entry", label: "Entries" },
+  { id: "reports", icon: "reports", label: "Reports" }
+];
+
+const entryViews: Array<{ id: ViewId; label: string }> = [
+  { id: "consent", label: "Consent" },
+  { id: "entry", label: "Workflow" },
+  { id: "documents", label: "Documents" }
 ];
 
 const consentOptions: ConsentStatus[] = ["received", "pending", "not_ready", "blocked", "rejected"];
@@ -90,10 +94,10 @@ function statusClass(status: ConsentStatus): string {
 }
 
 function mapColors(status: ConsentStatus): { fill: string; stroke: string } {
-  if (status === "received") return { fill: "#45b96f", stroke: "#17633d" };
-  if (status === "pending") return { fill: "#edbf5a", stroke: "#8a5f17" };
-  if (status === "blocked" || status === "rejected") return { fill: "#dd7777", stroke: "#8c2631" };
-  return { fill: "#dce5e1", stroke: "#71877d" };
+  if (status === "received") return { fill: "#6e9d7a", stroke: "#365743" };
+  if (status === "pending") return { fill: "#d6ad63", stroke: "#8d6328" };
+  if (status === "blocked" || status === "rejected") return { fill: "#c38784", stroke: "#803d3a" };
+  return { fill: "#d7ddd7", stroke: "#8b948c" };
 }
 
 function createWorkflow(parcel: ParcelSummary): ParcelWorkflowInput {
@@ -191,8 +195,18 @@ function App() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [mapSelection, setMapSelection] = useState<LiveMapSelection>(null);
   const mapRef = useRef<HTMLObjectElement | null>(null);
+  const dialogRef = useRef<HTMLElement | null>(null);
 
   const isAdmin = profile?.role === "admin" && profile.is_active;
+
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [activeView]);
+
+  useEffect(() => {
+    if (!showSignIn) return;
+    const previousFocus = document.activeElement as HTMLElement | null;
+    dialogRef.current?.querySelector<HTMLInputElement>('input[type="email"]')?.focus();
+    return () => { previousFocus?.focus(); };
+  }, [showSignIn]);
 
   const refreshLiveData = useCallback(async () => {
     if (!supabase) return;
@@ -339,6 +353,7 @@ function App() {
       return;
     }
     let cancelled = false;
+    setSurveyDetail(null);
     setDetailLoading(true);
     void loadParcelDetail(selectedParcel.id)
       .then((detail) => {
@@ -352,6 +367,17 @@ function App() {
       });
     return () => { cancelled = true; };
   }, [isLiveData, selectedParcel?.id, session]);
+
+  useEffect(() => {
+    if (!surveyDetail || surveyDetail.id !== selectedParcel?.id) return;
+    setWorkflow((current) => ({
+      ...current,
+      consentDate: surveyDetail.consent?.received_on ?? current.consentDate,
+      category: surveyDetail.acquisition?.category ?? "",
+      targetDate: surveyDetail.acquisition?.target_date ?? "",
+      legalRemarks: surveyDetail.legal?.legal_remarks ?? ""
+    }));
+  }, [surveyDetail, selectedParcel?.id]);
 
   const chooseParcel = (parcel: ParcelSummary, nextView: ViewId = "details") => {
     setSelectedParcelId(parcel.id);
@@ -593,48 +619,60 @@ function App() {
   }, []);
 
   const reportRows = useMemo(() => {
-    if (activeView !== "reports") return visibleRows;
-    return visibleRows;
-  }, [activeView, visibleRows]);
+    return parcels.filter((row) =>
+      (villageFilter === "all" || row.village_name === villageFilter) &&
+      (consentFilter === "all" || row.consent_status === consentFilter) &&
+      (stageFilter === "all" || row.acquisition_stage === stageFilter)
+    );
+  }, [parcels, villageFilter, consentFilter, stageFilter]);
 
   const consentPercent = metrics.totalParcels ? Math.round((metrics.receivedCount / metrics.totalParcels) * 100) : 0;
-  const liveLabel = isLiveData ? "Live database" : "Preview only";
+  const liveLabel = isLiveData ? "Project records" : "Sample preview";
+  const inEntryWorkspace = entryViews.some((item) => item.id === activeView);
+  const activeNav = activeView === "details" ? "registry" : inEntryWorkspace ? "consent" : activeView;
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#workspace">Skip to workspace</a>
       <aside className="sidebar" aria-label="Primary navigation">
-        <div className="brand-mark" aria-hidden="true"><span>☀</span></div>
-        <div className="brand-name">Bhachunda <strong>Solar ERP</strong></div>
-        <nav className="nav-list">
+        <div className="brand">
+          <svg className="brand-mark" aria-hidden="true" viewBox="0 0 36 36"><path d="M3 5h14v12H3zM20 5h13v12H20zM3 20h14v12H3z" fill="currentColor" /><path d="m20 20 13-2v14H20z" fill="#aa7942" /></svg>
+          <div className="brand-name"><strong>Bhachunda</strong><span>Solar project</span></div>
+        </div>
+        <div className="sidebar-project"><span className="eyebrow">Land acquisition</span><span>Kutch, Gujarat · 3 villages</span></div>
+        <nav className="nav-list" aria-label="Project sections">
           {navItems.map((item) => (
             <button
-              className={`nav-item ${activeView === item.id ? "is-active" : ""}`}
+              aria-current={activeNav === item.id ? "page" : undefined}
+              className={`nav-item ${activeNav === item.id ? "is-active" : ""}`}
               key={item.id}
+              title={item.label}
               onClick={() => setActiveView(item.id)}
               type="button"
             >
-              <span className="nav-icon">{item.icon}</span>
+              <Icon name={item.icon} />
               <span>{item.label}</span>
             </button>
           ))}
         </nav>
+        <div className="sidebar-note"><span className="eyebrow">Project villages</span><span>Bhavanipar</span><span>Bitta</span><span>Vandh Timbo</span></div>
         <div className="sidebar-footer">
-          <span className={`mode-dot ${isLiveData ? "is-live" : ""}`} />
+          <span className="mode-dot" />
           <span>{liveLabel}</span>
         </div>
       </aside>
 
-      <main className="main-content">
+      <main className="main-content" id="workspace" tabIndex={-1}>
         <header className="topbar">
           <div>
-            <div className="eyebrow">BHACHUNDA SUB STATION</div>
+            <div className="breadcrumb">Bhachunda solar <span>/</span> {inEntryWorkspace ? "Entries" : activeView === "details" ? "Land register" : "Project workspace"}</div>
             <h1>{viewTitles[activeView]}</h1>
           </div>
           <div className="topbar-actions">
             {loading && <span className="muted">Refreshing…</span>}
             {session ? (
               <>
-                <span className="account-chip" title={session.user.email ?? "Signed-in user"}>{profile?.role === "admin" ? "Administrator · " : "Read-only · "}{session.user.email ?? "Signed in"}</span>
+                <span className="account-chip" title={session.user.email ?? "Signed-in user"}>{profile?.role === "admin" ? "Administrator" : "View access"}<small>{profile?.full_name || session.user.email || "Signed in"}</small></span>
                 <button className="button button-secondary" onClick={() => void signOut()} type="button">Sign out</button>
               </>
             ) : (
@@ -655,12 +693,13 @@ function App() {
 
         {!isLiveData && (
           <section className="preview-banner">
-            <div><strong>Safe preview mode.</strong> Sign in to see the imported live land register, full survey details and CAD map.</div>
-            <button className="text-button" onClick={() => setShowSignIn(true)} type="button">Sign in →</button>
+            <span className="preview-label">Preview</span><span>Sample records shown. Sign in for your project data.</span>
           </section>
         )}
 
         <section className="page-body">
+          {activeView === "details" && <button className="back-link" onClick={() => setActiveView("registry")} type="button"><Icon name="back" /> Back to land register</button>}
+          {inEntryWorkspace && <nav className="workspace-tabs" aria-label="Entry type">{entryViews.map((item) => <button aria-current={activeView === item.id ? "page" : undefined} className={activeView === item.id ? "is-active" : ""} key={item.id} onClick={() => setActiveView(item.id)} type="button">{item.label}</button>)}</nav>}
           {activeView === "dashboard" && (
             <Dashboard
               metrics={metrics}
@@ -668,6 +707,7 @@ function App() {
               consentPercent={consentPercent}
               onChooseParcel={chooseParcel}
               onShowRegistry={() => setActiveView("registry")}
+              onShowVillage={(village) => { setSearch(""); setConsentFilter("all"); setStageFilter("all"); setVillageFilter(village); setActiveView("registry"); }}
             />
           )}
           {activeView === "registry" && (
@@ -715,7 +755,7 @@ function App() {
               rows={parcels}
               selectedParcel={selectedParcel}
               workflow={workflow}
-              isWritable={Boolean(isAdmin && isLiveData)}
+              isWritable={Boolean(isAdmin && isLiveData && !detailLoading)}
               saving={savingWorkflow}
               onSelect={setSelectedParcelId}
               onChange={setWorkflow}
@@ -783,17 +823,25 @@ function App() {
 
       {showSignIn && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={() => setShowSignIn(false)}>
-          <section className="dialog" role="dialog" aria-modal="true" aria-labelledby="sign-in-title" onMouseDown={(event) => event.stopPropagation()}>
+          <section className="dialog" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sign-in-title" onMouseDown={(event) => event.stopPropagation()} onKeyDown={(event) => {
+            if (event.key === "Escape") { setShowSignIn(false); return; }
+            if (event.key !== "Tab") return;
+            const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [tabindex="0"]'));
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+          }}>
             <button className="dialog-close" aria-label="Close" onClick={() => setShowSignIn(false)} type="button">×</button>
-            <div className="eyebrow">SUPABASE AUTH</div>
-            <h2 id="sign-in-title">Sign in to live records</h2>
-            <p>Use an invited staff account. Project roles control which records and actions are available after sign-in.</p>
+            <div className="eyebrow">Bhachunda solar project</div>
+            <h2 id="sign-in-title">Welcome back</h2>
+            <p>Sign in with your project account to open the land register.</p>
             <form className="stack-form" onSubmit={signInToDatabase}>
               <label>Email<input autoComplete="email" onChange={(event) => setEmail(event.target.value)} required type="email" value={email} /></label>
               <label>Password<input autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label>
-              <button className="button button-primary button-wide" disabled={signingIn} type="submit">{signingIn ? "Signing in…" : "Sign in securely"}</button>
+              <button className="button button-primary button-wide" disabled={signingIn} type="submit">{signingIn ? "Signing in…" : "Sign in"}</button>
             </form>
-            <p className="fine-print">This browser app never contains the service-role key or Google Drive credential.</p>
+            <p className="fine-print">Only the administrator can edit project records.</p>
           </section>
         </div>
       )}
@@ -806,61 +854,60 @@ function Dashboard({
   parcels,
   consentPercent,
   onChooseParcel,
-  onShowRegistry
+  onShowRegistry,
+  onShowVillage
 }: {
   metrics: DashboardMetrics;
   parcels: ParcelSummary[];
   consentPercent: number;
   onChooseParcel: (parcel: ParcelSummary, view?: ViewId) => void;
   onShowRegistry: () => void;
+  onShowVillage: (village: string) => void;
 }) {
   const latestRows = parcels.slice(0, 5);
   const totalAcres = metrics.villages.reduce((sum, village) => sum + village.acreage, 0);
   return (
     <div className="dashboard-grid">
-      <section className="hero-panel">
+      <section className="page-intro">
         <div>
-          <div className="eyebrow">LAND ACQUISITION CONTROL ROOM</div>
-          <h2>Every survey number, consent and document in one working register.</h2>
-          <p>Track the full Bhavanipar, Bitta and Vandh Timbo workflow without manually joining separate Excel sheets, Drive links and Firebase entries.</p>
+          <div className="eyebrow">Project position</div>
+          <h2>Land acquisition</h2>
+          <p>Bhavanipar, Bitta and Vandh Timbo</p>
         </div>
-        <button className="button button-primary" onClick={onShowRegistry} type="button">Open land registry</button>
+        <button className="button button-primary" onClick={onShowRegistry} type="button">Open land register <Icon name="arrow" /></button>
       </section>
 
       <section className="metric-grid">
         <MetricCard label="Total surveys" value={metrics.totalParcels.toLocaleString("en-IN")} detail={`${formatAcres(totalAcres)} tracked`} accent="blue" />
         <MetricCard label="Consent received" value={metrics.receivedCount.toLocaleString("en-IN")} detail={`${consentPercent}% of records`} accent="green" />
-        <MetricCard label="Consent still open" value={metrics.pendingCount.toLocaleString("en-IN")} detail="Pending, not ready, blocked or rejected" accent="amber" />
-        <MetricCard label="No document yet" value={metrics.documentGapCount.toLocaleString("en-IN")} detail="Will be resolved by Drive uploads" accent="slate" />
+        <MetricCard label="Consent outstanding" value={metrics.pendingCount.toLocaleString("en-IN")} detail="Awaiting received consent" accent="amber" />
+        <MetricCard label="Without documents" value={metrics.documentGapCount.toLocaleString("en-IN")} detail="Surveys with no file attached" accent="slate" />
       </section>
 
       <section className="card consent-panel">
-        <div className="card-heading"><div><div className="eyebrow">CONSENT POSITION</div><h3>Consent progress by village</h3></div><strong>{consentPercent}%</strong></div>
-        <div className="progress-track"><span style={{ width: `${consentPercent}%` }} /></div>
-        <div className="village-metrics">
+        <div className="card-heading"><div><div className="eyebrow">Village summary</div><h3>Consent position</h3></div><span className="subtle-label">{consentPercent}% received</span></div>
+        <div className="table-scroll"><table className="village-table"><thead><tr><th>Village</th><th>Surveys</th><th>Received</th><th>Progress</th></tr></thead><tbody>
           {metrics.villages.map((village) => {
             const percentage = village.total ? Math.round((village.received / village.total) * 100) : 0;
-            return <div className="village-row" key={village.village}>
-              <div><strong>{village.village}</strong><span>{village.received} of {village.total} consents</span></div>
-              <div className="village-bar"><span style={{ width: `${percentage}%` }} /></div>
-              <strong>{percentage}%</strong>
-            </div>;
+            return <tr key={village.village}>
+              <td><button className="village-link" onClick={() => onShowVillage(village.village)} type="button">{village.village}<Icon name="arrow" /></button><small>{formatAcres(village.acreage)}</small></td>
+              <td>{village.total}</td><td>{village.received}</td>
+              <td><div className="village-progress"><div className="village-bar"><span style={{ width: `${percentage}%` }} /></div><span>{percentage}%</span></div></td>
+            </tr>;
           })}
-        </div>
-        <p className="small-note"><span className="legend-swatch swatch-green" /> Green means only <strong>consent received</strong>. Drive-document upload status is tracked separately.</p>
+        </tbody></table></div>
+        <p className="small-note"><span className="legend-swatch swatch-green" /> Green indicates consent received.</p>
       </section>
 
       <section className="card action-panel">
-        <div className="card-heading"><div><div className="eyebrow">WORK QUEUE</div><h3>Next operational actions</h3></div></div>
-        <ol className="action-list">
-          <li><span>01</span><div><strong>Review survey details</strong><p>Select a village and survey number to check the imported land and workflow data.</p></div></li>
-          <li><span>02</span><div><strong>Record received consent</strong><p>Only an administrator can save it; the exact linked CAD boundary then turns green.</p></div></li>
-          <li><span>03</span><div><strong>Attach protected documents</strong><p>Upload into the automatically created village / survey folder in Google Drive.</p></div></li>
-        </ol>
+        <div className="card-heading"><div><div className="eyebrow">Follow-up</div><h3>Needs attention</h3></div></div>
+        <div className="attention-row"><span>Consent outstanding</span><strong>{metrics.pendingCount}</strong></div>
+        <div className="attention-row"><span>Without documents</span><strong>{metrics.documentGapCount}</strong></div>
+        <p className="small-note">Open a survey in the land register to review its details, record consent or attach a document.</p>
       </section>
 
       <section className="card registry-preview">
-        <div className="card-heading"><div><div className="eyebrow">LAND REGISTER</div><h3>Survey workflow snapshot</h3></div><button className="text-button" onClick={onShowRegistry} type="button">View all →</button></div>
+        <div className="card-heading"><div><div className="eyebrow">Land register</div><h3>Survey records</h3></div><button className="text-button" onClick={onShowRegistry} type="button">View all {metrics.totalParcels} <Icon name="arrow" /></button></div>
         <ParcelTable rows={latestRows} onChoose={onChooseParcel} compact />
       </section>
     </div>
@@ -881,7 +928,8 @@ function FilterBar({
   onVillage,
   onConsent,
   onStage,
-  onClear
+  onClear,
+  showSearch = true
 }: {
   search: string;
   villages: string[];
@@ -893,13 +941,24 @@ function FilterBar({
   onConsent: (value: "all" | ConsentStatus) => void;
   onStage: (value: "all" | AcquisitionStage) => void;
   onClear?: () => void;
+  showSearch?: boolean;
 }) {
+  const [showMore, setShowMore] = useState(stageFilter !== "all");
+  const extraFilterId = useId();
+  const hasFilters = Boolean((showSearch && search) || villageFilter !== "all" || consentFilter !== "all" || stageFilter !== "all");
+  const clear = () => {
+    if (onClear) onClear();
+    else { onSearch(""); onVillage("all"); onConsent("all"); onStage("all"); }
+  };
   return <div className="filter-bar">
-    <label className="search-field"><span>⌕</span><input aria-label="Search register" onChange={(event) => onSearch(event.target.value)} placeholder="Survey number, Khata, old survey…" value={search} /></label>
-    <select aria-label="Filter village" onChange={(event) => onVillage(event.target.value)} value={villageFilter}><option value="all">All villages</option>{villages.map((village) => <option key={village} value={village}>{village}</option>)}</select>
-    <select aria-label="Filter consent status" onChange={(event) => onConsent(event.target.value as "all" | ConsentStatus)} value={consentFilter}><option value="all">All consent states</option>{consentOptions.map((status) => <option key={status} value={status}>{consentLabel[status]}</option>)}</select>
-    <select aria-label="Filter workflow stage" onChange={(event) => onStage(event.target.value as "all" | AcquisitionStage)} value={stageFilter}><option value="all">All stages</option>{stageOptions.map((stage) => <option key={stage} value={stage}>{stageLabel[stage]}</option>)}</select>
-    {onClear && <button className="button button-quiet" onClick={onClear} type="button">Clear</button>}
+    <div className="filter-main">
+      {showSearch && <label className="search-field">Find a survey<div className="search-input"><Icon name="search" /><input aria-label="Search register" onChange={(event) => onSearch(event.target.value)} placeholder="Survey number, old number or Khata" value={search} /></div></label>}
+      <label>Village<select aria-label="Filter village" onChange={(event) => onVillage(event.target.value)} value={villageFilter}><option value="all">All villages</option>{villages.map((village) => <option key={village} value={village}>{village}</option>)}</select></label>
+      <label>Consent<select aria-label="Filter consent status" onChange={(event) => onConsent(event.target.value as "all" | ConsentStatus)} value={consentFilter}><option value="all">All statuses</option>{consentOptions.map((status) => <option key={status} value={status}>{consentLabel[status]}</option>)}</select></label>
+      <button className={`button button-secondary filter-toggle ${stageFilter !== "all" ? "has-filter" : ""}`} aria-controls={extraFilterId} aria-expanded={showMore} onClick={() => setShowMore(!showMore)} type="button"><Icon name="filter" /> More filters{stageFilter !== "all" && <span className="filter-count">1</span>}</button>
+      {hasFilters && <button className="text-button clear-filters" onClick={clear} type="button">Clear</button>}
+    </div>
+    {showMore && <div className="filter-extra" id={extraFilterId}><label>Workflow stage<select aria-label="Filter workflow stage" onChange={(event) => onStage(event.target.value as "all" | AcquisitionStage)} value={stageFilter}><option value="all">All stages</option>{stageOptions.map((stage) => <option key={stage} value={stage}>{stageLabel[stage]}</option>)}</select></label></div>}
   </div>;
 }
 
@@ -931,7 +990,7 @@ function Registry({
   onClear: () => void;
 }) {
   return <section className="card registry-card">
-    <div className="card-heading"><div><div className="eyebrow">MASTER DATA</div><h2>Land registry</h2><p>Filter, inspect and open the workflow for any imported survey number.</p></div><div className="result-count">{rows.length} records</div></div>
+    <div className="card-heading"><div><div className="eyebrow">Project records</div><h2>Land register</h2><p>Find a survey and open its full record.</p></div><div className="result-count">{rows.length} surveys</div></div>
     <FilterBar {...{ search, villages, villageFilter, consentFilter, stageFilter, onSearch, onVillage, onConsent, onStage, onClear }} />
     <ParcelTable rows={rows} onChoose={onChooseParcel} />
   </section>;
@@ -939,7 +998,7 @@ function Registry({
 
 function ParcelTable({ rows, onChoose, compact = false }: { rows: ParcelSummary[]; onChoose: (parcel: ParcelSummary, view?: ViewId) => void; compact?: boolean }) {
   if (!rows.length) return <div className="empty-state"><strong>No surveys match these filters.</strong><span>Clear one or more filters to see the register again.</span></div>;
-  return <div className="table-scroll"><table className={compact ? "parcel-table compact" : "parcel-table"}><thead><tr><th>Village</th><th>Survey</th><th>Area</th><th>Consent</th><th>Stage</th><th>Documents</th><th aria-label="Open" /></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><strong>{row.village_name}</strong><small>{row.account_number ? `Khata ${row.account_number}` : "No Khata"}</small></td><td><strong>{row.survey_number}</strong><small>{row.old_survey_number ? `Old: ${row.old_survey_number}` : "Old no. —"}</small></td><td>{formatAcres(row.acreage)}</td><td><span className={statusClass(row.consent_status)}>{consentLabel[row.consent_status]}</span></td><td><span className="stage-pill">{stageLabel[row.acquisition_stage]}</span></td><td><span>{row.verified_document_count}/{row.document_count} verified</span></td><td><button className="row-action" onClick={() => onChoose(row)} type="button">Open <span>→</span></button></td></tr>)}</tbody></table></div>;
+  return <div className="table-scroll" tabIndex={0} aria-label="Survey records"><table className={compact ? "parcel-table compact" : "parcel-table"}><thead><tr><th scope="col">Village</th><th scope="col">Survey no.</th><th scope="col">Area</th><th scope="col">Consent</th><th scope="col">Stage</th><th scope="col">Documents</th><th scope="col"><span className="sr-only">Open record</span></th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td><strong>{row.village_name}</strong><small>{row.account_number ? `Khata ${row.account_number}` : "Khata —"}</small></td><td><strong className="survey-number">{row.survey_number}</strong><small>{row.old_survey_number ? `Old ${row.old_survey_number}` : "Old no. —"}</small></td><td className="numeric">{formatAcres(row.acreage)}</td><td><span className={statusClass(row.consent_status)}>{consentLabel[row.consent_status]}</span></td><td><span className="stage-pill">{stageLabel[row.acquisition_stage]}</span></td><td><span className="document-tally">{row.verified_document_count}/{row.document_count}<small>verified</small></span></td><td><button className="row-action" aria-label={`Open ${row.village_name} survey ${row.survey_number}`} onClick={() => onChoose(row)} type="button">Open <Icon name="arrow" /></button></td></tr>)}</tbody></table></div>;
 }
 
 function WorkflowEntry({
@@ -967,27 +1026,33 @@ function WorkflowEntry({
   const update = <K extends keyof ParcelWorkflowInput>(key: K, value: ParcelWorkflowInput[K]) => onChange({ ...workflow, [key]: value });
   return <div className="entry-layout">
     <section className="card selection-card">
-      <div className="eyebrow">ACTIVE SURVEY</div><h2>{selectedParcel.village_name} / {selectedParcel.survey_number}</h2><p>Select a survey to capture its next operational status. The records remain tied to the original import.</p>
-      <label>Survey number<select onChange={(event) => onSelect(event.target.value)} value={selectedParcel.id}>{rows.map((row) => <option key={row.id} value={row.id}>{row.village_name} — {row.survey_number}</option>)}</select></label>
+      <div className="eyebrow">01 / Select record</div><h2>Choose a survey</h2><p>Update the acquisition status for this record.</p>
+      <SurveyPicker rows={rows} selectedParcel={selectedParcel} onSelect={onSelect} disabled={saving} />
       <div className="parcel-facts"><div><span>Khata / account</span><strong>{selectedParcel.account_number ?? "—"}</strong></div><div><span>Document count</span><strong>{selectedParcel.verified_document_count}/{selectedParcel.document_count} verified</strong></div><div><span>Current consent</span><strong className={statusClass(selectedParcel.consent_status)}>{consentLabel[selectedParcel.consent_status]}</strong></div></div>
-      <button className="button button-secondary button-wide" onClick={onGoDocuments} type="button">Upload a document for this survey</button>
+      <button className="text-button" onClick={onGoDocuments} type="button">View survey documents</button>
     </section>
     <form className="card workflow-form" onSubmit={onSubmit}>
-      <div className="card-heading"><div><div className="eyebrow">PATEL INFRA WORKFLOW</div><h2>Update land-acquisition record</h2><p>{isWritable ? "Changes are saved with your role and timestamp." : "This information is read-only. Only the administrator can save a change."}</p></div>{!isWritable && <span className="lock-badge">Read-only</span>}</div>
+      <div className="card-heading"><div><div className="eyebrow">02 / Workflow</div><h2>Acquisition update</h2><p>{selectedParcel.village_name} · Survey {selectedParcel.survey_number}</p></div>{!isWritable && <span className="lock-badge">View access</span>}</div>
       <fieldset disabled={!isWritable || saving}>
+        <div className="section-label">Land record</div>
         <div className="form-grid">
           <label>Old survey number<input onChange={(event) => update("oldSurveyNumber", event.target.value)} value={workflow.oldSurveyNumber} /></label>
           <label>Acres<input inputMode="decimal" min="0" onChange={(event) => update("acreage", event.target.value)} type="number" value={workflow.acreage} /></label>
           <label>Bunch number<input onChange={(event) => update("bunchNumber", event.target.value)} value={workflow.bunchNumber} /></label>
           <label>Patel Infra category<input onChange={(event) => update("category", event.target.value)} placeholder="For example: Lease / Purchase" value={workflow.category} /></label>
+        </div>
+        <div className="section-label form-section-label">Consent and acquisition</div>
+        <div className="form-grid">
           <label>Consent state<select onChange={(event) => update("consentStatus", event.target.value as ConsentStatus)} value={workflow.consentStatus}>{consentOptions.map((status) => <option key={status} value={status}>{consentLabel[status]}</option>)}</select></label>
           <label>Consent received date<input disabled={workflow.consentStatus !== "received"} onChange={(event) => update("consentDate", event.target.value)} type="date" value={workflow.consentDate} /></label>
           <label>Acquisition stage<select onChange={(event) => update("acquisitionStage", event.target.value as AcquisitionStage)} value={workflow.acquisitionStage}>{stageOptions.map((stage) => <option key={stage} value={stage}>{stageLabel[stage]}</option>)}</select></label>
-          <label>Target date<input onChange={(event) => update("targetDate", event.target.value)} type="date" value={workflow.targetDate} /></label>
-          <label className="field-full">Legal / operational remarks<textarea onChange={(event) => update("legalRemarks", event.target.value)} placeholder="Add review findings, missing papers or exception details…" rows={5} value={workflow.legalRemarks} /></label>
         </div>
+        <details className="form-disclosure"><summary>Target date and legal notes <span>Optional</span></summary><div className="form-grid">
+          <label>Target date<input onChange={(event) => update("targetDate", event.target.value)} type="date" value={workflow.targetDate} /></label>
+          <label className="field-full">Legal / operational remarks<textarea onChange={(event) => update("legalRemarks", event.target.value)} placeholder="Review findings or pending documents" rows={4} value={workflow.legalRemarks} /></label>
+        </div></details>
       </fieldset>
-      <div className="form-footer"><span>Required operational fields can be expanded after the Patel Infra import is reconciled.</span><button className="button button-primary" disabled={!isWritable || saving} type="submit">{saving ? "Saving…" : "Save workflow update"}</button></div>
+      <div className="form-footer"><span>{isWritable ? "Changes are recorded against this survey." : "Only the administrator can save changes."}</span><button className="button button-primary" disabled={!isWritable || saving} type="submit">{saving ? "Saving…" : "Save workflow"}</button></div>
     </form>
   </div>;
 }
@@ -1023,16 +1088,20 @@ function Documents({
   driveConnected: boolean;
   onConnectDrive: () => void;
 }) {
+  if (!selectedParcel) return <section className="card empty-state"><strong>No survey selected.</strong></section>;
   return <div className="documents-layout">
-    <section className="card document-info"><div className="eyebrow">GOOGLE DRIVE INTEGRATION</div><h2>Protected survey documents</h2><p>Each upload is routed by the server to the correct village and survey-number folder. Staff never paste a Google Drive URL manually.</p><div className="security-list"><div><span>1</span><p>Server verifies the signed-in role and the selected survey.</p></div><div><span>2</span><p>Server creates or reuses the parcel folder below the configured Drive root.</p></div><div><span>3</span><p>Only the Drive file ID and metadata are recorded in Supabase.</p></div></div>{driveConnected && <p className="small-note"><strong>✓ Google Drive is connected.</strong> Reconnect only to switch the Drive account.</p>}<button className="button button-secondary button-wide" disabled={!canConnectDrive || connectingDrive} onClick={onConnectDrive} type="button">{connectingDrive ? "Opening Google…" : driveConnected ? "Reconnect personal Google Drive" : "Connect personal Google Drive"}</button><p className="small-note">Administrator only. Files are not made public or shared as “anyone with the link”.</p></section>
+    <section className="card selection-card"><div className="eyebrow">01 / Select record</div><h2>Choose a survey</h2><p>Files go to its village and survey folder.</p><SurveyPicker rows={rows} selectedParcel={selectedParcel} onSelect={onSelect} disabled={uploading} />
+      <div className="parcel-facts"><div><span>Documents</span><strong>{selectedParcel.document_count} attached</strong></div><div><span>Verified</span><strong>{selectedParcel.verified_document_count}</strong></div></div>
+      <section className="drive-connection"><div className="section-label">Google Drive</div><p>{driveConnected ? "Connected to the project document folder." : "Connect your Drive before uploading files."}</p>{!driveConnected && <button className="button button-secondary button-wide" disabled={!canConnectDrive || connectingDrive} onClick={onConnectDrive} type="button">{connectingDrive ? "Opening Google…" : "Connect Google Drive"}</button>}{driveConnected && <details className="drive-settings"><summary>Connection settings</summary><button className="button button-secondary button-wide" disabled={!canConnectDrive || connectingDrive} onClick={onConnectDrive} type="button">{connectingDrive ? "Opening Google…" : "Reconnect Google Drive"}</button></details>}</section>
+      <p className="small-note">Administrator uploads only. Project files remain private.</p>
+    </section>
     <form className="card upload-card" onSubmit={onSubmit}>
-      <div className="card-heading"><div><div className="eyebrow">UPLOAD DOCUMENT</div><h2>Attach a document to a survey</h2><p>{selectedParcel ? `${selectedParcel.village_name} / Survey ${selectedParcel.survey_number}` : "Choose a survey"}</p></div>{!isWritable && <span className="lock-badge">Preview locked</span>}</div>
+      <div className="card-heading"><div><div className="eyebrow">02 / Upload</div><h2>Attach a document</h2><p>{selectedParcel.village_name} · Survey {selectedParcel.survey_number}</p></div>{!isWritable && <span className="lock-badge">View access</span>}</div>
       <fieldset disabled={!isWritable || uploading}>
-        <label>Survey number<select onChange={(event) => onSelect(event.target.value)} value={selectedParcel?.id ?? ""}>{rows.map((row) => <option key={row.id} value={row.id}>{row.village_name} — {row.survey_number}</option>)}</select></label>
         <label>Document type<select onChange={(event) => onDocumentType(event.target.value)} value={documentType}><option value="current_712">Current 7/12</option><option value="nondh_6">Nondh No. 6 / mutation entry</option><option value="aadhaar">Aadhaar</option><option value="pan">PAN</option><option value="bank_details">Bank details</option><option value="consent_letter">Consent letter</option><option value="old_712">Old 7/12</option><option value="old_nondh_6">Old Nondh No. 6</option></select></label>
         <label className="file-field"><span>File</span><input accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" onChange={(event) => onFile(event.target.files?.[0] ?? null)} type="file" /><small>{uploadFile ? `${uploadFile.name} · ${(uploadFile.size / 1024 / 1024).toFixed(2)} MB` : "PDF, JPG, PNG, DOCX or XLSX — up to 15 MB"}</small></label>
       </fieldset>
-      <div className="form-footer"><span>Upload is accepted only after both browser and server validation.</span><button className="button button-primary" disabled={!isWritable || uploading || !uploadFile} type="submit">{uploading ? "Uploading securely…" : "Upload to survey folder"}</button></div>
+      <div className="form-footer"><span>Uploading a file keeps consent status as recorded.</span><button className="button button-primary" disabled={!isWritable || uploading || !uploadFile || !driveConnected} type="submit">{uploading ? "Uploading…" : "Upload document"}</button></div>
     </form>
   </div>;
 }
@@ -1075,12 +1144,14 @@ function Reports({
   const received = rows.filter((row) => row.consent_status === "received").length;
   const stages = stageOptions.map((stage) => ({ stage, count: rows.filter((row) => row.acquisition_stage === stage).length })).filter((item) => item.count > 0);
   return <div className="reports-layout">
-    <section className="card report-header"><div><div className="eyebrow">FILTERED REPORTING</div><h2>Generate a Patel Infra report from live data</h2><p>The Excel report uses the supplied Patel Infra column layout and includes acquisition, legal, document and restricted owner fields.</p></div><div className="report-actions"><button className="button button-secondary" onClick={onDownload} type="button">Download register CSV</button><button className="button button-primary" disabled={!canGeneratePatel || generating} onClick={onGeneratePatel} type="button">{generating ? "Generating…" : "Generate Patel Infra Excel"}</button></div></section>
-    {!canGeneratePatel && <p className="small-note report-lock-note">Sign in as the administrator to generate the confidential Patel Infra Excel report.</p>}
-    <FilterBar {...{ search, villages, villageFilter, consentFilter, stageFilter, onSearch, onVillage, onConsent, onStage }} />
+    <section className="page-intro"><div><div className="eyebrow">Project reporting</div><h2>Patel Infra report</h2><p>Select the records to include, then generate your Excel workbook.</p></div></section>
+    <section className="card report-builder">
+      <FilterBar showSearch={false} {...{ search, villages, villageFilter, consentFilter, stageFilter, onSearch, onVillage, onConsent, onStage }} />
+      <div className="report-export"><div><strong>{rows.length} surveys selected</strong><p>{canGeneratePatel ? "Patel Infra layout · land, consent, legal and owner details" : "Administrator sign-in required for the confidential Excel report."}</p></div><div className="report-actions"><button className="text-button" onClick={onDownload} type="button">Download CSV</button><button className="button button-primary" disabled={!canGeneratePatel || generating || !rows.length} onClick={onGeneratePatel} type="button">{generating ? "Generating…" : "Generate Excel report"}<Icon name="arrow" /></button></div></div>
+    </section>
     <section className="report-metrics"><MetricCard label="Filtered records" value={String(rows.length)} detail={`${metrics.totalParcels} total records`} accent="blue" /><MetricCard label="Consent received" value={String(received)} detail="Within current filter" accent="green" /><MetricCard label="No documents" value={String(rows.filter((row) => row.document_count === 0).length)} detail="Document exception report" accent="amber" /></section>
-    <section className="card report-breakdown"><div className="card-heading"><div><div className="eyebrow">WORKFLOW BREAKDOWN</div><h3>Acquisition stages in this report</h3></div></div><div className="stage-breakdown">{stages.length ? stages.map(({ stage, count }) => <div key={stage}><span>{stageLabel[stage]}</span><strong>{count}</strong><i style={{ width: `${rows.length ? Math.round((count / rows.length) * 100) : 0}%` }} /></div>) : <div className="empty-state"><strong>No stage records match.</strong></div>}</div></section>
-    <section className="card report-table"><div className="card-heading"><div><div className="eyebrow">REPORT PREVIEW</div><h3>{rows.length} filtered surveys</h3></div><span className="muted">Open any survey to see its full details</span></div><ParcelTable rows={rows.slice(0, 100)} onChoose={onChooseParcel} /></section>
+    <details className="card detail-disclosure report-breakdown"><summary><span>Acquisition stage breakdown<small>{stages.length} stages in this selection</small></span></summary><div className="stage-breakdown">{stages.length ? stages.map(({ stage, count }) => <div key={stage}><span>{stageLabel[stage]}</span><strong>{count}</strong></div>) : <div className="empty-state"><strong>No stage records match.</strong></div>}</div></details>
+    <section className="card report-table"><div className="card-heading"><div><div className="eyebrow">Included records</div><h3>Report preview</h3></div><span className="muted">{rows.length > 100 ? `Showing 100 of ${rows.length} surveys` : `${rows.length} surveys`}</span></div><ParcelTable rows={rows.slice(0, 100)} onChoose={onChooseParcel} />{rows.length > 100 && <p className="table-note">The downloaded report includes all {rows.length} selected surveys.</p>}</section>
   </div>;
 }
 
