@@ -491,7 +491,9 @@ p { line-height: 1.6; }
   .dialog { padding: 30px 24px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
-.drive-folder-setup { margin-bottom: 22px; }
+.drive-folder-setup { margin-bottom: 22px; padding: 24px; }
+.drive-folder-setup .notice { margin: 16px 0; }
+.drive-folder-setup .notice .button { flex-shrink: 0; font-size: 12px; line-height: 1.3; padding: 8px 12px; background: #fff; border: 1px solid #d7bdb4; border-radius: 6px; color: #754d40; white-space: nowrap; }
 .folder-setup-heading { display: flex; gap: 18px; justify-content: space-between; align-items: center; }
 .folder-setup-heading h3 { margin: 4px 0 8px; }
 .folder-setup-heading p { margin: 0; color: var(--muted, #667164); font-size: 13px; }
