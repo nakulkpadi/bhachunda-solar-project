@@ -1,7 +1,7 @@
 import { getOAuthAccessToken, requireRole } from "../_shared/google-drive-oauth.ts";
 import { ownerMatchesParcel, OWNER_DOCUMENT_TYPES, UUID } from "../_shared/owner-details.ts";
 import { authFailure, corsHeaders, json } from "../_shared/consent-http.ts";
-import { canAttach, DRIVE_ID, FOLDER_MIME, getDriveFile, insideProjectFolder, type DriveFile } from "../_shared/drive-existing-files.ts";
+import { canAttach, DRIVE_ID, FOLDER_MIME, getDriveFile, insideProjectFolder, verifiedFolderPath, type DriveFile } from "../_shared/drive-existing-files.ts";
 
 const DOCUMENT_TYPES = new Set(["current_712", "nondh_6", "aadhaar", "pan", "bank_details", "consent_letter", "old_712", "old_nondh_6", "mutation_death_certificate"]);
 
@@ -42,7 +42,15 @@ Deno.serve(async (request) => {
     if (typeof targetId !== "string" || !DRIVE_ID.test(targetId)) return json({ error: "Select a file in the project Drive folder." }, 400, headers);
     const token = await getOAuthAccessToken(admin);
     const file = await getDriveFile(token, targetId);
-    if (!await insideProjectFolder(token, rootId, file)) return json({ error: "Only files in the project Drive folder can be linked." }, 403, headers);
+    let folderPath: unknown = body.folder_path || [];
+    if (request.method === "GET") {
+      const encodedPath = query.get("folder_path") || "[]";
+      if (encodedPath.length > 4096) return json({ error: "Invalid folder path." }, 400, headers);
+      try { folderPath = JSON.parse(encodedPath); } catch { return json({ error: "Invalid folder path." }, 400, headers); }
+    }
+    if (!Array.isArray(folderPath) || folderPath.length > 12 || folderPath.some((id) => typeof id !== "string" || !DRIVE_ID.test(id))) return json({ error: "Invalid folder path." }, 400, headers);
+    const inProject = !file.trashed && (await insideProjectFolder(token, rootId, file) || await verifiedFolderPath(token, rootId, folderPath, file.id));
+    if (!inProject) return json({ error: "Only files in the project Drive folder can be linked." }, 403, headers);
     if (request.method === "GET") {
       if (file.mimeType !== FOLDER_MIME) return json({ error: "Select a folder." }, 400, headers);
       const pageToken = query.get("page_token") || "";

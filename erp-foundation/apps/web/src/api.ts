@@ -233,18 +233,19 @@ export async function openDriveDocument(documentId: string, signal?: AbortSignal
 export interface ExistingDriveFile { id: string; name: string; is_folder: boolean; can_attach: boolean; size: number }
 export interface DriveFolderListing { folder_id: string; folder_name: string; next_page_token: string | null; files: ExistingDriveFile[] }
 
-export async function listExistingDriveFiles(parcelId: string, folderId?: string, pageToken?: string, signal?: AbortSignal): Promise<DriveFolderListing> {
+export async function listExistingDriveFiles(parcelId: string, folderId?: string, pageToken?: string, signal?: AbortSignal, folderPath: string[] = []): Promise<DriveFolderListing> {
   const query = new URLSearchParams({ parcel_id: parcelId });
   if (folderId) query.set("folder_id", folderId);
   if (pageToken) query.set("page_token", pageToken);
+  if (folderPath.length) query.set("folder_path", JSON.stringify(folderPath));
   const response = await fetch(`${supabaseUrl}/functions/v1/drive-files?${query}`, { headers: await sessionHeaders(), signal, cache: "no-store" });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || "Could not open the project Drive folder.");
   return payload as DriveFolderListing;
 }
 
-export async function linkExistingDriveFile(parcelId: string, code: string, fileId: string, ownerId?: string): Promise<void> {
-  const response = await fetch(`${supabaseUrl}/functions/v1/drive-files`, { method: "POST", headers: { ...await sessionHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ parcel_id: parcelId, document_type_code: code, file_id: fileId, owner_id: ownerId || null }) });
+export async function linkExistingDriveFile(parcelId: string, code: string, fileId: string, ownerId?: string, folderPath: string[] = []): Promise<void> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/drive-files`, { method: "POST", headers: { ...await sessionHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ parcel_id: parcelId, document_type_code: code, file_id: fileId, owner_id: ownerId || null, folder_path: folderPath }) });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.linked) throw new Error(payload.error || "Could not link this Drive file.");
 }

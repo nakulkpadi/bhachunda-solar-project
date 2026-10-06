@@ -10,7 +10,7 @@ export interface ConsentWorkspaceActions {
   onConnectDrive: () => void;
   onUpload: (parcelId: string, documentType: string, file: File, ownerId?: string) => Promise<void>;
   onSaveOwner: (parcelId: string, ownerId: string, details: OwnerDetailsInput) => Promise<void>;
-  onLinkExisting: (parcelId: string, documentType: string, fileId: string, ownerId?: string) => Promise<void>;
+  onLinkExisting: (parcelId: string, documentType: string, fileId: string, ownerId?: string, folderPath?: string[]) => Promise<void>;
 }
 
 function ExistingDrivePicker({ label, recordLabel, parcelId, ownerId, code, actions, onClose }: { label: string; recordLabel: string; parcelId: string; ownerId?: string; code: string; actions: ConsentWorkspaceActions; onClose: () => void }) {
@@ -29,7 +29,7 @@ function ExistingDrivePicker({ label, recordLabel, parcelId, ownerId, code, acti
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true); setError(""); setFiles([]); setSelectedFile(null); setPageToken(null); setSearch("");
-    void listExistingDriveFiles(parcelId, folderId, undefined, controller.signal).then((listing) => {
+    void listExistingDriveFiles(parcelId, folderId, undefined, controller.signal, path.flatMap((item) => item.id ? [item.id] : [])).then((listing) => {
       if (controller.signal.aborted) return;
       setFiles(listing.files); setPageToken(listing.next_page_token);
     }).catch((failure) => { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "Could not load the Drive folder."); }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -56,14 +56,14 @@ function ExistingDrivePicker({ label, recordLabel, parcelId, ownerId, code, acti
   const loadMore = async () => {
     if (!pageToken) return;
     setLoading(true); setError("");
-    try { const next = await listExistingDriveFiles(parcelId, folderId, pageToken); setFiles((current) => [...current, ...next.files]); setPageToken(next.next_page_token); }
+    try { const next = await listExistingDriveFiles(parcelId, folderId, pageToken, undefined, path.flatMap((item) => item.id ? [item.id] : [])); setFiles((current) => [...current, ...next.files]); setPageToken(next.next_page_token); }
     catch (failure) { setError(failure instanceof Error ? failure.message : "Could not load more files."); }
     finally { setLoading(false); }
   };
   const link = async () => {
     if (!selectedFile) return;
     setLinking(true); setError("");
-    try { await actions.onLinkExisting(parcelId, code, selectedFile.id, ownerId); onClose(); }
+    try { await actions.onLinkExisting(parcelId, code, selectedFile.id, ownerId, path.flatMap((item) => item.id ? [item.id] : [])); onClose(); }
     catch (failure) { setError(failure instanceof Error ? failure.message : "Could not link this file."); }
     finally { setLinking(false); }
   };

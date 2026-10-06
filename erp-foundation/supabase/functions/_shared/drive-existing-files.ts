@@ -29,3 +29,29 @@ export async function insideProjectFolder(token: string, rootId: string, file: D
   }
   return false;
 }
+
+// Google may omit parents for shared folders. Verify the complete breadcrumb
+// using authenticated child listings instead of trusting a client-supplied path.
+export async function verifiedFolderPath(token: string, rootId: string, path: string[], targetId: string): Promise<boolean> {
+  if (path.length > 12 || path.some((id) => !DRIVE_ID.test(id))) return false;
+  if (!path.length && targetId === rootId) return true;
+  const steps = path[path.length - 1] === targetId ? path : [...path, targetId];
+  let parentId = rootId;
+  for (let index = 0; index < steps.length; index += 1) {
+    let pageToken: string | undefined;
+    let found: DriveFile | undefined;
+    for (let page = 0; page < 10; page += 1) {
+      const query = new URLSearchParams({ q: `'${parentId}' in parents and trashed = false`, fields: "nextPageToken,files(id,mimeType)", pageSize: "1000", supportsAllDrives: "true", includeItemsFromAllDrives: "true" });
+      if (pageToken) query.set("pageToken", pageToken);
+      const response = await fetch(`https://www.googleapis.com/drive/v3/files?${query}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new Error("Folder membership could not be checked.");
+      const listing = await response.json() as { files?: DriveFile[]; nextPageToken?: string };
+      found = listing.files?.find((item) => item.id === steps[index]);
+      if (found || !listing.nextPageToken) break;
+      pageToken = listing.nextPageToken;
+    }
+    if (!found || (index < steps.length - 1 && found.mimeType !== FOLDER_MIME)) return false;
+    parentId = found.id;
+  }
+  return true;
+}

@@ -509,9 +509,9 @@ function App() {
     onConnectDrive: connectPersonalDrive,
     onUpload: uploadSurveyFile,
     onSaveOwner: saveSelectedOwner,
-    onLinkExisting: async (parcelId, code, fileId, ownerId) => {
+    onLinkExisting: async (parcelId, code, fileId, ownerId, folderPath) => {
       await changeSurveyRecord(parcelId, async () => {
-        await linkExistingDriveFile(parcelId, code, fileId, ownerId);
+        await linkExistingDriveFile(parcelId, code, fileId, ownerId, folderPath);
         await refreshLiveData();
       });
       setNotice({ kind: "success", text: "Existing Drive file linked to the selected record. Consent status stays as recorded." });

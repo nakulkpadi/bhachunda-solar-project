@@ -56,7 +56,9 @@ async function harness(slug, overrides = {}) {
           "outside-file": { id, name: "Outside.pdf", mimeType: "application/pdf", size: "15", parents: ["outside-folder"] },
           "outside-folder": { id, name: "Outside", mimeType: folderMime, parents: [] }
         };
-        return new Response(JSON.stringify(metadata[id] || { id, parents: [] }));
+        const item = metadata[id] || { id, parents: [] };
+        if (state.omitDriveParents) delete item.parents;
+        return new Response(JSON.stringify(item));
       }
       if (String(url).includes("/drive/v3/files?") && options.method !== "POST") return new Response(JSON.stringify({ files: [{ id: "existing-file-id", name: "consent.pdf", mimeType: "application/pdf", size: "15" }, { id: "existing-survey-folder", name: "Survey 451", mimeType: "application/vnd.google-apps.folder" }] }));
       if (String(url).includes("/upload/")) return new Response(JSON.stringify({ id: "new-drive-file-id" }));
@@ -214,7 +216,7 @@ test("existing file links retain exact owner/survey metadata and do not move fil
 
 test("files and folders outside the project cannot be listed or linked", async () => {
   const link = await harness("drive-files"); assert.equal((await link.handler(linkRequest({ file_id: "outside-file" }))).status, 403); assert.equal(link.state.writes.length, 0);
-  const browse = await harness("drive-files"); assert.equal((await browse.handler(new Request(`https://project.supabase.co?parcel_id=${parcelId}&folder_id=outside-folder`, { headers: { Origin: origin, Authorization: "Bearer valid-session" } }))).status, 403); assert.equal(browse.state.google.some((call) => call.url.includes("/files?")), false);
+  const browse = await harness("drive-files"); assert.equal((await browse.handler(new Request(`https://project.supabase.co?parcel_id=${parcelId}&folder_id=outside-folder`, { headers: { Origin: origin, Authorization: "Bearer valid-session" } }))).status, 403); assert.equal(browse.state.google.some((call) => new URL(call.url).searchParams.get("q")?.includes("'outside-folder' in parents")), false);
 });
 
 test("existing KYC links require owner membership and admin access", async () => {
@@ -226,4 +228,14 @@ test("existing KYC links require owner membership and admin access", async () =>
 test("repeat file links reuse the attachment and oversized files are rejected", async () => {
   const duplicate = await harness("drive-files", { alreadyLinked: true }); assert.equal((await duplicate.handler(linkRequest())).status, 200); assert.equal(duplicate.state.writes.length, 0);
   const large = await harness("drive-files", { oversizedFile: true }); assert.equal((await large.handler(linkRequest())).status, 400); assert.equal(large.state.writes.length, 0);
+});
+
+test("shared folder paths are verified by child listings when Drive omits parent metadata", async () => {
+  const browse = await harness("drive-files", { omitDriveParents: true });
+  const query = new URLSearchParams({ parcel_id: parcelId, folder_id: "existing-survey-folder", folder_path: JSON.stringify(["existing-survey-folder"]) });
+  assert.equal((await browse.handler(new Request(`https://project.supabase.co?${query}`, { headers: { Origin: origin, Authorization: "Bearer valid-session" } }))).status, 200);
+  const link = await harness("drive-files", { omitDriveParents: true });
+  assert.equal((await link.handler(linkRequest({ folder_path: ["existing-survey-folder"] }))).status, 201);
+  const outside = await harness("drive-files", { omitDriveParents: true });
+  assert.equal((await outside.handler(linkRequest({ file_id: "outside-file", folder_path: ["existing-survey-folder"] }))).status, 403); assert.equal(outside.state.writes.length, 0);
 });
