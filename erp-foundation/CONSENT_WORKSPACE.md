@@ -22,7 +22,7 @@ The Patel Infra report now reads the saved PAN and Aadhaar owner names along wit
 
 `cd apps/web && npm run build && npm run test:integration`
 
-Twenty-one backend integration tests cover field validation, exact owner/survey links, uploads, cleanup after a failed database insert, private document views, existing-file linking, project-folder boundaries, shared folders with missing parent metadata, and read-only roles. They mock Google requests and user authentication; they do not write files to the personal Drive account.
+Twenty-two backend integration tests cover field validation, exact owner/survey links, uploads, reuse of existing village/survey folders, cleanup after a failed database insert, private document views, existing-file linking, project-folder boundaries, shared folders with missing parent metadata, and read-only roles. They mock Google requests and user authentication; they do not write files to the personal Drive account.
 
 Live Supabase transaction rollback checks confirmed admin save/read, all added fields, leading-zero account numbers, viewer read/write denial and rejection of a document linked across surveys. All temporary rows were rolled back.
 

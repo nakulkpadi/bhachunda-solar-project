@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.2";
 import { createAdminClient, getOAuthAccessToken } from "../_shared/google-drive-oauth.ts";
 import { ownerMatchesParcel, OWNER_DOCUMENT_TYPES } from "../_shared/owner-details.ts";
+import { resolveSurveyFolder } from "../_shared/drive-existing-files.ts";
 
 type AppRole = "admin" | "data_entry" | "legal" | "finance" | "viewer";
 type GoogleServiceAccount = { client_email: string; private_key: string };
@@ -235,7 +236,7 @@ Deno.serve(async (request) => {
     if (existingFolder?.google_folder_id) {
       folderId = existingFolder.google_folder_id;
     } else {
-      folderId = await googleCreateFolder(googleAccessToken, safeSegment(`${village.code}-${parcel.survey_number}`), rootFolderId);
+      folderId = await resolveSurveyFolder(googleAccessToken, rootFolderId, village.name_en, parcel.survey_number, (name, parentId) => googleCreateFolder(googleAccessToken, safeSegment(name), parentId));
       const { error: folderInsertError } = await admin.from("drive_folders").insert({ parcel_id: parcelId, google_folder_id: folderId, folder_name: safeSegment(`${village.name_en} / ${parcel.survey_number}`), created_by: userResult.user.id });
       if (folderInsertError) {
         const { data: racedFolder } = await admin.from("drive_folders").select("google_folder_id").eq("parcel_id", parcelId).maybeSingle();

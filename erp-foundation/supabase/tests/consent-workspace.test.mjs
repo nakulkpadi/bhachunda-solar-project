@@ -20,7 +20,7 @@ async function harness(slug, overrides = {}) {
     if (table === "profiles") return { data: { role: state.role, is_active: state.active }, error: null };
     if (table === "parcel_owners") return { data: state.ownerParcel ? { parcel_id: state.ownerParcel } : null, error: null };
     if (table === "parcels") return { data: { id: parcelId, survey_number: "451", villages: { code: "BVP", name_en: "Bhavanipar", drive_root_folder_id: "existing-root" } }, error: null };
-    if (table === "drive_folders") return { data: { google_folder_id: "existing-survey-folder" }, error: null };
+    if (table === "drive_folders") return { data: state.noExistingFolder ? null : { google_folder_id: "existing-survey-folder" }, error: null };
     if (table === "parcel_documents") return operation === "insert" ? { data: state.failDocumentInsert ? null : { id: documentId }, error: state.failDocumentInsert ? new Error("insert failed") : null } : slug === "drive-files" ? { data: state.alreadyLinked ? { id: documentId } : null, error: null } : { data: { google_file_id: "existing-file-id", original_filename: "consent.pdf", mime_type: "application/pdf", byte_size: 15, status: state.documentStatus, document_types: { is_sensitive: state.sensitive } }, error: null };
     return { data: null, error: null };
   };
@@ -46,6 +46,10 @@ async function harness(slug, overrides = {}) {
       const call = { url: String(url), ...options };
       if (options.body instanceof Blob) call.bodyText = await options.body.text();
       state.google.push(call);
+      if (slug === "drive-upload" && state.noExistingFolder && new URL(url).searchParams.get("q")) {
+        const root = new URL(url).searchParams.get("q").includes("'existing-root' in parents");
+        return new Response(JSON.stringify({ files: [{ id: root ? "existing-village-folder" : "existing-survey-folder", name: root ? "Bhavanipur" : "451", mimeType: "application/vnd.google-apps.folder" }] }));
+      }
       if (String(url).includes("fields=id,name,mimeType")) {
         const id = new URL(url).pathname.split("/").pop();
         const folderMime = "application/vnd.google-apps.folder";
@@ -238,4 +242,11 @@ test("shared folder paths are verified by child listings when Drive omits parent
   assert.equal((await link.handler(linkRequest({ folder_path: ["existing-survey-folder"] }))).status, 201);
   const outside = await harness("drive-files", { omitDriveParents: true });
   assert.equal((await outside.handler(linkRequest({ file_id: "outside-file", folder_path: ["existing-survey-folder"] }))).status, 403); assert.equal(outside.state.writes.length, 0);
+});
+
+test("new uploads reuse the existing village and survey folder before creating folders", async () => {
+  const { handler, state } = await harness("drive-upload", { noExistingFolder: true }); assert.equal((await handler(uploadRequest())).status, 201);
+  const folder = state.writes.find((write) => write.table === "drive_folders").values; assert.equal(folder.google_folder_id, "existing-survey-folder"); assert.equal(folder.parcel_id, parcelId);
+  const multipart = state.google.find((call) => call.url.includes("/upload/")).bodyText; assert.ok(multipart.includes('"parents":["existing-survey-folder"]'));
+  assert.equal(state.google.some((call) => call.method === "POST" && !call.url.includes("/upload/")), false);
 });
