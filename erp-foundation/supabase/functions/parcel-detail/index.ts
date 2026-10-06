@@ -1,4 +1,5 @@
 import { createAdminClient, requireRole, type AppRole } from "../_shared/google-drive-oauth.ts";
+import { mayViewDocument } from "../_shared/owner-details.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ACTIVE_ROLES: AppRole[] = ["admin", "data_entry", "legal", "finance", "viewer"];
@@ -64,7 +65,7 @@ Deno.serve(async (request) => {
           nfa_submitted_on, nfa_approved_on, legal_remarks
         ),
         parcel_owners(id, display_name, source_owner_text, sequence_no, is_primary),
-        parcel_documents(document_type_code, status, created_at)
+        parcel_documents(id, owner_id, document_type_code, status, created_at, original_filename, mime_type, google_file_id, document_types!inner(is_sensitive))
       `)
       .eq("id", parcelId)
       .maybeSingle();
@@ -77,12 +78,26 @@ Deno.serve(async (request) => {
       const ownerIds = owners.map((owner) => owner.id);
       const { data, error } = await admin
         .from("owner_private_details")
-        .select("owner_id, pan_number, aadhaar_number, bank_account_number, bank_name, ifsc_code, vendor_code, bank_owner_name, updated_at")
+        .select("owner_id, pan_owner_name, pan_number, aadhaar_owner_name, aadhaar_number, bank_account_number, bank_name, bank_branch, bank_account_type, ifsc_code, vendor_code, bank_owner_name, updated_at")
         .in("owner_id", ownerIds);
       if (error) throw new Error("Could not load restricted owner details.");
       privateOwnerDetails = data ?? [];
     }
 
+    const documents = (Array.isArray(parcel.parcel_documents) ? parcel.parcel_documents : []).map((document) => {
+      const documentType = first(document.document_types);
+      const allowed = mayViewDocument(role, documentType?.is_sensitive !== false);
+      return {
+        id: allowed ? document.id : null,
+        owner_id: allowed ? document.owner_id : null,
+        document_type_code: document.document_type_code,
+        status: document.status,
+        created_at: document.created_at,
+        original_filename: allowed ? document.original_filename : null,
+        mime_type: allowed ? document.mime_type : null,
+        can_view: allowed && Boolean(document.google_file_id) && ["uploaded", "verified"].includes(document.status)
+      };
+    });
     return response({
       role,
       parcel: {
@@ -112,11 +127,7 @@ Deno.serve(async (request) => {
           sequence_no: owner.sequence_no,
           is_primary: owner.is_primary
         })),
-        documents: (Array.isArray(parcel.parcel_documents) ? parcel.parcel_documents : []).map((document) => ({
-          document_type_code: document.document_type_code,
-          status: document.status,
-          created_at: document.created_at
-        })),
+        documents,
         private_owner_details: privateOwnerDetails
       }
     }, 200, headers);

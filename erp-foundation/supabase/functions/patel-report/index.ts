@@ -106,7 +106,7 @@ Deno.serve(async (request) => {
     const { data: privateRows, error: privateError } = ownerIds.length
       ? await admin
         .from("owner_private_details")
-        .select("owner_id, pan_number, aadhaar_number, bank_account_number, bank_name, ifsc_code, vendor_code, bank_owner_name")
+        .select("owner_id, pan_owner_name, pan_number, aadhaar_owner_name, aadhaar_number, bank_account_number, bank_name, ifsc_code, vendor_code, bank_owner_name")
         .in("owner_id", ownerIds)
       : { data: [], error: null };
     if (privateError) throw new Error("Could not load restricted reporting fields.");
@@ -207,9 +207,9 @@ Deno.serve(async (request) => {
         reportField(source, "aging"),
         privateDetails?.bank_owner_name ?? "",
         privateDetails?.vendor_code ?? "",
-        reportField(source, "owners name ( as per pan card)"),
+        privateDetails?.pan_owner_name ?? reportField(source, "owners name ( as per pan card)"),
         privateDetails?.pan_number ?? "",
-        reportField(source, "owners name ( as per adhar card)"),
+        privateDetails?.aadhaar_owner_name ?? reportField(source, "owners name ( as per adhar card)"),
         privateDetails?.aadhaar_number ?? "",
         privateDetails?.bank_account_number ?? "",
         privateDetails?.bank_name ?? "",

@@ -74,6 +74,48 @@ export interface ParcelWorkflowInput {
   legalRemarks: string;
 }
 
+export type BankAccountType = "SB" | "CA" | "OD" | "CC";
+
+export interface OwnerDetailsInput {
+  pan_owner_name: string;
+  pan_number: string;
+  aadhaar_owner_name: string;
+  aadhaar_number: string;
+  bank_owner_name: string;
+  bank_account_number: string;
+  bank_branch: string;
+  ifsc_code: string;
+  bank_name: string;
+  bank_account_type: BankAccountType | "";
+}
+
+export interface ParcelDocument {
+  id: string | null;
+  owner_id: string | null;
+  document_type_code: string;
+  status: string;
+  created_at: string;
+  original_filename: string | null;
+  mime_type: string | null;
+  can_view: boolean;
+}
+
+export interface OwnerPrivateDetails {
+  owner_id: string;
+  pan_owner_name: string | null;
+  pan_number: string | null;
+  aadhaar_owner_name: string | null;
+  aadhaar_number: string | null;
+  bank_account_number: string | null;
+  bank_name: string | null;
+  bank_branch: string | null;
+  bank_account_type: BankAccountType | null;
+  ifsc_code: string | null;
+  vendor_code: string | null;
+  bank_owner_name: string | null;
+  updated_at: string;
+}
+
 export interface ParcelDetail {
   id: string;
   survey_number: string;
@@ -143,20 +185,6 @@ export interface ParcelDetail {
     sequence_no: number | null;
     is_primary: boolean;
   }>;
-  documents: Array<{
-    document_type_code: string;
-    status: string;
-    created_at: string;
-  }>;
-  private_owner_details: Array<{
-    owner_id: string;
-    pan_number: string | null;
-    aadhaar_number: string | null;
-    bank_account_number: string | null;
-    bank_name: string | null;
-    ifsc_code: string | null;
-    vendor_code: string | null;
-    bank_owner_name: string | null;
-    updated_at: string;
-  }>;
+  documents: ParcelDocument[];
+  private_owner_details: OwnerPrivateDetails[];
 }

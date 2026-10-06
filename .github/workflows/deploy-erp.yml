@@ -7,6 +7,8 @@ on:
       - main
     paths:
       - "erp-foundation/apps/web/**"
+      - "erp-foundation/supabase/functions/**"
+      - "erp-foundation/supabase/tests/**"
       - ".github/workflows/deploy-erp.yml"
 
 permissions:
@@ -43,6 +45,9 @@ jobs:
 
       - name: Build the ERP
         run: npm run build
+
+      - name: Check consent and document permissions
+        run: npm run test:integration
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v4

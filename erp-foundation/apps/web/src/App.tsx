@@ -5,6 +5,7 @@ import {
   downloadPatelReport,
   getSession,
   isSupabaseConfigured,
+  linkExistingDriveFile,
   loadGoogleDriveConnectionStatus,
   loadMapFeatureDefinitions,
   loadMapFeatureLinks,
@@ -13,6 +14,7 @@ import {
   loadParcelDetail,
   loadParcels,
   recordConsent,
+  saveOwnerDetails,
   saveParcelWorkflow,
   signIn,
   signOut,
@@ -22,6 +24,7 @@ import {
 } from "./api";
 import { demoParcels } from "./demo";
 import { ConsentEntry } from "./ConsentEntry";
+import { SurveyDocumentPanel, type ConsentWorkspaceActions } from "./ConsentDocuments";
 import { FullSurveyMap, type LiveMapSelection } from "./FullSurveyMap";
 import { SurveyDetails } from "./SurveyDetails";
 import { formatSurveyCount, Icon, SurveyPicker, type IconName } from "./ui";
@@ -34,6 +37,7 @@ import type {
   MapFeatureLink,
   MapStatus,
   ParcelDetail,
+  OwnerDetailsInput,
   ParcelSummary,
   ParcelWorkflowInput
 } from "./types";
@@ -187,9 +191,9 @@ function App() {
   const [savingWorkflow, setSavingWorkflow] = useState(false);
   const [surveyDetail, setSurveyDetail] = useState<ParcelDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [documentType, setDocumentType] = useState("consent_letter");
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [parcelChanges, setParcelChanges] = useState(0);
+  const parcelChangeCount = useRef(0);
+  const activeParcelId = useRef<string | null>(null);
   const [connectingDrive, setConnectingDrive] = useState(false);
   const [driveConnected, setDriveConnected] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
@@ -338,6 +342,9 @@ function App() {
     () => parcels.find((row) => row.id === selectedParcelId) ?? visibleRows[0] ?? parcels[0] ?? null,
     [parcels, selectedParcelId, visibleRows]
   );
+  activeParcelId.current = selectedParcel?.id ?? null;
+  const activeDetail = surveyDetail?.id === selectedParcel?.id ? surveyDetail : null;
+  const selectParcel = (parcelId: string) => { if (parcelChangeCount.current === 0) setSelectedParcelId(parcelId); };
 
   useEffect(() => {
     if (selectedParcel && selectedParcel.id !== selectedParcelId) setSelectedParcelId(selectedParcel.id);
@@ -380,6 +387,7 @@ function App() {
   }, [surveyDetail, selectedParcel?.id]);
 
   const chooseParcel = (parcel: ParcelSummary, nextView: ViewId = "details") => {
+    if (parcelChangeCount.current > 0) return;
     setSelectedParcelId(parcel.id);
     setActiveView(nextView);
   };
@@ -421,31 +429,31 @@ function App() {
     }
   };
 
-  const uploadDocument = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!selectedParcel || !uploadFile) {
-      setNotice({ kind: "info", text: "Choose a parcel and a document file first." });
-      return;
-    }
-    if (!isAdmin || !isLiveData) {
-      setNotice({ kind: "info", text: "Only the administrator can upload documents." });
-      return;
-    }
-    if (uploadFile.size > 15 * 1024 * 1024) {
-      setNotice({ kind: "error", text: "This file is over the 15 MB browser limit." });
-      return;
-    }
-    setUploading(true);
+  const changeSurveyRecord = async (parcelId: string, operation: () => Promise<void>): Promise<void> => {
+    if (!isAdmin || !isLiveData || activeParcelId.current !== parcelId) throw new Error("Select the survey using the administrator account first.");
+    parcelChangeCount.current += 1;
+    setParcelChanges(parcelChangeCount.current);
     try {
-      await uploadDriveDocument(selectedParcel.id, documentType, uploadFile);
-      setUploadFile(null);
-      setNotice({ kind: "success", text: "Document saved to the parcel’s protected Google Drive folder." });
-      await refreshLiveData();
-    } catch (error) {
-      setNotice({ kind: "error", text: error instanceof Error ? error.message : "Drive upload failed." });
+      await operation();
+      const refreshed = await loadParcelDetail(parcelId);
+      if (activeParcelId.current === parcelId) setSurveyDetail(refreshed);
     } finally {
-      setUploading(false);
+      parcelChangeCount.current -= 1;
+      setParcelChanges(parcelChangeCount.current);
     }
+  };
+
+  const saveSelectedOwner = async (parcelId: string, ownerId: string, details: OwnerDetailsInput): Promise<void> => {
+    await changeSurveyRecord(parcelId, () => saveOwnerDetails(parcelId, ownerId, details));
+  };
+
+  const uploadSurveyFile = async (parcelId: string, code: string, file: File, ownerId?: string): Promise<void> => {
+    if (!driveConnected) throw new Error("Connect Google Drive before uploading a file.");
+    await changeSurveyRecord(parcelId, async () => {
+      await uploadDriveDocument(parcelId, code, file, ownerId);
+      await refreshLiveData();
+    });
+    setNotice({ kind: "success", text: "Document uploaded to this survey’s private Drive folder and linked to its record." });
   };
 
   const connectPersonalDrive = async () => {
@@ -475,22 +483,39 @@ function App() {
     const sourceValue = input.reference.trim()
       ? `Manual ERP consent entry · ${input.reference.trim()}`
       : "Manual ERP consent entry";
-    await recordConsent({
-      parcelId: selectedParcel.id,
-      status: input.status,
-      receivedOn: input.status === "received" ? input.receivedOn : undefined,
-      sourceValue,
-      remarks: input.remarks
+    const parcelId = selectedParcel.id;
+    await changeSurveyRecord(parcelId, async () => {
+      await recordConsent({
+        parcelId,
+        status: input.status,
+        receivedOn: input.status === "received" ? input.receivedOn : undefined,
+        sourceValue,
+        remarks: input.remarks
+      });
+      await refreshLiveData();
     });
-    await refreshLiveData();
-    const refreshed = await loadParcelDetail(selectedParcel.id);
-    setSurveyDetail(refreshed);
     setNotice({
       kind: "success",
       text: input.status === "received"
         ? "Consent received was recorded. The linked map shape is now green."
         : `Consent status was saved as ${consentLabel[input.status]}.`
     });
+  };
+
+  const consentWorkspace: ConsentWorkspaceActions = {
+    busy: parcelChanges > 0,
+    driveConnected,
+    connectingDrive,
+    onConnectDrive: connectPersonalDrive,
+    onUpload: uploadSurveyFile,
+    onSaveOwner: saveSelectedOwner,
+    onLinkExisting: async (parcelId, code, fileId, ownerId) => {
+      await changeSurveyRecord(parcelId, async () => {
+        await linkExistingDriveFile(parcelId, code, fileId, ownerId);
+        await refreshLiveData();
+      });
+      setNotice({ kind: "success", text: "Existing Drive file linked to the selected record. Consent status stays as recorded." });
+    }
   };
 
   const generatePatelReport = async () => {
@@ -751,24 +776,26 @@ function App() {
             <SurveyDetails
               rows={parcels}
               selectedParcel={selectedParcel}
-              detail={surveyDetail}
+              detail={activeDetail}
               loading={detailLoading}
               isAdmin={isAdmin}
-              onSelect={setSelectedParcelId}
+              onSelect={selectParcel}
               onGoConsent={() => setActiveView("consent")}
               onGoDocuments={() => setActiveView("documents")}
+              workspace={consentWorkspace}
             />
           )}
           {activeView === "consent" && (
             <ConsentEntry
               rows={parcels}
               selectedParcel={selectedParcel}
-              detail={surveyDetail}
+              detail={activeDetail}
               loading={detailLoading}
               isAdmin={isAdmin}
-              onSelect={setSelectedParcelId}
+              onSelect={selectParcel}
               onSave={saveConsentEntry}
               onGoDetails={() => setActiveView("details")}
+              workspace={consentWorkspace}
             />
           )}
           {activeView === "entry" && (
@@ -788,18 +815,11 @@ function App() {
             <Documents
               rows={parcels}
               selectedParcel={selectedParcel}
-              documentType={documentType}
-              uploadFile={uploadFile}
-              isWritable={Boolean(isAdmin && isLiveData)}
-              uploading={uploading}
-              onSelect={setSelectedParcelId}
-              onDocumentType={setDocumentType}
-              onFile={setUploadFile}
-              onSubmit={uploadDocument}
-              canConnectDrive={Boolean(isAdmin && isLiveData)}
-              connectingDrive={connectingDrive}
-              driveConnected={driveConnected}
-              onConnectDrive={connectPersonalDrive}
+              detail={activeDetail}
+              loading={detailLoading}
+              isAdmin={isAdmin}
+              onSelect={selectParcel}
+              workspace={consentWorkspace}
             />
           )}
           {activeView === "reports" && (
@@ -1078,52 +1098,24 @@ function WorkflowEntry({
   </div>;
 }
 
-function Documents({
-  rows,
-  selectedParcel,
-  documentType,
-  uploadFile,
-  isWritable,
-  uploading,
-  onSelect,
-  onDocumentType,
-  onFile,
-  onSubmit,
-  canConnectDrive,
-  connectingDrive,
-  driveConnected,
-  onConnectDrive
-}: {
+function Documents({ rows, selectedParcel, detail, loading, isAdmin, onSelect, workspace }: {
   rows: ParcelSummary[];
   selectedParcel: ParcelSummary | null;
-  documentType: string;
-  uploadFile: File | null;
-  isWritable: boolean;
-  uploading: boolean;
+  detail: ParcelDetail | null;
+  loading: boolean;
+  isAdmin: boolean;
   onSelect: (parcelId: string) => void;
-  onDocumentType: (value: string) => void;
-  onFile: (file: File | null) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  canConnectDrive: boolean;
-  connectingDrive: boolean;
-  driveConnected: boolean;
-  onConnectDrive: () => void;
+  workspace: ConsentWorkspaceActions;
 }) {
   if (!selectedParcel) return <section className="card empty-state"><strong>No survey selected.</strong></section>;
   return <div className="documents-layout">
-    <section className="card selection-card"><div className="eyebrow">01 / Select record</div><h2>Choose a survey</h2><p>Files go to its village and survey folder.</p><SurveyPicker rows={rows} selectedParcel={selectedParcel} onSelect={onSelect} disabled={uploading} />
+    <section className="card selection-card"><div className="eyebrow">Select record</div><h2>Choose a survey</h2><p>Files go to its private survey folder.</p><SurveyPicker rows={rows} selectedParcel={selectedParcel} onSelect={onSelect} disabled={workspace.busy} />
       <div className="parcel-facts"><div><span>Documents</span><strong>{selectedParcel.document_count} attached</strong></div><div><span>Verified</span><strong>{selectedParcel.verified_document_count}</strong></div></div>
-      <section className="drive-connection"><div className="section-label">Google Drive</div><p>{driveConnected ? "Connected to the project document folder." : "Connect your Drive before uploading files."}</p>{!driveConnected && <button className="button button-secondary button-wide" disabled={!canConnectDrive || connectingDrive} onClick={onConnectDrive} type="button">{connectingDrive ? "Opening Google…" : "Connect Google Drive"}</button>}{driveConnected && <details className="drive-settings"><summary>Connection settings</summary><button className="button button-secondary button-wide" disabled={!canConnectDrive || connectingDrive} onClick={onConnectDrive} type="button">{connectingDrive ? "Opening Google…" : "Reconnect Google Drive"}</button></details>}</section>
-      <p className="small-note">Administrator uploads only. Project files remain private.</p>
+      <p className="small-note">Choose the owner under KYC when uploading PAN, Aadhaar or bank files.</p>
     </section>
-    <form className="card upload-card" onSubmit={onSubmit}>
-      <div className="card-heading"><div><div className="eyebrow">02 / Upload</div><h2>Attach a document</h2><p>{selectedParcel.village_name} · Survey {selectedParcel.survey_number}</p></div>{!isWritable && <span className="lock-badge">View access</span>}</div>
-      <fieldset disabled={!isWritable || uploading}>
-        <label>Document type<select onChange={(event) => onDocumentType(event.target.value)} value={documentType}><option value="current_712">Current 7/12</option><option value="nondh_6">Nondh No. 6 / mutation entry</option><option value="aadhaar">Aadhaar</option><option value="pan">PAN</option><option value="bank_details">Bank details</option><option value="consent_letter">Consent letter</option><option value="old_712">Old 7/12</option><option value="old_nondh_6">Old Nondh No. 6</option></select></label>
-        <label className="file-field"><span>File</span><input accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx" onChange={(event) => onFile(event.target.files?.[0] ?? null)} type="file" /><small>{uploadFile ? `${uploadFile.name} · ${(uploadFile.size / 1024 / 1024).toFixed(2)} MB` : "PDF, JPG, PNG, DOCX or XLSX — up to 15 MB"}</small></label>
-      </fieldset>
-      <div className="form-footer"><span>Uploading a file keeps consent status as recorded.</span><button className="button button-primary" disabled={!isWritable || uploading || !uploadFile || !driveConnected} type="submit">{uploading ? "Uploading…" : "Upload document"}</button></div>
-    </form>
+    <section className="card detail-card"><div className="card-heading"><div><div className="eyebrow">Documents</div><h2>Survey documents</h2><p>{selectedParcel.village_name} · Survey {selectedParcel.survey_number}</p></div>{!isAdmin && <span className="lock-badge">View access</span>}</div>
+      {loading ? <p role="status">Loading attached documents…</p> : detail ? <SurveyDocumentPanel detail={detail} isAdmin={isAdmin} actions={workspace} /> : <p>Sign in to view attached files.</p>}
+    </section>
   </div>;
 }
 

@@ -1,6 +1,7 @@
 import { consentLabel } from "./api";
 import type { AcquisitionStage, ConsentStatus, ParcelDetail, ParcelSummary } from "./types";
 import { SurveyPicker } from "./ui";
+import { OwnerDetailsSection, SurveyDocumentPanel, type ConsentWorkspaceActions } from "./ConsentDocuments";
 
 const stageLabel: Record<AcquisitionStage, string> = {
   identified: "Identified",
@@ -39,7 +40,8 @@ export function SurveyDetails({
   isAdmin,
   onSelect,
   onGoConsent,
-  onGoDocuments
+  onGoDocuments,
+  workspace
 }: {
   rows: ParcelSummary[];
   selectedParcel: ParcelSummary | null;
@@ -49,16 +51,17 @@ export function SurveyDetails({
   onSelect: (parcelId: string) => void;
   onGoConsent: () => void;
   onGoDocuments: () => void;
+  workspace: ConsentWorkspaceActions;
 }) {
   if (!selectedParcel) return <section className="card empty-state"><strong>No survey selected.</strong></section>;
 
   const sourceFields = Object.entries(detail?.acquisition?.source_fields ?? {}).filter(([, value]) => value !== null && value !== undefined && value !== "");
   return <div className="details-layout">
-    <section className="card survey-selector">
+    <section className="card survey-selector with-documents">
       <div className="eyebrow">Land register</div>
       <h2>Choose a survey</h2>
       <p>Select a village to see its survey numbers.</p>
-      <SurveyPicker rows={rows} selectedParcel={selectedParcel} onSelect={onSelect} />
+      <SurveyPicker rows={rows} selectedParcel={selectedParcel} onSelect={onSelect} disabled={workspace.busy} />
       <div className="parcel-facts">
         <div><span>Consent status</span><strong className={statusClass(selectedParcel.consent_status)}>{consentLabel[selectedParcel.consent_status]}</strong></div>
         <div><span>Workflow stage</span><strong>{stageLabel[selectedParcel.acquisition_stage]}</strong></div>
@@ -67,6 +70,7 @@ export function SurveyDetails({
       {isAdmin && <button className="button button-primary button-wide" onClick={onGoConsent} type="button">{selectedParcel.consent_status === "received" ? "Update consent" : "Create consent entry"}</button>}
       <button className="button button-secondary button-wide detail-action" onClick={onGoDocuments} type="button">View documents</button>
       {!isAdmin && <p className="small-note">View access. An administrator can edit this record.</p>}
+      {!loading && detail && <SurveyDocumentPanel actions={workspace} detail={detail} isAdmin={isAdmin} />}
     </section>
 
     <div className="detail-content">
@@ -89,15 +93,13 @@ export function SurveyDetails({
           ]} />
         </section>
 
-        <section className="detail-two-columns">
-          <section className="card detail-card"><div className="eyebrow">OWNERS</div><h3>Farmer / owner details</h3>{detail.owners.length ? <div className="owner-list">{detail.owners.map((owner) => <div key={owner.id}><strong>{owner.display_name}</strong><span>{owner.is_primary ? "Primary owner" : "Owner " + (owner.sequence_no ?? "")}</span></div>)}</div> : <p className="muted">No owner name was supplied in the source sheet.</p>}</section>
+        <OwnerDetailsSection actions={workspace} detail={detail} isAdmin={isAdmin} />
           <section className="card detail-card"><div className="eyebrow">CONSENT</div><h3>Consent record</h3><DetailGrid items={[
             { label: "Status", value: detail.consent ? consentLabel[detail.consent.status] : "Not ready" },
             { label: "Received on", value: detail.consent?.received_on },
             { label: "Source", value: detail.consent?.source_value },
             { label: "Remarks", value: detail.consent?.remarks }
           ]} /></section>
-        </section>
 
         <details className="card detail-disclosure"><summary><span>Acquisition and legal details<small>Patel Infra workflow</small></span></summary><div className="disclosure-body"><DetailGrid items={[
           { label: "Project", value: detail.acquisition?.project_name },
@@ -121,15 +123,6 @@ export function SurveyDetails({
 
         <section className="card detail-card"><div className="eyebrow">DOCUMENT CHECKLIST</div><h3>Current document status</h3>{detail.documents.length ? <div className="document-status-list">{detail.documents.map((document) => <div key={document.document_type_code + document.created_at}><span>{label(document.document_type_code)}</span><strong>{label(document.status)}</strong></div>)}</div> : <p className="muted">No Drive document has been attached yet. This does not change the consent status.</p>}</section>
 
-        {isAdmin && <details className="card detail-disclosure sensitive-card"><summary><span>Identity and bank details<small>Administrator access</small></span></summary><div className="disclosure-body">{detail.private_owner_details.length ? detail.private_owner_details.map((privateDetail) => <DetailGrid key={privateDetail.owner_id} items={[
-          { label: "Bank owner name", value: privateDetail.bank_owner_name },
-          { label: "Vendor code", value: privateDetail.vendor_code },
-          { label: "PAN", value: privateDetail.pan_number },
-          { label: "Aadhaar", value: privateDetail.aadhaar_number },
-          { label: "Bank account", value: privateDetail.bank_account_number },
-          { label: "Bank name", value: privateDetail.bank_name },
-          { label: "IFSC", value: privateDetail.ifsc_code }
-        ]} />) : <p className="muted">No restricted fields were supplied for this survey.</p>}</div></details>}
       </>}
     </div>
   </div>;

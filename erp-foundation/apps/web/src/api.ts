@@ -9,6 +9,7 @@ import type {
   ParcelSummary,
   ParcelWorkflowInput
 } from "./types";
+import type { OwnerDetailsInput } from "./types";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY)?.trim();
@@ -188,7 +189,7 @@ export async function saveParcelWorkflow(input: ParcelWorkflowInput): Promise<vo
   if (legalError) throw legalError;
 }
 
-export async function uploadDriveDocument(parcelId: string, documentTypeCode: string, file: File): Promise<{ fileId: string; webViewLink: string | null }> {
+export async function uploadDriveDocument(parcelId: string, documentTypeCode: string, file: File, ownerId?: string): Promise<{ fileId: string; documentId: string }> {
   const client = requiredClient();
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
   if (sessionError) throw sessionError;
@@ -197,6 +198,7 @@ export async function uploadDriveDocument(parcelId: string, documentTypeCode: st
   form.append("parcel_id", parcelId);
   form.append("document_type_code", documentTypeCode);
   form.append("file", file);
+  if (ownerId) form.append("owner_id", ownerId);
   const response = await fetch(`${supabaseUrl}/functions/v1/drive-upload`, {
     method: "POST",
     headers: { Authorization: `Bearer ${sessionData.session.access_token}`, apikey: supabaseKey! },
@@ -204,7 +206,47 @@ export async function uploadDriveDocument(parcelId: string, documentTypeCode: st
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error || "Drive upload failed.");
-  return { fileId: payload.file_id, webViewLink: payload.web_view_link ?? null };
+  return { fileId: payload.file_id, documentId: payload.document_id };
+}
+
+export async function saveOwnerDetails(parcelId: string, ownerId: string, details: OwnerDetailsInput): Promise<void> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/owner-details`, {
+    method: "POST",
+    headers: { ...await sessionHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ parcel_id: parcelId, owner_id: ownerId, details })
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.saved) throw new Error(payload.error || "Could not save owner details.");
+}
+
+export async function openDriveDocument(documentId: string, signal?: AbortSignal): Promise<Blob> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/drive-document?document_id=${encodeURIComponent(documentId)}`, {
+    headers: await sessionHeaders(), signal, cache: "no-store"
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || "Could not open the attached Drive file.");
+  }
+  return response.blob();
+}
+
+export interface ExistingDriveFile { id: string; name: string; is_folder: boolean; can_attach: boolean; size: number }
+export interface DriveFolderListing { folder_id: string; folder_name: string; next_page_token: string | null; files: ExistingDriveFile[] }
+
+export async function listExistingDriveFiles(parcelId: string, folderId?: string, pageToken?: string, signal?: AbortSignal): Promise<DriveFolderListing> {
+  const query = new URLSearchParams({ parcel_id: parcelId });
+  if (folderId) query.set("folder_id", folderId);
+  if (pageToken) query.set("page_token", pageToken);
+  const response = await fetch(`${supabaseUrl}/functions/v1/drive-files?${query}`, { headers: await sessionHeaders(), signal, cache: "no-store" });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Could not open the project Drive folder.");
+  return payload as DriveFolderListing;
+}
+
+export async function linkExistingDriveFile(parcelId: string, code: string, fileId: string, ownerId?: string): Promise<void> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/drive-files`, { method: "POST", headers: { ...await sessionHeaders(), "Content-Type": "application/json" }, body: JSON.stringify({ parcel_id: parcelId, document_type_code: code, file_id: fileId, owner_id: ownerId || null }) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload.linked) throw new Error(payload.error || "Could not link this Drive file.");
 }
 
 export async function loadGoogleDriveConnectionStatus(): Promise<boolean> {

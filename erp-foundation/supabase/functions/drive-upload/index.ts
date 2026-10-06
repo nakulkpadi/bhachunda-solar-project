@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.2";
 import { createAdminClient, getOAuthAccessToken } from "../_shared/google-drive-oauth.ts";
+import { ownerMatchesParcel, OWNER_DOCUMENT_TYPES } from "../_shared/owner-details.ts";
 
 type AppRole = "admin" | "data_entry" | "legal" | "finance" | "viewer";
 type GoogleServiceAccount = { client_email: string; private_key: string };
@@ -210,6 +211,12 @@ Deno.serve(async (request) => {
       .eq("id", parcelId)
       .maybeSingle();
     if (parcelError || !parcel) return response({ error: "Survey record was not found." }, 404, headers);
+    if (OWNER_DOCUMENT_TYPES.has(documentTypeCode) && !ownerId) return response({ error: "Select the owner for this identity or bank document." }, 400, headers);
+    if (ownerId) {
+      const { data: owner, error: ownerError } = await admin.from("parcel_owners").select("parcel_id").eq("id", ownerId).maybeSingle();
+      if (ownerError) throw new Error("Could not verify the selected owner.");
+      if (!ownerMatchesParcel(owner, parcelId)) return response({ error: "This owner does not belong to the selected survey." }, 400, headers);
+    }
     const village = Array.isArray(parcel.villages) ? parcel.villages[0] : parcel.villages;
     const rootFolderId = village?.drive_root_folder_id ?? Deno.env.get("DRIVE_ROOT_FOLDER_ID");
     if (!rootFolderId) throw new Error("No Google Drive root folder is configured for this village.");
@@ -237,7 +244,8 @@ Deno.serve(async (request) => {
       }
     }
 
-    const storedName = safeSegment(`${village.code}_${parcel.survey_number}_${documentTypeCode}_${new Date().toISOString().slice(0, 10)}.${validated.extension}`);
+    const ownerSegment = ownerId ? `_owner-${ownerId}` : "";
+    const storedName = safeSegment(`${village.code}_${parcel.survey_number}${ownerSegment}_${documentTypeCode}_${new Date().toISOString().slice(0, 10)}_${crypto.randomUUID().slice(0, 8)}.${validated.extension}`);
     const uploaded = await googleUploadFile(googleAccessToken, storedName, file, validated.mime, folderId);
     const { data: document, error: documentError } = await admin
       .from("parcel_documents")

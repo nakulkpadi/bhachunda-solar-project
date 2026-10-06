@@ -14,4 +14,16 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.drive-upload]
-verify_jwt = false
+verify_jwt = true
+
+[functions.parcel-detail]
+verify_jwt = true
+
+[functions.owner-details]
+verify_jwt = true
+
+[functions.drive-document]
+verify_jwt = true
+
+[functions.drive-files]
+verify_jwt = true

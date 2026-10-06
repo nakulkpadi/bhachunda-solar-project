@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { consentLabel } from "./api";
 import type { ConsentStatus, ParcelDetail, ParcelSummary } from "./types";
 import { SurveyPicker } from "./ui";
+import { OwnerDetailsSection, SurveyDocumentPanel, type ConsentWorkspaceActions } from "./ConsentDocuments";
 
 const consentOptions: ConsentStatus[] = ["received", "pending", "not_ready", "blocked", "rejected"];
 
@@ -39,7 +40,8 @@ export function ConsentEntry({
   isAdmin,
   onSelect,
   onSave,
-  onGoDetails
+  onGoDetails,
+  workspace
 }: {
   rows: ParcelSummary[];
   selectedParcel: ParcelSummary | null;
@@ -49,6 +51,7 @@ export function ConsentEntry({
   onSelect: (parcelId: string) => void;
   onSave: (input: { status: ConsentStatus; receivedOn: string; reference: string; remarks: string }) => Promise<void>;
   onGoDetails: () => void;
+  workspace: ConsentWorkspaceActions;
 }) {
   const [status, setStatus] = useState<ConsentStatus>("received");
   const [receivedOn, setReceivedOn] = useState(today());
@@ -59,12 +62,12 @@ export function ConsentEntry({
 
   useEffect(() => {
     if (!selectedParcel) return;
-    setStatus("received");
+    setStatus(detail?.consent?.status ?? "received");
     setReceivedOn(detail?.consent?.received_on ?? today());
     setReference(referenceFromSource(detail?.consent?.source_value));
     setRemarks(detail?.consent?.remarks ?? "");
     setSaveError("");
-  }, [selectedParcel?.id, detail?.consent?.received_on, detail?.consent?.remarks, detail?.consent?.source_value]);
+  }, [selectedParcel?.id, detail?.consent?.status, detail?.consent?.received_on, detail?.consent?.remarks, detail?.consent?.source_value]);
 
   if (!selectedParcel) return <section className="card empty-state"><strong>No survey selected.</strong></section>;
 
@@ -84,11 +87,11 @@ export function ConsentEntry({
   };
 
   return <div className="details-layout">
-    <section className="card survey-selector">
+    <section className="card survey-selector with-documents">
       <div className="eyebrow">01 / Select record</div>
       <h2>Choose a survey</h2>
       <p>Land and owner details are filled from the register.</p>
-      <SurveyPicker rows={rows} selectedParcel={selectedParcel} onSelect={onSelect} disabled={saving} />
+      <SurveyPicker rows={rows} selectedParcel={selectedParcel} onSelect={onSelect} disabled={saving || workspace.busy} />
       <div className="parcel-facts">
         <div><span>Current consent</span><strong className={statusClass(selectedParcel.consent_status)}>{consentLabel[selectedParcel.consent_status]}</strong></div>
         <div><span>Area</span><strong>{selectedParcel.acreage === null ? "—" : display(selectedParcel.acreage) + " ac"}</strong></div>
@@ -96,11 +99,12 @@ export function ConsentEntry({
       </div>
       <button className="text-button" onClick={onGoDetails} type="button">View full survey record</button>
       {!isAdmin && <p className="small-note">View access. An administrator can save this entry.</p>}
+      {!loading && detail && <SurveyDocumentPanel detail={detail} isAdmin={isAdmin} actions={workspace} />}
     </section>
 
     <div className="detail-content">
       {loading && <section className="card empty-state"><strong>Loading default survey details…</strong></section>}
-      {!loading && <form className="card consent-entry-card consent-workspace" onSubmit={submit}>
+      {!loading && detail && <form className="card consent-entry-card consent-workspace" onSubmit={submit}>
         <div className="card-heading"><div><div className="eyebrow">02 / Consent</div><h2>{selectedParcel.consent_status === "received" ? "Update consent" : "Record consent"}</h2><p>{selectedParcel.village_name} · Survey {selectedParcel.survey_number}</p></div><span className={statusClass(selectedParcel.consent_status)}>{consentLabel[selectedParcel.consent_status]}</span></div>
         <section className="prefilled-consent-data"><div className="section-label">From the land register</div><DetailGrid items={[
           { label: "Village", value: selectedParcel.village_name },
@@ -110,7 +114,7 @@ export function ConsentEntry({
           { label: "Area", value: selectedParcel.acreage === null ? null : display(selectedParcel.acreage) + " ac" },
           { label: "Old survey no.", value: detail?.old_survey_number ?? selectedParcel.old_survey_number }
         ]} /></section>
-        <fieldset disabled={!isAdmin || saving}>
+        <fieldset disabled={!isAdmin || saving || workspace.busy}>
           <div className="form-grid">
             <label>Consent status<select onChange={(event) => setStatus(event.target.value as ConsentStatus)} value={status}>{consentOptions.map((item) => <option key={item} value={item}>{consentLabel[item]}</option>)}</select></label>
             <label>Received date<input disabled={status !== "received"} onChange={(event) => setReceivedOn(event.target.value)} required={status === "received"} type="date" value={receivedOn} /></label>
@@ -121,8 +125,10 @@ export function ConsentEntry({
           </div></details>
         </fieldset>
         {saveError && <p className="form-error" role="alert">{saveError}</p>}
-        <div className="form-footer"><span>{isAdmin ? "Received consent turns its linked map boundary green." : "Only the administrator can save changes."}</span><button className="button button-primary" disabled={!isAdmin || saving} type="submit">{saving ? "Saving…" : "Save consent"}</button></div>
+        <div className="form-footer"><span>{isAdmin ? "Received consent turns its linked map boundary green." : "Only the administrator can save changes."}</span><button className="button button-primary" disabled={!isAdmin || saving || workspace.busy} type="submit">{saving ? "Saving…" : "Save consent"}</button></div>
       </form>}
+      {!loading && detail && <OwnerDetailsSection actions={workspace} detail={detail} isAdmin={isAdmin} />}
+      {!loading && !detail && <section className="card empty-state"><strong>Sign in to load the consent workspace.</strong></section>}
     </div>
   </div>;
 }
