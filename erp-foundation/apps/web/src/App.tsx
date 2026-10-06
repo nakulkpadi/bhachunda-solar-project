@@ -24,7 +24,7 @@ import { demoParcels } from "./demo";
 import { ConsentEntry } from "./ConsentEntry";
 import { FullSurveyMap, type LiveMapSelection } from "./FullSurveyMap";
 import { SurveyDetails } from "./SurveyDetails";
-import { Icon, SurveyPicker, type IconName } from "./ui";
+import { formatSurveyCount, Icon, SurveyPicker, type IconName } from "./ui";
 import type {
   AcquisitionStage,
   ConsentStatus,
@@ -532,6 +532,22 @@ function App() {
     // The CAD labels sit above their boundaries. Let a click pass through the
     // text to the linked survey boundary below it.
     svgDocument.querySelectorAll("text").forEach((label) => { label.style.pointerEvents = "none"; });
+    // Keep the CAD boundary lines readable at every zoom level. Clearing the
+    // base fills also removes live consent colours when a session ends.
+    const cadBoundaries = Array.from(svgDocument.querySelectorAll<SVGPathElement>("path"))
+      .filter((element) => /[Zz]\s*$/.test(element.getAttribute("d") ?? ""));
+    cadBoundaries.forEach((element) => {
+      element.style.fill = "none";
+      element.style.stroke = "#8b9789";
+      element.style.strokeWidth = "0.6px";
+      element.style.vectorEffect = "non-scaling-stroke";
+      element.style.cursor = "default";
+      element.removeAttribute("tabindex");
+      element.removeAttribute("role");
+      element.removeAttribute("aria-label");
+      element.onclick = null;
+      element.onkeydown = null;
+    });
     const statusByFeature = new Map(mapStatuses.map((item) => [item.feature_key, item.status]));
     mapDefinitions.forEach((feature) => {
       if (!feature.svg_element_id) return;
@@ -547,6 +563,9 @@ function App() {
       element.style.pointerEvents = "all";
       element.setAttribute("tabindex", "0");
       element.setAttribute("role", "button");
+      const surveyLabels = mapLinks.filter((link) => link.feature_key === feature.feature_key)
+        .map((link) => `${link.village_name} survey ${link.survey_number}`);
+      element.setAttribute("aria-label", `${surveyLabels.join(" or ") || "Unmatched survey boundary"}. ${statusByFeature.has(feature.feature_key) ? consentLabel[status] : "Consent unconfirmed"}.`);
       element.onclick = () => handleMapFeatureClick(feature.feature_key);
       element.onkeydown = (event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -557,17 +576,18 @@ function App() {
     });
 
     // The original DWG viewBox also contains construction marks and empty CAD
-    // canvas. Once the real survey boundaries are available, fit the initial
-    // view to those boundaries so the three villages are easy to read without
-    // hiding any survey shape. The untouched CAD view remains in the SVG.
-    if (!root.dataset.fitViewBox && mapDefinitions.length > 0) {
+    // canvas. Fit registered boundaries when signed in, and all closed CAD
+    // boundaries in the public preview. The untouched drawing remains in SVG.
+    const fitSource = mapDefinitions.length ? "registered" : "drawing";
+    if (root.dataset.fitSource !== fitSource) {
       let minX = Number.POSITIVE_INFINITY;
       let minY = Number.POSITIVE_INFINITY;
       let maxX = Number.NEGATIVE_INFINITY;
       let maxY = Number.NEGATIVE_INFINITY;
-      mapDefinitions.forEach((feature) => {
-        if (!feature.svg_element_id) return;
-        const element = svgDocument.getElementById(feature.svg_element_id) as SVGGraphicsElement | null;
+      const fitElements = mapDefinitions.length
+        ? mapDefinitions.map((feature) => feature.svg_element_id ? svgDocument.getElementById(feature.svg_element_id) as SVGGraphicsElement | null : null)
+        : cadBoundaries;
+      fitElements.forEach((element) => {
         if (!element) return;
         try {
           const box = element.getBBox();
@@ -585,10 +605,11 @@ function App() {
         const paddingY = Math.max(24, (maxY - minY) * 0.07);
         const fitViewBox = [minX - paddingX, minY - paddingY, maxX - minX + paddingX * 2, maxY - minY + paddingY * 2].join(" ");
         root.dataset.fitViewBox = fitViewBox;
+        root.dataset.fitSource = fitSource;
         root.setAttribute("viewBox", fitViewBox);
       }
     }
-  }, [handleMapFeatureClick, mapDefinitions, mapStatuses]);
+  }, [handleMapFeatureClick, mapDefinitions, mapStatuses, mapLinks]);
 
   useEffect(() => {
     applyMapStyles();
@@ -990,7 +1011,7 @@ function Registry({
   onClear: () => void;
 }) {
   return <section className="card registry-card">
-    <div className="card-heading"><div><div className="eyebrow">Project records</div><h2>Land register</h2><p>Find a survey and open its full record.</p></div><div className="result-count">{rows.length} surveys</div></div>
+    <div className="card-heading"><div><div className="eyebrow">Project records</div><h2>Land register</h2><p>Find a survey and open its full record.</p></div><div className="result-count">{formatSurveyCount(rows.length)}</div></div>
     <FilterBar {...{ search, villages, villageFilter, consentFilter, stageFilter, onSearch, onVillage, onConsent, onStage, onClear }} />
     <ParcelTable rows={rows} onChoose={onChooseParcel} />
   </section>;
@@ -1147,11 +1168,11 @@ function Reports({
     <section className="page-intro"><div><div className="eyebrow">Project reporting</div><h2>Patel Infra report</h2><p>Select the records to include, then generate your Excel workbook.</p></div></section>
     <section className="card report-builder">
       <FilterBar showSearch={false} {...{ search, villages, villageFilter, consentFilter, stageFilter, onSearch, onVillage, onConsent, onStage }} />
-      <div className="report-export"><div><strong>{rows.length} surveys selected</strong><p>{canGeneratePatel ? "Patel Infra layout · land, consent, legal and owner details" : "Administrator sign-in required for the confidential Excel report."}</p></div><div className="report-actions"><button className="text-button" onClick={onDownload} type="button">Download CSV</button><button className="button button-primary" disabled={!canGeneratePatel || generating || !rows.length} onClick={onGeneratePatel} type="button">{generating ? "Generating…" : "Generate Excel report"}<Icon name="arrow" /></button></div></div>
+      <div className="report-export"><div><strong>{formatSurveyCount(rows.length)} selected</strong><p>{canGeneratePatel ? "Patel Infra layout · land, consent, legal and owner details" : "Administrator sign-in required for the confidential Excel report."}</p></div><div className="report-actions"><button className="text-button" onClick={onDownload} type="button">Download CSV</button><button className="button button-primary" disabled={!canGeneratePatel || generating || !rows.length} onClick={onGeneratePatel} type="button">{generating ? "Generating…" : "Generate Excel report"}<Icon name="arrow" /></button></div></div>
     </section>
     <section className="report-metrics"><MetricCard label="Filtered records" value={String(rows.length)} detail={`${metrics.totalParcels} total records`} accent="blue" /><MetricCard label="Consent received" value={String(received)} detail="Within current filter" accent="green" /><MetricCard label="No documents" value={String(rows.filter((row) => row.document_count === 0).length)} detail="Document exception report" accent="amber" /></section>
-    <details className="card detail-disclosure report-breakdown"><summary><span>Acquisition stage breakdown<small>{stages.length} stages in this selection</small></span></summary><div className="stage-breakdown">{stages.length ? stages.map(({ stage, count }) => <div key={stage}><span>{stageLabel[stage]}</span><strong>{count}</strong></div>) : <div className="empty-state"><strong>No stage records match.</strong></div>}</div></details>
-    <section className="card report-table"><div className="card-heading"><div><div className="eyebrow">Included records</div><h3>Report preview</h3></div><span className="muted">{rows.length > 100 ? `Showing 100 of ${rows.length} surveys` : `${rows.length} surveys`}</span></div><ParcelTable rows={rows.slice(0, 100)} onChoose={onChooseParcel} />{rows.length > 100 && <p className="table-note">The downloaded report includes all {rows.length} selected surveys.</p>}</section>
+    <details className="card detail-disclosure report-breakdown"><summary><span>Acquisition stage breakdown<small>{stages.length} {stages.length === 1 ? "stage" : "stages"} in this selection</small></span></summary><div className="stage-breakdown">{stages.length ? stages.map(({ stage, count }) => <div key={stage}><span>{stageLabel[stage]}</span><strong>{count}</strong></div>) : <div className="empty-state"><strong>No stage records match.</strong></div>}</div></details>
+    <section className="card report-table"><div className="card-heading"><div><div className="eyebrow">Included records</div><h3>Report preview</h3></div><span className="muted">{rows.length > 100 ? `Showing 100 of ${rows.length} surveys` : formatSurveyCount(rows.length)}</span></div><ParcelTable rows={rows.slice(0, 100)} onChoose={onChooseParcel} />{rows.length > 100 && <p className="table-note">The downloaded report includes all {rows.length} selected surveys.</p>}</section>
   </div>;
 }
 

@@ -20,6 +20,10 @@ export function Icon({ name, className = "" }: { name: IconName; className?: str
   return <svg aria-hidden="true" className={`icon ${className}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{iconPaths[name]}</svg>;
 }
 
+export function formatSurveyCount(count: number): string {
+  return `${count} ${count === 1 ? "survey" : "surveys"}`;
+}
+
 export function SurveyPicker({ rows, selectedParcel, onSelect, disabled = false }: {
   rows: ParcelSummary[];
   selectedParcel: ParcelSummary;
@@ -40,6 +44,6 @@ export function SurveyPicker({ rows, selectedParcel, onSelect, disabled = false 
     <label>Survey number<select disabled={disabled} value={selectedParcel.id} onChange={(event) => onSelect(event.target.value)}>
       {villageRows.map((row) => <option key={row.id} value={row.id}>{row.survey_number}{row.old_survey_number ? ` · old ${row.old_survey_number}` : ""}</option>)}
     </select></label>
-    <p className="field-hint">{villageRows.length} surveys in {selectedParcel.village_name}</p>
+    <p className="field-hint">{formatSurveyCount(villageRows.length)} in {selectedParcel.village_name}</p>
   </div>;
 }
