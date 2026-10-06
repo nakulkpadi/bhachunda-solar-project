@@ -27,3 +27,6 @@ verify_jwt = true
 
 [functions.drive-files]
 verify_jwt = true
+
+[functions.drive-folder-setup]
+verify_jwt = true

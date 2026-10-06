@@ -10,30 +10,41 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../functions");
 const parcelId = "10000000-0000-4000-8000-000000000001";
 const otherParcelId = "10000000-0000-4000-8000-000000000002";
 const ownerId = "20000000-0000-4000-8000-000000000001";
+const secondOwnerId = "20000000-0000-4000-8000-000000000002";
 const documentId = "30000000-0000-4000-8000-000000000001";
 const origin = "https://nakulkpadi.github.io";
 
 async function harness(slug, overrides = {}) {
   const state = { role: "admin", active: true, ownerParcel: parcelId, sensitive: true, documentStatus: "uploaded", writes: [], google: [], failDocumentInsert: false, ...overrides };
-  const run = (table, operation, values) => {
+  const folderMime = "application/vnd.google-apps.folder";
+  const structure = { root_id: "existing-root", village_id: "existing-village-folder", survey_id: "existing-survey-folder", kyc_id: "kyc-folder", legal_id: "legal-folder", other_id: "other-folder", legal: { lease_deed: "lease-folder", consent_letter: "consent-folder", current_712: "current-folder", nondh_6: "mutation-folder", old_712: "old-current-folder", old_nondh_6: "old-mutation-folder" }, owners: { [ownerId]: "owner-one-folder", [secondOwnerId]: "owner-two-folder" } };
+  const model = (id, name, parent) => ({ id, name, mimeType: folderMime, parents: parent ? [parent] : [] });
+  const driveFolders = [model("existing-root", "Project folder"), model("existing-village-folder", "Bhavanipur", "existing-root"), model("existing-survey-folder", "451", "existing-village-folder")];
+  if (!state.emptyChildren) driveFolders.push(model("kyc-folder", "KYC With Bank Details", "existing-survey-folder"), model("legal-folder", "Legal Documents", "existing-survey-folder"), model("other-folder", "Other", "existing-survey-folder"), ...Object.entries({ "Lease Deed": "lease-folder", "Consent": "consent-folder", "Current 7-12": "current-folder", "Nondh No. 6 - Mutation Entry": "mutation-folder", "Old 7-12": "old-current-folder", "Old Nondh No. 6 - Mutation Entry": "old-mutation-folder" }).map(([name, id]) => model(id, name, "legal-folder")), model("owner-one-folder", "Owner 1 (Owner One)", "kyc-folder"), model("owner-two-folder", "Owner 2 (Owner Two)", "kyc-folder"));
+  if (state.duplicateLegalFolder) driveFolders.push(model("duplicate-legal", "Legal Documents", "existing-survey-folder"));
+  if (state.deletedOwnerFolder) driveFolders.find((folder) => folder.id === "owner-one-folder").trashed = true;
+  let bound = state.noExistingFolder ? null : { parcel_id: parcelId, google_folder_id: "existing-survey-folder", structure, structure_version: 1 };
+  state.driveFolders = driveFolders;
+  const run = (table, operation, values, single = false) => {
     if (operation !== "select") state.writes.push({ table, operation, values });
     if (table === "profiles") return { data: { role: state.role, is_active: state.active }, error: null };
-    if (table === "parcel_owners") return { data: state.ownerParcel ? { parcel_id: state.ownerParcel } : null, error: null };
-    if (table === "parcels") return { data: { id: parcelId, survey_number: "451", villages: { code: "BVP", name_en: "Bhavanipar", drive_root_folder_id: "existing-root" } }, error: null };
-    if (table === "drive_folders") return { data: state.noExistingFolder ? null : { google_folder_id: "existing-survey-folder" }, error: null };
+    if (table === "parcel_owners") return { data: single ? state.ownerParcel ? { parcel_id: state.ownerParcel } : null : [{ id: ownerId, display_name: "Owner One", sequence_no: 1 }, { id: secondOwnerId, display_name: "Owner Two", sequence_no: 2 }], error: null };
+    if (table === "parcels") { const parcel = { id: parcelId, survey_number: "451", villages: { code: "BVP", name_en: "Bhavanipar", drive_root_folder_id: "existing-root" } }; return { data: single ? parcel : [parcel], error: null }; }
+    if (table === "drive_folders") { if (operation === "upsert") bound = values; return { data: single ? bound : bound ? [bound] : [], error: null }; }
     if (table === "parcel_documents") return operation === "insert" ? { data: state.failDocumentInsert ? null : { id: documentId }, error: state.failDocumentInsert ? new Error("insert failed") : null } : slug === "drive-files" ? { data: state.alreadyLinked ? { id: documentId } : null, error: null } : { data: { google_file_id: "existing-file-id", original_filename: "consent.pdf", mime_type: "application/pdf", byte_size: 15, status: state.documentStatus, document_types: { is_sensitive: state.sensitive } }, error: null };
     return { data: null, error: null };
   };
   const admin = {
+    rpc: async (name) => ({ data: name === "acquire_drive_folder_lease" ? !state.leaseBusy : null, error: null }),
     auth: { getUser: async (token) => ({ data: { user: token === "valid-session" ? { id: "test-admin-user" } : null }, error: null }) },
     from(table) {
       let operation = "select", values;
       const query = {
-        select() { return query; }, eq() { return query; }, is() { return query; }, limit() { return query; },
+        select() { return query; }, eq() { return query; }, is() { return query; }, limit() { return query; }, order() { return query; },
         insert(input) { operation = "insert"; values = input; return query; },
         upsert(input) { operation = "upsert"; values = input; return query; },
-        maybeSingle: async () => run(table, operation, values),
-        single: async () => run(table, operation, values),
+        maybeSingle: async () => run(table, operation, values, true),
+        single: async () => run(table, operation, values, true),
         then(onFulfilled, onRejected) { return Promise.resolve(run(table, operation, values)).then(onFulfilled, onRejected); }
       };
       return query;
@@ -46,9 +57,13 @@ async function harness(slug, overrides = {}) {
       const call = { url: String(url), ...options };
       if (options.body instanceof Blob) call.bodyText = await options.body.text();
       state.google.push(call);
-      if (slug === "drive-upload" && state.noExistingFolder && new URL(url).searchParams.get("q")) {
-        const root = new URL(url).searchParams.get("q").includes("'existing-root' in parents");
-        return new Response(JSON.stringify({ files: [{ id: root ? "existing-village-folder" : "existing-survey-folder", name: root ? "Bhavanipur" : "451", mimeType: "application/vnd.google-apps.folder" }] }));
+      if (["drive-upload", "drive-folder-setup"].includes(slug) && new URL(url).searchParams.get("q")) {
+        const parent = new URL(url).searchParams.get("q").match(/^'([^']+)' in parents/)?.[1];
+        return new Response(JSON.stringify({ files: driveFolders.filter((folder) => folder.parents.includes(parent) && !folder.trashed) }));
+      }
+      if (["drive-upload", "drive-folder-setup"].includes(slug) && options.method === "POST" && !String(url).includes("/upload/")) {
+        const metadata = JSON.parse(options.body); const id = `created-folder-${driveFolders.length}`;
+        driveFolders.push({ id, ...metadata }); return new Response(JSON.stringify({ id }));
       }
       if (String(url).includes("fields=id,name,mimeType")) {
         const id = new URL(url).pathname.split("/").pop();
@@ -60,7 +75,7 @@ async function harness(slug, overrides = {}) {
           "outside-file": { id, name: "Outside.pdf", mimeType: "application/pdf", size: "15", parents: ["outside-folder"] },
           "outside-folder": { id, name: "Outside", mimeType: folderMime, parents: [] }
         };
-        const item = metadata[id] || { id, parents: [] };
+        const item = (["drive-upload", "drive-folder-setup"].includes(slug) ? driveFolders.find((folder) => folder.id === id) : null) || metadata[id] || { id, parents: [] };
         if (state.omitDriveParents) delete item.parents;
         return new Response(JSON.stringify(item));
       }
@@ -90,7 +105,7 @@ async function harness(slug, overrides = {}) {
   }
   const entry = await load(resolve(root, slug, "index.ts"));
   await entry.evaluate();
-  return { state, handler, helpers: modules.get(resolve(root, "_shared/owner-details.ts"))?.namespace };
+  return { state, handler, helpers: modules.get(resolve(root, "_shared/owner-details.ts"))?.namespace, folders: modules.get(resolve(root, "_shared/drive-folder-structure.ts"))?.namespace };
 }
 
 function ownerRequest(details, extra = {}) {
@@ -143,12 +158,12 @@ test("private owner save requires authentication and exact allowed origin", asyn
   assert.equal(state.writes.length, 0);
 });
 
-test("owner PAN upload links exact owner, survey, Drive file and existing survey folder", async () => {
+test("owner PAN upload links exact owner, survey, Drive file and owner's KYC folder", async () => {
   const { handler, state } = await harness("drive-upload"); assert.equal((await handler(uploadRequest())).status, 201);
   const metadata = state.writes.find((write) => write.table === "parcel_documents").values;
   assert.equal(metadata.parcel_id, parcelId); assert.equal(metadata.owner_id, ownerId); assert.equal(metadata.google_file_id, "new-drive-file-id"); assert.equal(metadata.document_type_code, "pan");
   const multipart = state.google.find((call) => call.url.includes("/upload/")).bodyText;
-  assert.ok(multipart.includes('"parents":["existing-survey-folder"]')); assert.ok(multipart.includes(`owner-${ownerId}`));
+  assert.ok(multipart.includes('"parents":["owner-one-folder"]')); assert.ok(multipart.includes(`owner-${ownerId}`));
   assert.equal(state.writes.some((write) => write.table === "consent_records"), false);
 });
 
@@ -247,6 +262,76 @@ test("shared folder paths are verified by child listings when Drive omits parent
 test("new uploads reuse the existing village and survey folder before creating folders", async () => {
   const { handler, state } = await harness("drive-upload", { noExistingFolder: true }); assert.equal((await handler(uploadRequest())).status, 201);
   const folder = state.writes.find((write) => write.table === "drive_folders").values; assert.equal(folder.google_folder_id, "existing-survey-folder"); assert.equal(folder.parcel_id, parcelId);
-  const multipart = state.google.find((call) => call.url.includes("/upload/")).bodyText; assert.ok(multipart.includes('"parents":["existing-survey-folder"]'));
+  const multipart = state.google.find((call) => call.url.includes("/upload/")).bodyText; assert.ok(multipart.includes('"parents":["owner-one-folder"]'));
   assert.equal(state.google.some((call) => call.method === "POST" && !call.url.includes("/upload/")), false);
+});
+
+function setupRequest(body = {}, auth = "valid-session", method = "POST") {
+  return new Request("https://project.supabase.co/functions/v1/drive-folder-setup", { method, headers: { Origin: origin, Authorization: `Bearer ${auth}`, "Content-Type": "application/json" }, ...(method === "POST" ? { body: JSON.stringify(body) } : {}) });
+}
+
+test("folder setup creates the complete legal and named owner hierarchy and saves the IDs", async () => {
+  const { handler, state } = await harness("drive-folder-setup", { noExistingFolder: true, emptyChildren: true });
+  const result = await handler(setupRequest()); assert.equal(result.status, 200);
+  const payload = await result.json(); assert.equal(payload.completed, 1); assert.equal(payload.remaining, 0);
+  const saved = state.writes.find((write) => write.table === "drive_folders").values;
+  assert.equal(saved.google_folder_id, "existing-survey-folder"); assert.equal(saved.structure_version, 1);
+  const created = state.google.filter((call) => call.method === "POST").map((call) => JSON.parse(call.body)); assert.equal(created.length, 11);
+  for (const name of ["KYC With Bank Details", "Legal Documents", "Other"]) assert.ok(created.some((file) => file.name === name && file.parents[0] === "existing-survey-folder"));
+  for (const name of ["Lease Deed", "Consent", "Current 7-12", "Nondh No. 6 - Mutation Entry", "Old 7-12", "Old Nondh No. 6 - Mutation Entry"]) assert.ok(created.some((file) => file.name === name && file.parents[0] === saved.structure.legal_id));
+  for (const name of ["Owner 1 (Owner One)", "Owner 2 (Owner Two)"]) assert.ok(created.some((file) => file.name === name && file.parents[0] === saved.structure.kyc_id));
+  assert.equal(state.writes.some((write) => ["consent_records", "parcel_documents"].includes(write.table)), false);
+});
+
+test("checking an existing layout reuses all folders without duplicate creates or file moves", async () => {
+  const { handler, state } = await harness("drive-folder-setup");
+  assert.equal((await handler(setupRequest({ parcel_id: parcelId }))).status, 200);
+  assert.equal(state.google.some((call) => ["POST", "PATCH", "DELETE"].includes(call.method)), false);
+});
+
+test("folder setup can resume after a completed batch without creating folders again", async () => {
+  const { handler, state } = await harness("drive-folder-setup", { noExistingFolder: true, emptyChildren: true });
+  assert.equal((await handler(setupRequest())).status, 200); const calls = state.google.length;
+  const second = await handler(setupRequest()); assert.equal(second.status, 200); assert.equal((await second.json()).processed, 0); assert.equal(state.google.length, calls);
+});
+
+test("all legal and other uploads use the correct category folder", async () => {
+  const routes = { consent_letter: "consent-folder", lease_deed: "lease-folder", current_712: "current-folder", nondh_6: "mutation-folder", old_712: "old-current-folder", old_nondh_6: "old-mutation-folder", mutation_death_certificate: "other-folder", other: "other-folder" };
+  for (const [code, folder] of Object.entries(routes)) {
+    const { handler, state } = await harness("drive-upload"); assert.equal((await handler(uploadRequest(code, null))).status, 201);
+    assert.ok(state.google.find((call) => call.url.includes("/upload/")).bodyText.includes(`"parents":["${folder}"]`));
+  }
+});
+
+test("PAN, Aadhaar and bank files route independently into the selected owner's folder", async () => {
+  for (const code of ["pan", "aadhaar", "bank_details"]) {
+    const { handler, state } = await harness("drive-upload"); assert.equal((await handler(uploadRequest(code, secondOwnerId))).status, 201);
+    assert.ok(state.google.find((call) => call.url.includes("/upload/")).bodyText.includes('"parents":["owner-two-folder"]'));
+    assert.equal(state.writes.find((write) => write.table === "parcel_documents").values.owner_id, secondOwnerId);
+  }
+});
+
+test("a deleted owner folder is repaired before an upload uses it", async () => {
+  const { handler, state } = await harness("drive-upload", { deletedOwnerFolder: true }); assert.equal((await handler(uploadRequest())).status, 201);
+  const saved = state.writes.find((write) => write.table === "drive_folders").values;
+  assert.notEqual(saved.structure.owners[ownerId], "owner-one-folder");
+  assert.ok(state.google.find((call) => call.url.includes("/upload/")).bodyText.includes(`"parents":["${saved.structure.owners[ownerId]}"]`));
+});
+
+test("duplicate category folders stop setup before the layout is marked completed", async () => {
+  const { handler, state } = await harness("drive-folder-setup", { noExistingFolder: true, duplicateLegalFolder: true }); assert.equal((await handler(setupRequest())).status, 409);
+  assert.equal(state.writes.some((write) => write.table === "drive_folders"), false);
+});
+
+test("folder creation requires an active admin and rejects unknown surveys", async () => {
+  for (const config of [{ role: "viewer" }, { active: false }, { role: "data_entry" }]) {
+    const { handler, state } = await harness("drive-folder-setup", config); assert.equal((await handler(setupRequest())).status, 403); assert.equal(state.google.length, 0);
+  }
+  const { handler, state } = await harness("drive-folder-setup"); assert.equal((await handler(setupRequest({}, "invalid"))).status, 401);
+  assert.equal((await handler(setupRequest({ parcel_id: otherParcelId }))).status, 400); assert.equal(state.google.length, 0);
+});
+
+test("progress reads do not create folders and competing setup holds a lease", async () => {
+  const progress = await harness("drive-folder-setup"); assert.equal((await progress.handler(setupRequest({}, "valid-session", "GET"))).status, 200); assert.equal(progress.state.google.length, 0);
+  const busy = await harness("drive-folder-setup", { noExistingFolder: true, leaseBusy: true }); assert.equal((await busy.handler(setupRequest())).status, 409); assert.equal(busy.state.google.length, 0);
 });

@@ -56,7 +56,7 @@ export async function verifiedFolderPath(token: string, rootId: string, path: st
   return true;
 }
 
-async function childFolders(token: string, parentId: string): Promise<DriveFile[]> {
+export async function childFolders(token: string, parentId: string): Promise<DriveFile[]> {
   const folders: DriveFile[] = [];
   let pageToken: string | undefined;
   for (let page = 0; page < 10; page += 1) {
@@ -72,14 +72,20 @@ async function childFolders(token: string, parentId: string): Promise<DriveFile[
   throw new Error("The Drive folder contains too many folders to check safely.");
 }
 
-export async function resolveSurveyFolder(token: string, rootId: string, villageName: string, surveyNumber: string, createFolder: (name: string, parentId: string) => Promise<string>): Promise<string> {
+export function villageFolderKey(name: string): string {
+  const key = name.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  return ["bhavanipar", "bhavnipar", "bhavanipur", "bhavnipur"].includes(key) ? "bhavanipar" : key;
+}
+
+export async function resolveVillageFolder(token: string, rootId: string, villageName: string, createFolder: (name: string, parentId: string) => Promise<string>): Promise<string> {
   if (!DRIVE_ID.test(rootId)) throw new Error("The project Drive folder ID is invalid.");
-  const villageKey = (name: string) => name.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
-  const key = villageKey(villageName);
-  const aliases = ["bhavanipar", "bhavnipar", "bhavanipur", "bhavnipur"].includes(key) ? ["bhavanipar", "bhavnipar", "bhavanipur", "bhavnipur"] : [key];
-  const villages = (await childFolders(token, rootId)).filter((folder) => aliases.includes(villageKey(folder.name)));
+  const villages = (await childFolders(token, rootId)).filter((folder) => villageFolderKey(folder.name) === villageFolderKey(villageName));
   if (villages.length > 1) throw new Error("More than one village folder matched. Please check the project Drive folder.");
-  const villageId = villages[0]?.id || await createFolder(villageName, rootId);
+  return villages[0]?.id || await createFolder(villageName, rootId);
+}
+
+export async function resolveSurveyFolder(token: string, rootId: string, villageName: string, surveyNumber: string, createFolder: (name: string, parentId: string) => Promise<string>, knownVillageId?: string): Promise<string> {
+  const villageId = knownVillageId || await resolveVillageFolder(token, rootId, villageName, createFolder);
   const surveyKey = (name: string) => name.normalize("NFKC").trim().toLocaleLowerCase().replace(/[૦-૯]/g, (digit) => String("૦૧૨૩૪૫૬૭૮૯".indexOf(digit)));
   const surveys = (await childFolders(token, villageId)).filter((folder) => surveyKey(folder.name) === surveyKey(surveyNumber));
   if (surveys.length > 1) throw new Error("More than one folder matched this survey. Please check its Drive folders.");

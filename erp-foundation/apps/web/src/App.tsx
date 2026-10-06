@@ -24,6 +24,7 @@ import {
 } from "./api";
 import { demoParcels } from "./demo";
 import { ConsentEntry } from "./ConsentEntry";
+import { DriveFolderSetup } from "./DriveFolderSetup";
 import { SurveyDocumentPanel, type ConsentWorkspaceActions } from "./ConsentDocuments";
 import { FullSurveyMap, type LiveMapSelection } from "./FullSurveyMap";
 import { SurveyDetails } from "./SurveyDetails";
@@ -744,6 +745,7 @@ function App() {
         )}
 
         <section className="page-body">
+          {isAdmin && isLiveData && <DriveFolderSetup connected={driveConnected} selectedParcelId={selectedParcel?.id} selectedLabel={selectedParcel ? `${selectedParcel.village_name} · Survey ${selectedParcel.survey_number}` : undefined} visible={activeView === "documents"} />}
           {activeView === "details" && <button className="back-link" onClick={() => setActiveView("registry")} type="button"><Icon name="back" /> Back to land register</button>}
           {inEntryWorkspace && <nav className="workspace-tabs" aria-label="Entry type">{entryViews.map((item) => <button aria-current={activeView === item.id ? "page" : undefined} className={activeView === item.id ? "is-active" : ""} key={item.id} onClick={() => setActiveView(item.id)} type="button">{item.label}</button>)}</nav>}
           {activeView === "dashboard" && (

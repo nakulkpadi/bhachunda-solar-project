@@ -491,3 +491,13 @@ p { line-height: 1.6; }
   .dialog { padding: 30px 24px; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+.drive-folder-setup { margin-bottom: 22px; }
+.folder-setup-heading { display: flex; gap: 18px; justify-content: space-between; align-items: center; }
+.folder-setup-heading h3 { margin: 4px 0 8px; }
+.folder-setup-heading p { margin: 0; color: var(--muted, #667164); font-size: 13px; }
+.folder-setup-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.folder-setup-progress { display: flex; align-items: center; gap: 14px; margin: 18px 0; font-size: 13px; }
+.folder-setup-progress progress { width: min(300px, 40%); accent-color: #344a3c; }
+.drive-folder-setup details { margin: 16px 0; font-size: 13px; line-height: 1.7; }
+.drive-folder-setup details summary { cursor: pointer; }
+@media (max-width: 780px) { .folder-setup-heading { align-items: flex-start; flex-direction: column; } }

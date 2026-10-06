@@ -2,8 +2,9 @@ import { getOAuthAccessToken, requireRole } from "../_shared/google-drive-oauth.
 import { ownerMatchesParcel, OWNER_DOCUMENT_TYPES, UUID } from "../_shared/owner-details.ts";
 import { authFailure, corsHeaders, json } from "../_shared/consent-http.ts";
 import { canAttach, DRIVE_ID, FOLDER_MIME, getDriveFile, insideProjectFolder, verifiedFolderPath, type DriveFile } from "../_shared/drive-existing-files.ts";
+import { DOCUMENT_CODES } from "../_shared/drive-folder-structure.ts";
 
-const DOCUMENT_TYPES = new Set(["current_712", "nondh_6", "aadhaar", "pan", "bank_details", "consent_letter", "old_712", "old_nondh_6", "mutation_death_certificate"]);
+const DOCUMENT_TYPES = DOCUMENT_CODES;
 
 Deno.serve(async (request) => {
   const headers = corsHeaders(request, "GET, POST");

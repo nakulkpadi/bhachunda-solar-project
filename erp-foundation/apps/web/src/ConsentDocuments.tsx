@@ -176,9 +176,11 @@ export function SurveyDocumentPanel({ detail, isAdmin, actions }: { detail: Parc
       {isAdmin && detail.documents.some((item) => ["pan", "aadhaar", "bank_details"].includes(item.document_type_code) && !item.owner_id) && <details><summary>Earlier survey-level KYC files</summary>{["pan", "aadhaar", "bank_details"].map((code) => <DocumentAttachment actions={actions} code={code} documents={detail.documents} isAdmin={false} key={code} label={code === "pan" ? "PAN card" : code === "aadhaar" ? "Aadhaar card" : "Bank document"} parcelId={detail.id} recordLabel={recordLabel} />)}</details>}
     </div></details>
     {attachment("Consent Letter", "consent_letter")}
+    {attachment("Lease Deed", "lease_deed")}
     {attachment("Old 7/12", "old_712")}
     {attachment("Old Nondh No. 6 / Mutation Entry", "old_nondh_6")}
-    <p className="small-note">Files stay in this survey’s private Drive folder. Uploading a file does not mark consent as received.</p>
+    <details className="kyc-documents"><summary>Other documents</summary><div className="kyc-document-body">{attachment("Mutation Entry / Death Certificate", "mutation_death_certificate")}{attachment("Other", "other")}</div></details>
+    <p className="small-note">Uploads go into this survey’s matching legal or owner folder in Drive. Uploading a file does not mark consent as received.</p>
   </section>;
 }
 

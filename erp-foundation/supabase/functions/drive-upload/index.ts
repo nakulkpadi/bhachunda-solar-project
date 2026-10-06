@@ -1,16 +1,14 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.2";
 import { createAdminClient, getOAuthAccessToken } from "../_shared/google-drive-oauth.ts";
 import { ownerMatchesParcel, OWNER_DOCUMENT_TYPES } from "../_shared/owner-details.ts";
-import { resolveSurveyFolder } from "../_shared/drive-existing-files.ts";
+import { DOCUMENT_CODES, uploadFolder } from "../_shared/drive-folder-structure.ts";
 
 type AppRole = "admin" | "data_entry" | "legal" | "finance" | "viewer";
 type GoogleServiceAccount = { client_email: string; private_key: string };
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ACCEPTED_DOCUMENT_TYPES = new Set([
-  "current_712", "nondh_6", "aadhaar", "pan", "bank_details", "consent_letter", "old_712", "old_nondh_6", "mutation_death_certificate"
-]);
+const ACCEPTED_DOCUMENT_TYPES = DOCUMENT_CODES;
 const FILE_TYPES: Record<string, { mime: string; signature: "pdf" | "jpeg" | "png" | "zip" }> = {
   pdf: { mime: "application/pdf", signature: "pdf" },
   jpg: { mime: "image/jpeg", signature: "jpeg" },
@@ -139,18 +137,6 @@ async function sha256(contents: ArrayBuffer): Promise<string> {
   return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function googleCreateFolder(accessToken: string, folderName: string, parentId: string): Promise<string> {
-  const apiResponse = await fetch("https://www.googleapis.com/drive/v3/files?supportsAllDrives=true", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ name: folderName, mimeType: "application/vnd.google-apps.folder", parents: [parentId] })
-  });
-  if (!apiResponse.ok) throw new Error("Google Drive folder creation failed.");
-  const folder = await apiResponse.json() as { id?: string };
-  if (!folder.id) throw new Error("Google Drive did not return a folder ID.");
-  return folder.id;
-}
-
 async function googleUploadFile(accessToken: string, fileName: string, file: File, mime: string, parentId: string): Promise<{ id: string }> {
   const boundary = `bhachunda-${crypto.randomUUID()}`;
   const body = new Blob([
@@ -230,20 +216,7 @@ Deno.serve(async (request) => {
     }
     const hash = await sha256(validated.contents);
     const googleAccessToken = await getGoogleAccessToken(admin);
-    let folderId: string;
-    const { data: existingFolder, error: folderLookupError } = await admin.from("drive_folders").select("google_folder_id").eq("parcel_id", parcelId).maybeSingle();
-    if (folderLookupError) throw new Error("Could not look up the parcel folder.");
-    if (existingFolder?.google_folder_id) {
-      folderId = existingFolder.google_folder_id;
-    } else {
-      folderId = await resolveSurveyFolder(googleAccessToken, rootFolderId, village.name_en, parcel.survey_number, (name, parentId) => googleCreateFolder(googleAccessToken, safeSegment(name), parentId));
-      const { error: folderInsertError } = await admin.from("drive_folders").insert({ parcel_id: parcelId, google_folder_id: folderId, folder_name: safeSegment(`${village.name_en} / ${parcel.survey_number}`), created_by: userResult.user.id });
-      if (folderInsertError) {
-        const { data: racedFolder } = await admin.from("drive_folders").select("google_folder_id").eq("parcel_id", parcelId).maybeSingle();
-        if (!racedFolder?.google_folder_id) throw new Error("Could not register the parcel folder.");
-        folderId = racedFolder.google_folder_id;
-      }
-    }
+    const folderId = await uploadFolder(admin, googleAccessToken, parcelId, userResult.user.id, documentTypeCode, ownerId);
 
     const ownerSegment = ownerId ? `_owner-${ownerId}` : "";
     const storedName = safeSegment(`${village.code}_${parcel.survey_number}${ownerSegment}_${documentTypeCode}_${new Date().toISOString().slice(0, 10)}_${crypto.randomUUID().slice(0, 8)}.${validated.extension}`);

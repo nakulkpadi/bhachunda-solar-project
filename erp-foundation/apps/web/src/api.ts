@@ -250,6 +250,20 @@ export async function linkExistingDriveFile(parcelId: string, code: string, file
   if (!response.ok || !payload.linked) throw new Error(payload.error || "Could not link this Drive file.");
 }
 
+export interface DriveSetupProgress { total: number; completed: number; remaining: number; processed?: number }
+
+export async function driveFolderSetup(parcelId?: string, readOnly = false): Promise<DriveSetupProgress> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/drive-folder-setup`, {
+    method: readOnly ? "GET" : "POST",
+    headers: { ...await sessionHeaders(), "Content-Type": "application/json" },
+    ...(readOnly ? {} : { body: JSON.stringify({ parcel_id: parcelId }) }),
+    cache: "no-store"
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || "Could not prepare the survey folders.");
+  return payload as DriveSetupProgress;
+}
+
 export async function loadGoogleDriveConnectionStatus(): Promise<boolean> {
   const client = requiredClient();
   const { data: sessionData, error: sessionError } = await client.auth.getSession();
