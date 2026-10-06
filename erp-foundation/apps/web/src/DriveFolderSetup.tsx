@@ -21,7 +21,7 @@ export function DriveFolderSetup({ visible, connected, selectedParcelId, selecte
       let result: DriveSetupProgress;
       do {
         result = await driveFolderSetup(all ? undefined : selectedParcelId);
-        setProgress(result);
+        setProgress((previous) => ({ ...previous, ...result }));
       } while (all && result.remaining > 0 && !stop.current);
       setMessage(stop.current ? "Paused. Completed surveys are saved; resume whenever you are ready." : all ? "All survey and owner folders are ready." : `${selectedLabel || "This survey"}: folders checked and missing folders created.`);
     } catch (failure) {
@@ -36,7 +36,7 @@ export function DriveFolderSetup({ visible, connected, selectedParcelId, selecte
       <div className="folder-setup-actions">{running ? <button className="button button-secondary" onClick={() => { stop.current = true; setMessage("Pausing after the current batch finishes…"); }} type="button">Pause setup</button> : <><button className="button button-secondary" disabled={!connected || !selectedParcelId || accessBlocked} onClick={() => void prepare(false)} type="button">Check this survey</button><button className="button button-primary" disabled={!connected || progress?.remaining === 0 || accessBlocked} onClick={() => void prepare(true)} type="button">{progress?.remaining === 0 ? "All folders ready" : "Create missing folders"}</button></>}</div>
     </div>
     {progress?.account_email && <p className="small-note">Connected Google account: {progress.account_email}</p>}
-    {accessBlocked && <div className="notice notice-error" role="alert"><p>The connected Google account needs editing access to {progress!.blocked_folders!.map((folder) => folder.name).join(", ")} to create folders and upload files. Give this account Editor access in Google Drive, or reconnect using the account that owns the project folder.</p><button className="button button-secondary" onClick={onConnectDrive} type="button">Reconnect Drive</button></div>}
+    {accessBlocked && <div className="notice notice-error" role="alert"><p>The connected Google account needs editing access to {progress!.blocked_folders!.map((folder) => folder.name).join(", ")} to create folders and upload files. Give this account Editor access in Google Drive, or reconnect using the account that owns the project folder.</p><button className="button button-secondary" onClick={() => { setError(""); void driveFolderSetup(undefined, true).then(setProgress).catch((failure) => setError(failure instanceof Error ? failure.message : "Could not check Drive access.")); }} type="button">Recheck access</button><button className="button button-secondary" onClick={onConnectDrive} type="button">Reconnect Drive</button></div>}
     {progress && <div className="folder-setup-progress"><progress aria-label="Surveys with folders ready" max={progress.total || 1} value={progress.completed} /><span>{progress.completed} / {progress.total} surveys ready{running ? " · Creating missing folders…" : ""}</span></div>}
     <details><summary>Folder structure</summary><p>Each village contains its survey numbers. Each survey has one KYC folder per owner, named from the imported land register. Legal Documents contains Lease Deed, Consent, Current 7-12, Nondh No. 6 - Mutation Entry, Old 7-12 and Old Nondh No. 6 - Mutation Entry. Other holds additional documents.</p></details>
     <p className="small-note">Existing folders are reused. New uploads go to their matching subfolder. Keep this page open during setup; progress is saved in Supabase.</p>
