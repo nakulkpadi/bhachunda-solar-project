@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { driveFolderSetup, type DriveSetupProgress } from "./api";
 
-export function DriveFolderSetup({ visible, connected, selectedParcelId, selectedLabel }: { visible: boolean; connected: boolean; selectedParcelId?: string; selectedLabel?: string }) {
+export function DriveFolderSetup({ visible, connected, selectedParcelId, selectedLabel, onConnectDrive }: { visible: boolean; connected: boolean; selectedParcelId?: string; selectedLabel?: string; onConnectDrive: () => void }) {
   const [progress, setProgress] = useState<DriveSetupProgress | null>(null);
   const [running, setRunning] = useState(false);
   const [message, setMessage] = useState("");
@@ -30,10 +30,13 @@ export function DriveFolderSetup({ visible, connected, selectedParcelId, selecte
     } finally { runningRef.current = false; setRunning(false); }
   };
   if (!visible && !running) return null;
+  const accessBlocked = Boolean(progress?.blocked_folders?.length);
   return <section className="drive-folder-setup card" aria-label="Google Drive folder setup">
     <div className="folder-setup-heading"><div><div className="eyebrow">Google Drive organization</div><h3>Survey folders</h3><p>KYC With Bank Details · Legal Documents · Other</p></div>
-      <div className="folder-setup-actions">{running ? <button className="button button-secondary" onClick={() => { stop.current = true; setMessage("Pausing after the current batch finishes…"); }} type="button">Pause setup</button> : <><button className="button button-secondary" disabled={!connected || !selectedParcelId} onClick={() => void prepare(false)} type="button">Check this survey</button><button className="button button-primary" disabled={!connected || progress?.remaining === 0} onClick={() => void prepare(true)} type="button">{progress?.remaining === 0 ? "All folders ready" : "Create missing folders"}</button></>}</div>
+      <div className="folder-setup-actions">{running ? <button className="button button-secondary" onClick={() => { stop.current = true; setMessage("Pausing after the current batch finishes…"); }} type="button">Pause setup</button> : <><button className="button button-secondary" disabled={!connected || !selectedParcelId || accessBlocked} onClick={() => void prepare(false)} type="button">Check this survey</button><button className="button button-primary" disabled={!connected || progress?.remaining === 0 || accessBlocked} onClick={() => void prepare(true)} type="button">{progress?.remaining === 0 ? "All folders ready" : "Create missing folders"}</button></>}</div>
     </div>
+    {progress?.account_email && <p className="small-note">Connected Google account: {progress.account_email}</p>}
+    {accessBlocked && <div className="notice notice-error" role="alert"><p>The connected Google account needs editing access to {progress!.blocked_folders!.map((folder) => folder.name).join(", ")} to create folders and upload files. Give this account Editor access in Google Drive, or reconnect using the account that owns the project folder.</p><button className="button button-secondary" onClick={onConnectDrive} type="button">Reconnect Drive</button></div>}
     {progress && <div className="folder-setup-progress"><progress aria-label="Surveys with folders ready" max={progress.total || 1} value={progress.completed} /><span>{progress.completed} / {progress.total} surveys ready{running ? " · Creating missing folders…" : ""}</span></div>}
     <details><summary>Folder structure</summary><p>Each village contains its survey numbers. Each survey has one KYC folder per owner, named from the imported land register. Legal Documents contains Lease Deed, Consent, Current 7-12, Nondh No. 6 - Mutation Entry, Old 7-12 and Old Nondh No. 6 - Mutation Entry. Other holds additional documents.</p></details>
     <p className="small-note">Existing folders are reused. New uploads go to their matching subfolder. Keep this page open during setup; progress is saved in Supabase.</p>

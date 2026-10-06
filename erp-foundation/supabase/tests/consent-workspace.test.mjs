@@ -28,6 +28,7 @@ async function harness(slug, overrides = {}) {
   const run = (table, operation, values, single = false) => {
     if (operation !== "select") state.writes.push({ table, operation, values });
     if (table === "profiles") return { data: { role: state.role, is_active: state.active }, error: null };
+    if (table === "villages") return { data: [{ drive_root_folder_id: "existing-root" }], error: null };
     if (table === "parcel_owners") return { data: single ? state.ownerParcel ? { parcel_id: state.ownerParcel } : null : [{ id: ownerId, display_name: "Owner One", sequence_no: 1 }, { id: secondOwnerId, display_name: "Owner Two", sequence_no: 2 }], error: null };
     if (table === "parcels") { const parcel = { id: parcelId, survey_number: "451", villages: { code: "BVP", name_en: "Bhavanipar", drive_root_folder_id: "existing-root" } }; return { data: single ? parcel : [parcel], error: null }; }
     if (table === "drive_folders") { if (operation === "upsert") bound = values; return { data: single ? bound : bound ? [bound] : [], error: null }; }
@@ -57,6 +58,8 @@ async function harness(slug, overrides = {}) {
       const call = { url: String(url), ...options };
       if (options.body instanceof Blob) call.bodyText = await options.body.text();
       state.google.push(call);
+      if (String(url).includes("/drive/v3/about?")) return new Response(JSON.stringify({ user: { emailAddress: "drive-owner@example.com" } }));
+      if (String(url).includes("fields=id,name,capabilities")) return new Response(JSON.stringify({ id: "existing-root", name: "Project folder", capabilities: { canAddChildren: !state.readOnlyDrive } }));
       if (["drive-upload", "drive-folder-setup"].includes(slug) && new URL(url).searchParams.get("q")) {
         const parent = new URL(url).searchParams.get("q").match(/^'([^']+)' in parents/)?.[1];
         return new Response(JSON.stringify({ files: driveFolders.filter((folder) => folder.parents.includes(parent) && !folder.trashed) }));
@@ -331,7 +334,12 @@ test("folder creation requires an active admin and rejects unknown surveys", asy
   assert.equal((await handler(setupRequest({ parcel_id: otherParcelId }))).status, 400); assert.equal(state.google.length, 0);
 });
 
-test("progress reads do not create folders and competing setup holds a lease", async () => {
-  const progress = await harness("drive-folder-setup"); assert.equal((await progress.handler(setupRequest({}, "valid-session", "GET"))).status, 200); assert.equal(progress.state.google.length, 0);
+test("progress reads check account and access without creating folders, competing setup holds a lease", async () => {
+  const progress = await harness("drive-folder-setup"); const result = await progress.handler(setupRequest({}, "valid-session", "GET")); assert.equal(result.status, 200); assert.equal((await result.json()).account_email, "drive-owner@example.com"); assert.equal(progress.state.google.some((call) => call.method === "POST"), false);
   const busy = await harness("drive-folder-setup", { noExistingFolder: true, leaseBusy: true }); assert.equal((await busy.handler(setupRequest())).status, 409); assert.equal(busy.state.google.length, 0);
+});
+
+test("read-only Google folder access is reported without attempted folder creation", async () => {
+  const { handler, state } = await harness("drive-folder-setup", { readOnlyDrive: true }); const result = await handler(setupRequest({}, "valid-session", "GET")); assert.equal(result.status, 200);
+  assert.equal((await result.json()).blocked_folders[0].name, "Project folder"); assert.equal(state.google.some((call) => call.method === "POST"), false);
 });

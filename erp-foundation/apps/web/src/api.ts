@@ -250,7 +250,7 @@ export async function linkExistingDriveFile(parcelId: string, code: string, file
   if (!response.ok || !payload.linked) throw new Error(payload.error || "Could not link this Drive file.");
 }
 
-export interface DriveSetupProgress { total: number; completed: number; remaining: number; processed?: number }
+export interface DriveSetupProgress { total: number; completed: number; remaining: number; processed?: number; account_email?: string | null; blocked_folders?: Array<{ id: string; name: string }> }
 
 export async function driveFolderSetup(parcelId?: string, readOnly = false): Promise<DriveSetupProgress> {
   const response = await fetch(`${supabaseUrl}/functions/v1/drive-folder-setup`, {

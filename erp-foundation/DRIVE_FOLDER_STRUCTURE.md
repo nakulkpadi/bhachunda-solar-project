@@ -19,4 +19,4 @@ Owner folder names use sequence_no and display_name from the imported land regis
 
 The setup endpoint requires an active administrator and a valid Supabase session. Database leases are restricted to the server role and serialize village and survey folder creation. It stores a completion only after every required subfolder exists. Interruptions can resume using existing names. No folder operation writes consent_records.
 
-Verification: 31 handler integration tests cover document routing, hierarchy creation, reuse, resume, duplicate detection, deleted-folder repair, roles and project folder boundaries. The GitHub Pages workflow performs the full TypeScript build and integration suite.
+Verification: 32 handler integration tests cover document routing, hierarchy creation, reuse, resume, duplicate detection, deleted-folder repair, roles and project folder boundaries. The GitHub Pages workflow performs the full TypeScript build and integration suite.

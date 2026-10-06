@@ -15,7 +15,21 @@ Deno.serve(async (request) => {
     if (parcelError || completedError || !parcels) throw new Error("Could not load folder setup progress.");
     const ids = new Set((completed || []).map((row) => row.parcel_id));
     const pending = parcels.filter((parcel) => !ids.has(parcel.id));
-    if (request.method === "GET") return json({ total: parcels.length, completed: ids.size, remaining: pending.length }, 200, headers);
+    if (request.method === "GET") {
+      const token = await getOAuthAccessToken(admin);
+      const about = await fetch("https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)", { headers: { Authorization: `Bearer ${token}` } });
+      const account = about.ok ? await about.json() : {};
+      const { data: villages, error: villageError } = await admin.from("villages").select("drive_root_folder_id");
+      if (villageError) throw new Error("Could not check the project folder access.");
+      const roots = [...new Set<string>((villages || []).map((village) => village.drive_root_folder_id || Deno.env.get("DRIVE_ROOT_FOLDER_ID")).filter(Boolean))];
+      const blocked: Array<{ id: string; name: string }> = [];
+      for (const root of roots) {
+        const file = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(root)}?fields=id,name,capabilities(canAddChildren)&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });
+        const info = file.ok ? await file.json() : {};
+        if (!file.ok || info.capabilities?.canAddChildren !== true) blocked.push({ id: root, name: info.name || "Project folder" });
+      }
+      return json({ total: parcels.length, completed: ids.size, remaining: pending.length, account_email: account.user?.emailAddress || null, blocked_folders: blocked }, 200, headers);
+    }
     const raw = await request.text();
     if (raw.length > 512) return json({ error: "The request is too large." }, 413, headers);
     let body: { parcel_id?: string };

@@ -41,7 +41,11 @@ async function createFolder(token: string, name: string, parentId: string): Prom
     method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ name: cleanFolderName(name), mimeType: FOLDER_MIME, parents: [parentId] })
   });
-  if (!response.ok) throw new Error(response.status === 429 ? "Google Drive is busy. Resume folder setup shortly." : "Google Drive folder creation failed.");
+  if (!response.ok) {
+    const failure = await response.json().catch(() => ({}));
+    const reason = String(failure.error?.errors?.[0]?.reason || failure.error?.status || "unknown").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80);
+    throw new Error(response.status === 429 ? "Google Drive is busy. Resume folder setup shortly." : `Google Drive folder creation failed (${response.status}: ${reason}).`);
+  }
   const file = await response.json() as { id?: string };
   if (!file.id || !DRIVE_ID.test(file.id)) throw new Error("Google Drive did not return a folder ID.");
   return file.id;
