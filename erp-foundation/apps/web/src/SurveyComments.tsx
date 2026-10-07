@@ -1,0 +1,11 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { addSurveyComment, deleteSurveyComment, loadSurveyComments, type SurveyComment } from "./api";
+
+export function SurveyComments({ parcelId, userId, role }: { parcelId: string; userId: string; role: string }) {
+  const [rows, setRows] = useState<SurveyComment[]>([]), [body, setBody] = useState(""), [error, setError] = useState(""), [busy, setBusy] = useState(false);
+  const canComment = ["admin", "editor", "commenter"].includes(role);
+  useEffect(() => { let active = true; setRows([]); setBody(""); setError(""); void loadSurveyComments(parcelId).then(data => { if (active) setRows(data); }).catch(() => { if (active) setError("Could not load survey notes."); }); return () => { active = false; }; }, [parcelId]);
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); if (!body.trim()) return; setBusy(true); setError(""); try { await addSurveyComment(parcelId, body.trim()); setBody(""); setRows(await loadSurveyComments(parcelId)); } catch (failure) { setError(failure instanceof Error ? failure.message : "Could not save the note."); } finally { setBusy(false); } };
+  const remove = async (id: string) => { setBusy(true); setError(""); try { await deleteSurveyComment(id); setRows(await loadSurveyComments(parcelId)); } catch { setError("Could not remove this note."); } finally { setBusy(false); } };
+  return <section className="card survey-comments"><div className="eyebrow">Survey discussion</div><h3>Notes & follow-up</h3>{canComment && <form onSubmit={submit}><label>Add a note<textarea required maxLength={2000} rows={3} value={body} onChange={e => setBody(e.target.value)} disabled={busy}/></label><button className="button button-secondary" disabled={busy || !body.trim()} type="submit">Add note</button></form>}{error && <p className="form-error" role="alert">{error}</p>}{rows.length === 0 && <p className="small-note">No notes for this survey yet.</p>}{rows.map(row => <article key={row.id}><div><strong>{row.author_name}</strong><time>{new Date(row.created_at).toLocaleString("en-IN")}</time>{canComment && (row.user_id === userId || role === "admin") && <button className="access-text-button" onClick={() => void remove(row.id)} disabled={busy} type="button">Remove note</button>}</div><p>{row.body}</p></article>)}</section>;
+}

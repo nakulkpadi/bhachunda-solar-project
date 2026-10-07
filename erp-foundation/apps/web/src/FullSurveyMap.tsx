@@ -41,7 +41,7 @@ export function FullSurveyMap({
     <section className="card map-footer">
       <div>
         <strong>{selection ? selection.links.length ? "Selected survey boundary" : "Unmatched survey boundary" : "Three villages. One map."}</strong>
-        <p>{selection ? selection.links.length === 1 ? "Opening the survey record." : selection.links.length ? "Choose the correct village and survey below." : "There is no confirmed land-register match for this boundary yet." : "Use + and − to zoom. Fit map returns to the complete village view."}</p>
+        <p>{selection ? selection.links.length === 1 ? "Opening the survey record." : selection.links.length ? "Choose the correct village and survey below." : "There is no confirmed land-register match for this boundary yet." : "Scroll to zoom in or out. Drag to move. Fit map shows all three villages."}</p>
         {selection && selection.links.length > 1 && <div className="map-link-list">{selection.links.map((link) => <button key={link.parcel_id} className="button button-secondary" onClick={() => onOpenParcel(link.parcel_id)} type="button">{link.village_name} · Survey {link.survey_number}{link.match_confidence !== "high" ? " (review)" : ""}</button>)}</div>}
       </div>
       <span className="map-proof">{featureCount ? `${featureCount} survey boundaries` : "Combined DWG map"}</span>

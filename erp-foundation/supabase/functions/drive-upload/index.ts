@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.117.2";
-import { createAdminClient, getOAuthAccessToken } from "../_shared/google-drive-oauth.ts";
+import { getOAuthAccessToken, requireRole } from "../_shared/google-drive-oauth.ts";
+import { projectFolderPrivacy, SENSITIVE_DRIVE_TYPES } from "../_shared/drive-privacy.ts";
+import { authFailure } from "../_shared/consent-http.ts";
 import { ownerMatchesParcel, OWNER_DOCUMENT_TYPES } from "../_shared/owner-details.ts";
 import { DOCUMENT_CODES, uploadFolder } from "../_shared/drive-folder-structure.ts";
 
-type AppRole = "admin" | "data_entry" | "legal" | "finance" | "viewer";
 type GoogleServiceAccount = { client_email: string; private_key: string };
 
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
@@ -33,7 +34,7 @@ function corsHeaders(request: Request): HeadersInit | null {
     "Access-Control-Allow-Origin": origin ?? allowedOrigin,
     "Access-Control-Allow-Headers": "authorization, apikey, x-client-info, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Vary": "Origin"
+    "Vary": "Origin", "Cache-Control": "private, no-store"
   };
 }
 
@@ -173,10 +174,12 @@ Deno.serve(async (request) => {
   try {
     const authorization = request.headers.get("authorization");
     if (!authorization?.startsWith("Bearer ")) return response({ error: "Authentication is required." }, 401, headers);
-    const admin = createAdminClient();
-    const accessToken = authorization.slice("Bearer ".length);
-    const { data: userResult, error: userError } = await admin.auth.getUser(accessToken);
-    if (userError || !userResult.user) return response({ error: "Authentication is invalid or expired." }, 401, headers);
+    let authorized;
+    try { authorized = await requireRole(request,["admin","editor"]); }
+    catch (error) { const failure=authFailure(error); return response({error:failure.message},failure.status,headers); }
+    const { admin, userId } = authorized;
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (contentLength > MAX_FILE_BYTES + 65536) return response({error:"File must be up to 15 MB."},413,headers);
 
     const formData = await request.formData();
     const parcelId = String(formData.get("parcel_id") ?? "");
@@ -188,9 +191,6 @@ Deno.serve(async (request) => {
     if (!ACCEPTED_DOCUMENT_TYPES.has(documentTypeCode)) return response({ error: "Unknown document type." }, 400, headers);
     if (!(file instanceof File)) return response({ error: "One document file is required." }, 400, headers);
 
-    const { data: profile, error: profileError } = await admin.from("profiles").select("role,is_active").eq("id", userResult.user.id).maybeSingle();
-    const role = profile?.role as AppRole | undefined;
-    if (profileError || !profile?.is_active || role !== "admin") return response({ error: "Only the administrator can upload documents." }, 403, headers);
 
     const { data: parcel, error: parcelError } = await admin
       .from("parcels")
@@ -216,7 +216,11 @@ Deno.serve(async (request) => {
     }
     const hash = await sha256(validated.contents);
     const googleAccessToken = await getGoogleAccessToken(admin);
-    const folderId = await uploadFolder(admin, googleAccessToken, parcelId, userResult.user.id, documentTypeCode, ownerId);
+    if (SENSITIVE_DRIVE_TYPES.has(documentTypeCode)) {
+      const privacy = await projectFolderPrivacy(googleAccessToken,rootFolderId);
+      if (privacy !== "restricted") return response({error:privacy === "public" ? "Sensitive uploads are blocked because Solar Projects is shared with Anyone with the link. Change the main Drive folder's General access to Restricted, then try again." : "The project folder's privacy could not be verified. Ask its owner to confirm Restricted access."},409,headers);
+    }
+    const folderId = await uploadFolder(admin, googleAccessToken, parcelId, userId, documentTypeCode, ownerId);
 
     const ownerSegment = ownerId ? `_owner-${ownerId}` : "";
     const storedName = safeSegment(`${village.code}_${parcel.survey_number}${ownerSegment}_${documentTypeCode}_${new Date().toISOString().slice(0, 10)}_${crypto.randomUUID().slice(0, 8)}.${validated.extension}`);
@@ -233,7 +237,7 @@ Deno.serve(async (request) => {
         mime_type: validated.mime,
         byte_size: file.size,
         checksum_sha256: hash,
-        uploaded_by: userResult.user.id
+        uploaded_by: userId
       })
       .select("id")
       .single();
@@ -243,7 +247,7 @@ Deno.serve(async (request) => {
     }
     await admin.from("activity_log").insert({
       parcel_id: parcelId,
-      actor_id: userResult.user.id,
+      actor_id: userId,
       action: "drive_document_uploaded",
       entity_type: "parcel_document",
       entity_id: document.id,

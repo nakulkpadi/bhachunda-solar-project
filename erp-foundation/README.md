@@ -5,7 +5,8 @@ This folder is the safe starting point for replacing the current Firebase pages.
 ## Included now
 
 - A Supabase PostgreSQL schema for parcel, owner, consent, document, legal, payment, map and import records.
-- Row Level Security foundations for Administrator, Data Entry, Legal, Finance and Viewer roles.
+- Approved Administrator, Editor, Viewer and Commenter accounts with database and server permission checks.
+- A public sign-in/create-account page, administrator approval, email invitations and survey notes.
 - Google OAuth Edge Functions for protected personal-Drive uploads, with a
   service-account option reserved for a Workspace Shared Drive.
 - A React ERP browser app with live Supabase reads, filterable reports, CSV
@@ -22,7 +23,7 @@ This folder is the safe starting point for replacing the current Firebase pages.
    Edge Function secrets only. For a personal My Drive, follow
    `docs/PERSONAL_GOOGLE_DRIVE_OAUTH_SETUP.md` rather than creating a service
    account key.
-3. Disable open self-sign-up and invite the initial staff users.
+3. Keep email sign-up enabled for access requests. Accounts remain pending until the administrator approves them. Configure email delivery using [the account setup guide](docs/USER_ACCESS_SETUP.md).
 4. Attach the CAD map, select the Drive root folder or Shared Drive, and assign staff roles.
 5. Run the workbook import in a staging Supabase project, reconcile the counts, and only then migrate Firebase data.
 
@@ -60,6 +61,7 @@ Supabase service-role key.
 
 ## Deployment and Drive setup
 
+- [User approval, invitations and email delivery](docs/USER_ACCESS_SETUP.md)
 - [Production setup checklist](docs/PRODUCTION_SETUP_CHECKLIST.md)
 - [Personal Google Drive OAuth setup](docs/PERSONAL_GOOGLE_DRIVE_OAUTH_SETUP.md)
 - [Workbook importer](scripts/import-workbook/README.md)

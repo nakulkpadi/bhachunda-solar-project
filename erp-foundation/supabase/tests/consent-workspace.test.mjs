@@ -15,11 +15,11 @@ const documentId = "30000000-0000-4000-8000-000000000001";
 const origin = "https://nakulkpadi.github.io";
 
 async function harness(slug, overrides = {}) {
-  const state = { role: "admin", active: true, ownerParcel: parcelId, sensitive: true, documentStatus: "uploaded", writes: [], google: [], failDocumentInsert: false, ...overrides };
+  const state = { role: "admin", active: true, approval: "approved", ownerParcel: parcelId, sensitive: true, documentStatus: "uploaded", writes: [], google: [], failDocumentInsert: false, ...overrides };
   const folderMime = "application/vnd.google-apps.folder";
   const structure = { root_id: "existing-root", village_id: "existing-village-folder", survey_id: "existing-survey-folder", kyc_id: "kyc-folder", legal_id: "legal-folder", other_id: "other-folder", legal: { lease_deed: "lease-folder", consent_letter: "consent-folder", current_712: "current-folder", nondh_6: "mutation-folder", old_712: "old-current-folder", old_nondh_6: "old-mutation-folder" }, owners: { [ownerId]: "owner-one-folder", [secondOwnerId]: "owner-two-folder" } };
   const model = (id, name, parent) => ({ id, name, mimeType: folderMime, parents: parent ? [parent] : [] });
-  const driveFolders = [model("existing-root", "Project folder"), model("existing-village-folder", "Bhavanipur", "existing-root"), model("existing-survey-folder", "451", "existing-village-folder")];
+  const driveFolders = [model("existing-root", "Project folder"), model("existing-village-folder", "Bhavanipur", "existing-root"), model("existing-survey-folder", state.legacySurveyName || "451", "existing-village-folder")];
   if (!state.emptyChildren) driveFolders.push(model("kyc-folder", "KYC With Bank Details", "existing-survey-folder"), model("legal-folder", "Legal Documents", "existing-survey-folder"), model("other-folder", "Other", "existing-survey-folder"), ...Object.entries({ "Lease Deed": "lease-folder", "Consent": "consent-folder", "Current 7-12": "current-folder", "Nondh No. 6 - Mutation Entry": "mutation-folder", "Old 7-12": "old-current-folder", "Old Nondh No. 6 - Mutation Entry": "old-mutation-folder" }).map(([name, id]) => model(id, name, "legal-folder")), model("owner-one-folder", "Owner 1 (Owner One)", "kyc-folder"), model("owner-two-folder", "Owner 2 (Owner Two)", "kyc-folder"));
   if (state.duplicateLegalFolder) driveFolders.push(model("duplicate-legal", "Legal Documents", "existing-survey-folder"));
   if (state.deletedOwnerFolder) driveFolders.find((folder) => folder.id === "owner-one-folder").trashed = true;
@@ -27,10 +27,10 @@ async function harness(slug, overrides = {}) {
   state.driveFolders = driveFolders;
   const run = (table, operation, values, single = false) => {
     if (operation !== "select") state.writes.push({ table, operation, values });
-    if (table === "profiles") return { data: { role: state.role, is_active: state.active }, error: null };
+    if (table === "profiles") return { data: { role: state.role, is_active: state.active, approval_status: state.approval }, error: null };
     if (table === "villages") return { data: [{ drive_root_folder_id: "existing-root" }], error: null };
     if (table === "parcel_owners") return { data: single ? state.ownerParcel ? { parcel_id: state.ownerParcel } : null : [{ id: ownerId, display_name: "Owner One", sequence_no: 1 }, { id: secondOwnerId, display_name: "Owner Two", sequence_no: 2 }], error: null };
-    if (table === "parcels") { const parcel = { id: parcelId, survey_number: "451", villages: { code: "BVP", name_en: "Bhavanipar", drive_root_folder_id: "existing-root" } }; return { data: single ? parcel : [parcel], error: null }; }
+    if (table === "parcels") { const parcel = { id: parcelId, survey_number: "451", villages: { code: "BVP", name_en: "Bhavanipar", drive_root_folder_id: "existing-root" }, ...(slug === "parcel-detail" ? { source_workbook: "private-import.xlsx", source_row_number: 42, consent_records: { status: "received", received_on: "2026-10-07", remarks: "Survey note", source_value: "private-import-source" }, acquisition_cases: { category: "Lease", source_fields: { raw_bank_data: "private-import-value" } }, parcel_owners: [{ id: ownerId, display_name: "Owner One", source_owner_text: "private-import-owner", sequence_no: 1, is_primary: true }], parcel_documents: [] } : {}) }; return { data: single ? parcel : [parcel], error: null }; }
     if (table === "drive_folders") { if (operation === "upsert") bound = values; return { data: single ? bound : bound ? [bound] : [], error: null }; }
     if (table === "parcel_documents") return operation === "insert" ? { data: state.failDocumentInsert ? null : { id: documentId }, error: state.failDocumentInsert ? new Error("insert failed") : null } : slug === "drive-files" ? { data: state.alreadyLinked ? { id: documentId } : null, error: null } : { data: { google_file_id: "existing-file-id", original_filename: "consent.pdf", mime_type: "application/pdf", byte_size: 15, status: state.documentStatus, document_types: { is_sensitive: state.sensitive } }, error: null };
     return { data: null, error: null };
@@ -41,7 +41,7 @@ async function harness(slug, overrides = {}) {
     from(table) {
       let operation = "select", values;
       const query = {
-        select() { return query; }, eq() { return query; }, is() { return query; }, limit() { return query; }, order() { return query; },
+        select() { return query; }, eq() { return query; }, in() { return query; }, is() { return query; }, limit() { return query; }, order() { return query; },
         insert(input) { operation = "insert"; values = input; return query; },
         upsert(input) { operation = "upsert"; values = input; return query; },
         maybeSingle: async () => run(table, operation, values, true),
@@ -58,6 +58,7 @@ async function harness(slug, overrides = {}) {
       const call = { url: String(url), ...options };
       if (options.body instanceof Blob) call.bodyText = await options.body.text();
       state.google.push(call);
+      if (String(url).includes("fields=id,permissions")) return new Response(JSON.stringify({ permissions: state.publicDrive ? [{type:"anyone",role:"reader"}] : state.unknownPrivacy ? undefined : [{type:"user",role:"owner"}] }));
       if (String(url).includes("/drive/v3/about?")) return new Response(JSON.stringify({ user: { emailAddress: "drive-owner@example.com" } }));
       if (String(url).includes("fields=id,name,capabilities")) return new Response(JSON.stringify({ id: "existing-root", name: "Project folder", capabilities: { canAddChildren: !state.readOnlyDrive } }));
       if (["drive-upload", "drive-folder-setup"].includes(slug) && new URL(url).searchParams.get("q")) {
@@ -93,7 +94,7 @@ async function harness(slug, overrides = {}) {
     this.setExport("getOAuthAccessToken", async () => "test-drive-token");
     this.setExport("requireRole", async (request, roles) => {
       if (request.headers.get("authorization") !== "Bearer valid-session") throw new Error("Authentication is required.");
-      if (!state.active || !roles.includes(state.role)) throw new Error("Your role cannot perform this action.");
+      if (!state.active || state.approval !== "approved" || !roles.includes(state.role)) throw new Error("Your role cannot perform this action.");
       return { admin, userId: "test-admin-user" };
     });
   }, { context });
@@ -108,7 +109,7 @@ async function harness(slug, overrides = {}) {
   }
   const entry = await load(resolve(root, slug, "index.ts"));
   await entry.evaluate();
-  return { state, handler, helpers: modules.get(resolve(root, "_shared/owner-details.ts"))?.namespace, folders: modules.get(resolve(root, "_shared/drive-folder-structure.ts"))?.namespace };
+  return { state, handler, admin, helpers: modules.get(resolve(root, "_shared/owner-details.ts"))?.namespace, folders: modules.get(resolve(root, "_shared/drive-folder-structure.ts"))?.namespace, existing: modules.get(resolve(root, "_shared/drive-existing-files.ts"))?.namespace };
 }
 
 function ownerRequest(details, extra = {}) {
@@ -342,4 +343,88 @@ test("progress reads check account and access without creating folders, competin
 test("read-only Google folder access is reported without attempted folder creation", async () => {
   const { handler, state } = await harness("drive-folder-setup", { readOnlyDrive: true }); const result = await handler(setupRequest({}, "valid-session", "GET")); assert.equal(result.status, 200);
   assert.equal((await result.json()).blocked_folders[0].name, "Project folder"); assert.equal(state.google.some((call) => call.method === "POST"), false);
+});
+
+test("sensitive uploads fail closed for public or unverifiable Drive sharing", async () => {
+  for (const config of [{ publicDrive: true }, { unknownPrivacy: true }]) {
+    for (const code of ["pan", "aadhaar", "bank_details", "consent_letter", "lease_deed", "mutation_death_certificate", "other"]) {
+      const { handler, state } = await harness("drive-upload", config);
+      const response = await handler(uploadRequest(code, ["pan", "aadhaar", "bank_details"].includes(code) ? ownerId : null));
+      assert.equal(response.status, 409);
+      assert.equal(state.google.some(call => ["POST", "PATCH", "DELETE"].includes(call.method)), false);
+      assert.equal(state.writes.length, 0);
+    }
+  }
+});
+
+test("approved editors can save and upload, but cannot administer Drive folders", async () => {
+  const owner = await harness("owner-details", { role: "editor" });
+  assert.equal((await owner.handler(ownerRequest({ bank_branch: "Bitta" }))).status, 200);
+  const upload = await harness("drive-upload", { role: "editor" });
+  assert.equal((await upload.handler(uploadRequest())).status, 201);
+  const setup = await harness("drive-folder-setup", { role: "editor" });
+  assert.equal((await setup.handler(setupRequest())).status, 403);
+  assert.equal(setup.state.google.length, 0);
+});
+
+test("pending and suspended roles cannot read files or mutate owner and Drive data", async () => {
+  for (const approval of ["pending", "suspended", "rejected"]) {
+    for (const slug of ["owner-details", "drive-upload", "drive-folder-setup", "drive-document"]) {
+      const { handler, state } = await harness(slug, { approval });
+      const request = slug === "owner-details" ? ownerRequest({}) : slug === "drive-upload" ? uploadRequest() : slug === "drive-folder-setup" ? setupRequest() : new Request(`https://project.supabase.co?document_id=${documentId}`, { headers: { Origin: origin, Authorization: "Bearer valid-session" } });
+      assert.equal((await handler(request)).status, 403);
+      assert.equal(state.google.length, 0); assert.equal(state.writes.length, 0);
+    }
+  }
+});
+
+test("Gujarati survey aliases reuse old folders and separator aliases remain distinct", async () => {
+  const { handler, state, existing } = await harness("drive-upload", { noExistingFolder: true, legacySurveyName: "૪૫૧" });
+  assert.equal((await handler(uploadRequest())).status, 201);
+  assert.equal(state.writes.find(write => write.table === "drive_folders").values.google_folder_id, "existing-survey-folder");
+  assert.equal(state.google.some(call => call.method === "POST" && !call.url.includes("/upload/")), false);
+  assert.equal(existing.surveyFolderKey("140 ૧ p૨"), "140-1-p2");
+  assert.equal(existing.surveyFolderKey("143 ૨"), "143-2");
+  assert.notEqual(existing.surveyFolderKey("140-1-p2"), existing.surveyFolderKey("140-2"));
+});
+
+test("older unregistered folders receive legal categories without invented owners or record changes", async () => {
+  const { folders, admin, state } = await harness("drive-folder-setup", { emptyChildren: true });
+  const folder = { id: "existing-survey-folder", name: "456", parentId: "existing-village-folder", village: "Bhavanipar" };
+  await folders.ensureExistingTemplate(admin, "test-drive-token", folder);
+  const saved = state.writes.find(write => write.table === "drive_existing_folder_templates").values;
+  assert.equal(saved.parcel_id, null); assert.deepEqual(Object.keys(saved.structure.owners), []);
+  assert.equal(Object.keys(saved.structure.legal).length, 6);
+  assert.equal(state.google.filter(call => call.method === "POST").length, 9);
+  assert.equal(state.writes.some(write => ["parcels", "parcel_owners", "consent_records", "parcel_documents", "drive_folders"].includes(write.table)), false);
+  const created = state.google.filter(call => call.method === "POST").length;
+  await folders.ensureExistingTemplate(admin, "test-drive-token", folder);
+  assert.equal(state.google.filter(call => call.method === "POST").length, created);
+});
+
+test("matched older folders add actual owners without moving old consent files", async () => {
+  const { folders, admin, state } = await harness("drive-folder-setup", { emptyChildren: true });
+  await folders.ensureExistingTemplate(admin, "test-drive-token", { id: "existing-survey-folder", name: "૪૫૧", parentId: "existing-village-folder", village: "Bhavanipar", parcelId });
+  const saved = state.writes.find(write => write.table === "drive_existing_folder_templates").values;
+  assert.equal(saved.parcel_id, parcelId); assert.equal(Object.keys(saved.structure.owners).length, 2);
+  assert.equal(state.google.some(call => ["PATCH", "DELETE"].includes(call.method)), false);
+  assert.equal(state.writes.some(write => ["consent_records", "parcel_documents", "drive_folders"].includes(write.table)), false);
+});
+
+test("raw import metadata is restricted to the administrator in survey details", async () => {
+  for (const role of ["admin", "editor", "viewer", "commenter"]) {
+    const { handler } = await harness("parcel-detail", { role });
+    const result = await handler(new Request(`https://project.supabase.co?parcel_id=${parcelId}`, { headers: { Origin: origin, Authorization: "Bearer valid-session" } }));
+    assert.equal(result.status, 200);
+    const { parcel } = await result.json();
+    assert.equal(parcel.survey_number, "451"); assert.equal(parcel.owners[0].display_name, "Owner One");
+    assert.equal(parcel.consent.status, "received"); assert.equal(parcel.acquisition.category, "Lease");
+    if (role === "admin") {
+      assert.equal(parcel.consent.source_value, "private-import-source");
+    } else {
+      assert.equal(parcel.source_workbook, null); assert.equal(parcel.source_row_number, null);
+      assert.equal(parcel.consent.source_value, null); assert.equal(parcel.acquisition.source_fields, null); assert.equal(parcel.owners[0].source_owner_text, null);
+      assert.equal(JSON.stringify(parcel).includes("private-import"), false);
+    }
+  }
 });

@@ -8,7 +8,7 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers });
   if (request.method !== "POST") return json({ error: "Method not allowed." }, 405, headers);
   try {
-    const { admin, userId } = await requireRole(request, ["admin"]);
+    const { admin, userId } = await requireRole(request, ["admin", "editor"]);
     if (Number(request.headers.get("content-length") || 0) > 8192) return json({ error: "Owner details are too large." }, 413, headers);
     const raw = await request.text();
     if (raw.length > 8192) return json({ error: "Owner details are too large." }, 413, headers);

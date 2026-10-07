@@ -20,20 +20,24 @@ Deno.serve(async (request) => {
   const url = new URL(request.url);
   const state = url.searchParams.get("state");
   const code = url.searchParams.get("code");
-  if (url.searchParams.get("error") || !state || !code) return returnToErp("failed");
+  if (url.searchParams.get("error") || !state || !code || state.length > 200 || code.length > 2048) return returnToErp("failed");
   try {
     const admin = createAdminClient();
     const stateHash = await sha256Text(state);
     const { data: savedState, error: stateError } = await admin
       .from("integration_oauth_states")
-      .select("requested_by,expires_at")
+      .delete()
       .eq("state_hash", stateHash)
       .eq("provider", "google_drive")
+      .gt("expires_at", new Date().toISOString())
+      .select("requested_by,expires_at")
       .maybeSingle();
     if (stateError || !savedState || new Date(savedState.expires_at).getTime() < Date.now()) {
       return returnToErp("failed");
     }
-    await admin.from("integration_oauth_states").delete().eq("state_hash", stateHash);
+    const { data: profile, error: profileError } = await admin.from("profiles")
+      .select("role,is_active,approval_status").eq("id", savedState.requested_by).maybeSingle();
+    if (profileError || !profile || profile.role !== "admin" || !profile.is_active || profile.approval_status !== "approved") return returnToErp("failed");
     const refreshToken = await exchangeGoogleAuthorizationCode(code);
     const { error: secretError } = await admin.from("integration_secrets").upsert({
       key: GOOGLE_REFRESH_TOKEN_KEY,

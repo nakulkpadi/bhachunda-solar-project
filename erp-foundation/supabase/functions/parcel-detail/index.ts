@@ -1,8 +1,8 @@
-import { createAdminClient, requireRole, type AppRole } from "../_shared/google-drive-oauth.ts";
+import { requireRole, type AppRole } from "../_shared/google-drive-oauth.ts";
 import { mayViewDocument } from "../_shared/owner-details.ts";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const ACTIVE_ROLES: AppRole[] = ["admin", "data_entry", "legal", "finance", "viewer"];
+const ACTIVE_ROLES: AppRole[] = ["admin", "editor", "commenter", "data_entry", "legal", "finance", "viewer"];
 
 function corsHeaders(request: Request): HeadersInit | null {
   const origin = request.headers.get("origin");
@@ -12,7 +12,7 @@ function corsHeaders(request: Request): HeadersInit | null {
     "Access-Control-Allow-Origin": origin ?? allowedOrigin,
     "Access-Control-Allow-Headers": "authorization, apikey, x-client-info, content-type",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Vary": "Origin"
+    "Vary": "Origin", "Cache-Control": "private, no-store"
   };
 }
 
@@ -74,7 +74,7 @@ Deno.serve(async (request) => {
 
     const owners = Array.isArray(parcel.parcel_owners) ? parcel.parcel_owners : [];
     let privateOwnerDetails: unknown[] = [];
-    if (role === "admin" && owners.length) {
+    if (["admin", "editor"].includes(role) && owners.length) {
       const ownerIds = owners.map((owner) => owner.id);
       const { data, error } = await admin
         .from("owner_private_details")
@@ -98,6 +98,9 @@ Deno.serve(async (request) => {
         can_view: allowed && Boolean(document.google_file_id) && ["uploaded", "verified"].includes(document.status)
       };
     });
+    const consent = first(parcel.consent_records);
+    const acquisition = first(parcel.acquisition_cases);
+    const canReadImportSource = role === "admin";
     return response({
       role,
       parcel: {
@@ -114,16 +117,16 @@ Deno.serve(async (request) => {
         bunch_number: parcel.bunch_number,
         latitude: parcel.latitude,
         longitude: parcel.longitude,
-        source_workbook: parcel.source_workbook,
-        source_row_number: parcel.source_row_number,
+        source_workbook: canReadImportSource ? parcel.source_workbook : null,
+        source_row_number: canReadImportSource ? parcel.source_row_number : null,
         village: first(parcel.villages),
-        consent: first(parcel.consent_records),
-        acquisition: first(parcel.acquisition_cases),
+        consent: consent ? { status: consent.status, received_on: consent.received_on, remarks: consent.remarks, source_value: canReadImportSource ? consent.source_value : null } : null,
+        acquisition: acquisition ? { ...acquisition, source_fields: canReadImportSource ? acquisition.source_fields : null } : null,
         legal: first(parcel.legal_reviews),
         owners: owners.map((owner) => ({
           id: owner.id,
           display_name: owner.display_name,
-          source_owner_text: owner.source_owner_text,
+          source_owner_text: canReadImportSource ? owner.source_owner_text : null,
           sequence_no: owner.sequence_no,
           is_primary: owner.is_primary
         })),
@@ -134,6 +137,6 @@ Deno.serve(async (request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not load the survey record.";
     const safeMessage = /authentication|role/i.test(message) ? message : "Could not load the survey record.";
-    return response({ error: safeMessage }, 500, headers);
+    return response({ error: safeMessage }, /authentication/i.test(message) ? 401 : /role/i.test(message) ? 403 : 500, headers);
   }
 });

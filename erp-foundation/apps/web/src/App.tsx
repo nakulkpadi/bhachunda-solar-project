@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
+  authCallbackType,
   consentLabel,
   downloadPatelReport,
-  getSession,
   isSupabaseConfigured,
   linkExistingDriveFile,
   loadGoogleDriveConnectionStatus,
@@ -16,12 +16,16 @@ import {
   recordConsent,
   saveOwnerDetails,
   saveParcelWorkflow,
-  signIn,
   signOut,
   startGoogleDriveConnection,
   supabase,
   uploadDriveDocument
 } from "./api";
+import { AccessLanding } from "./AccessLanding";
+import { UserManagement } from "./UserManagement";
+import { SurveyComments } from "./SurveyComments";
+import { csvValue } from "./csv-export";
+import { attachMapNavigation, zoomMapView } from "./map-interactions";
 import { demoParcels } from "./demo";
 import { ConsentEntry } from "./ConsentEntry";
 import { DriveFolderSetup } from "./DriveFolderSetup";
@@ -43,7 +47,7 @@ import type {
   ParcelWorkflowInput
 } from "./types";
 
-type ViewId = "dashboard" | "registry" | "details" | "consent" | "entry" | "documents" | "reports" | "map";
+type ViewId = "dashboard" | "registry" | "details" | "consent" | "entry" | "documents" | "reports" | "map" | "users";
 type Notice = { kind: "success" | "error" | "info"; text: string } | null;
 
 const viewTitles: Record<ViewId, string> = {
@@ -54,7 +58,8 @@ const viewTitles: Record<ViewId, string> = {
   entry: "Workflow entry",
   documents: "Documents",
   reports: "Reports",
-  map: "Survey map"
+  map: "Survey map",
+  users: "Users & access"
 };
 
 const navItems: Array<{ id: ViewId; icon: IconName; label: string }> = [
@@ -140,11 +145,6 @@ function buildMetrics(rows: ParcelSummary[]): DashboardMetrics {
   };
 }
 
-function csvValue(value: string | number | null): string {
-  const text = value === null ? "" : String(value);
-  return `"${text.replaceAll('"', '""')}"`;
-}
-
 function downloadCsv(rows: ParcelSummary[], fileName: string): void {
   const columns = ["Village", "Survey no.", "Old survey no.", "Acres", "Consent", "Stage", "Documents", "Verified documents"];
   const data = rows.map((row) => [
@@ -172,17 +172,13 @@ function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<CurrentProfile | null>(null);
   const [sessionChecked, setSessionChecked] = useState(!isSupabaseConfigured);
-  const [parcels, setParcels] = useState<ParcelSummary[]>(demoParcels);
+  const [parcels, setParcels] = useState<ParcelSummary[]>([]);
   const [mapStatuses, setMapStatuses] = useState<MapStatus[]>([]);
   const [mapDefinitions, setMapDefinitions] = useState<MapFeatureDefinition[]>([]);
   const [mapLinks, setMapLinks] = useState<MapFeatureLink[]>([]);
   const [isLiveData, setIsLiveData] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
-  const [showSignIn, setShowSignIn] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [signingIn, setSigningIn] = useState(false);
   const [search, setSearch] = useState("");
   const [villageFilter, setVillageFilter] = useState("all");
   const [consentFilter, setConsentFilter] = useState<"all" | ConsentStatus>("all");
@@ -200,31 +196,38 @@ function App() {
   const [generatingReport, setGeneratingReport] = useState(false);
   const [mapSelection, setMapSelection] = useState<LiveMapSelection>(null);
   const mapRef = useRef<HTMLObjectElement | null>(null);
-  const dialogRef = useRef<HTMLElement | null>(null);
 
-  const isAdmin = profile?.role === "admin" && profile.is_active;
+  const refreshSequence = useRef(0);
+  const authIdentity = useRef<string | null>(null);
+  const [profileChecked, setProfileChecked] = useState(false);
+  const [passwordSetup, setPasswordSetup] = useState(["invite", "recovery"].includes(authCallbackType));
+  const isApproved = Boolean(profile?.is_active && profile.approval_status === "approved");
+  const isAdmin = profile?.role === "admin" && isApproved;
+  const canEdit = Boolean(isApproved && ["admin", "editor"].includes(profile?.role || ""));
 
   useEffect(() => { window.scrollTo({ top: 0 }); }, [activeView]);
 
-  useEffect(() => {
-    if (!showSignIn) return;
-    const previousFocus = document.activeElement as HTMLElement | null;
-    dialogRef.current?.querySelector<HTMLInputElement>('input[type="email"]')?.focus();
-    return () => { previousFocus?.focus(); };
-  }, [showSignIn]);
-
   const refreshLiveData = useCallback(async () => {
     if (!supabase) return;
+    const attempt = ++refreshSequence.current;
     setLoading(true);
     try {
-      const [liveParcels, liveStatuses, definitions, links, nextProfile, connected] = await Promise.all([
+      const nextProfile = await loadMyProfile();
+      if (attempt !== refreshSequence.current) return;
+      setProfile(nextProfile);
+      setProfileChecked(true);
+      if (!nextProfile?.is_active || nextProfile.approval_status !== "approved") {
+        setParcels([]); setMapStatuses([]); setMapDefinitions([]); setMapLinks([]); setSurveyDetail(null); setIsLiveData(false);
+        return;
+      }
+      const [liveParcels, liveStatuses, definitions, links, connected] = await Promise.all([
         loadParcels(),
         loadMapStatuses(),
         loadMapFeatureDefinitions(),
         loadMapFeatureLinks(),
-        loadMyProfile(),
         loadGoogleDriveConnectionStatus().catch(() => false)
       ]);
+      if (attempt !== refreshSequence.current) return;
       setParcels(liveParcels);
       setMapStatuses(liveStatuses);
       setMapDefinitions(definitions);
@@ -233,53 +236,53 @@ function App() {
       setDriveConnected(connected);
       setIsLiveData(true);
     } catch (error) {
+      if (attempt !== refreshSequence.current) return;
       setIsLiveData(false);
-      setParcels(demoParcels);
+      setParcels([]);
       setMapDefinitions([]);
       setMapLinks([]);
-      setProfile(null);
+      setProfileChecked(true);
       setNotice({
         kind: "error",
         text: error instanceof Error ? `Live database is not ready: ${error.message}` : "Live database is not ready yet."
       });
     } finally {
-      setLoading(false);
+      if (attempt === refreshSequence.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     if (!supabase) return;
-    let active = true;
-    void getSession()
-      .then((currentSession) => {
-        if (!active) return;
-        setSession(currentSession);
-        setSessionChecked(true);
-        if (currentSession) void refreshLiveData();
-      })
-      .catch(() => {
-        if (active) setSessionChecked(true);
-      });
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      if (nextSession) void refreshLiveData();
-      if (!nextSession) {
-        setProfile(null);
-        setIsLiveData(false);
-        setParcels(demoParcels);
-        setMapStatuses([]);
-        setMapDefinitions([]);
-        setMapLinks([]);
-        setSurveyDetail(null);
-        setDriveConnected(false);
-        setConnectingDrive(false);
+    const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (authIdentity.current !== (nextSession?.user.id || null)) {
+        authIdentity.current = nextSession?.user.id || null; refreshSequence.current += 1;
+        setProfile(null); setProfileChecked(false); setParcels([]); setMapStatuses([]); setMapDefinitions([]); setMapLinks([]); setSurveyDetail(null); setIsLiveData(false); setLoading(false);
       }
+      setSession(nextSession); setSessionChecked(true);
+      if (event === "PASSWORD_RECOVERY") setPasswordSetup(true);
+      if (!nextSession) { setPasswordSetup(false); setDriveConnected(false); setConnectingDrive(false); }
     });
-    return () => {
-      active = false;
-      data.subscription.unsubscribe();
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (session) void refreshLiveData();
+  }, [session?.user.id, refreshLiveData]);
+
+  useEffect(() => {
+    if (!session) return;
+    const check = async () => {
+      try {
+        const next = await loadMyProfile();
+        if (next?.role !== profile?.role || next?.approval_status !== profile?.approval_status || next?.is_active !== profile?.is_active) await refreshLiveData();
+      } catch { setProfile(null); setIsLiveData(false); setParcels([]); setSurveyDetail(null); }
     };
-  }, [refreshLiveData]);
+    const timer = window.setInterval(() => { if (!document.hidden) void check(); }, 30000);
+    const visible = () => { if (!document.hidden) void check(); };
+    window.addEventListener("focus", visible);
+    document.addEventListener("visibilitychange", visible);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", visible); document.removeEventListener("visibilitychange", visible); };
+  }, [session?.user.id, profile?.role, profile?.approval_status, profile?.is_active, refreshLiveData]);
 
   useEffect(() => {
     const onGoogleDriveResult = (event: MessageEvent<unknown>) => {
@@ -393,29 +396,10 @@ function App() {
     setActiveView(nextView);
   };
 
-  const signInToDatabase = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!isSupabaseConfigured) {
-      setNotice({ kind: "info", text: "Add the project URL and publishable key to apps/web/.env.local first." });
-      return;
-    }
-    setSigningIn(true);
-    try {
-      await signIn(email.trim(), password);
-      setShowSignIn(false);
-      setPassword("");
-      setNotice({ kind: "success", text: "Signed in. Loading your permitted records…" });
-    } catch (error) {
-      setNotice({ kind: "error", text: error instanceof Error ? error.message : "Could not sign in." });
-    } finally {
-      setSigningIn(false);
-    }
-  };
-
   const saveWorkflow = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!isAdmin || !isLiveData) {
-      setNotice({ kind: "info", text: "Only the administrator can update workflow records." });
+    if (!canEdit || !isLiveData) {
+      setNotice({ kind: "info", text: "Your account cannot update workflow records." });
       return;
     }
     setSavingWorkflow(true);
@@ -431,7 +415,7 @@ function App() {
   };
 
   const changeSurveyRecord = async (parcelId: string, operation: () => Promise<void>): Promise<void> => {
-    if (!isAdmin || !isLiveData || activeParcelId.current !== parcelId) throw new Error("Select the survey using the administrator account first.");
+    if (!canEdit || !isLiveData || activeParcelId.current !== parcelId) throw new Error("Select a survey with an approved Editor or Administrator account first.");
     parcelChangeCount.current += 1;
     setParcelChanges(parcelChangeCount.current);
     try {
@@ -480,18 +464,15 @@ function App() {
   };
 
   const saveConsentEntry = async (input: { status: ConsentStatus; receivedOn: string; reference: string; remarks: string }): Promise<void> => {
-    if (!selectedParcel || !isAdmin || !isLiveData) throw new Error("Only the administrator can record consent.");
-    const sourceValue = input.reference.trim()
-      ? `Manual ERP consent entry · ${input.reference.trim()}`
-      : "Manual ERP consent entry";
+    if (!selectedParcel || !canEdit || !isLiveData) throw new Error("An approved Editor or Administrator account is required to record consent.");
+    const remarks = [input.reference.trim() ? `Reference: ${input.reference.trim()}` : "", input.remarks.trim()].filter(Boolean).join("\n");
     const parcelId = selectedParcel.id;
     await changeSurveyRecord(parcelId, async () => {
       await recordConsent({
         parcelId,
         status: input.status,
         receivedOn: input.status === "received" ? input.receivedOn : undefined,
-        sourceValue,
-        remarks: input.remarks
+        remarks
       });
       await refreshLiveData();
     });
@@ -554,6 +535,7 @@ function App() {
     const svgDocument = mapRef.current?.contentDocument;
     if (!svgDocument) return;
     const root = svgDocument.documentElement;
+    attachMapNavigation(root as unknown as SVGSVGElement);
     if (!root.dataset.cadViewBox && root.getAttribute("viewBox")) root.dataset.cadViewBox = root.getAttribute("viewBox") ?? "";
     // The CAD labels sit above their boundaries. Let a click pass through the
     // text to the linked survey boundary below it.
@@ -643,20 +625,7 @@ function App() {
 
   const zoomMap = useCallback((factor: number) => {
     const root = mapRef.current?.contentDocument?.documentElement;
-    const initial = root?.dataset.fitViewBox ?? root?.dataset.cadViewBox;
-    if (!root || !initial) return;
-    const current = (root.getAttribute("viewBox") ?? initial).trim().split(/[\s,]+/).map(Number);
-    const boundary = initial.trim().split(/[\s,]+/).map(Number);
-    if (current.length !== 4 || boundary.length !== 4 || current.some(Number.isNaN)) return;
-    const x = current[0];
-    const y = current[1];
-    const width = current[2];
-    const height = current[3];
-    const initialWidth = boundary[2];
-    const initialHeight = boundary[3];
-    const nextWidth = Math.max(initialWidth * 0.03, Math.min(initialWidth, width * factor));
-    const nextHeight = Math.max(initialHeight * 0.03, Math.min(initialHeight, height * factor));
-    root.setAttribute("viewBox", String(x + (width - nextWidth) / 2) + " " + String(y + (height - nextHeight) / 2) + " " + String(nextWidth) + " " + String(nextHeight));
+    if (root) zoomMapView(root as unknown as SVGSVGElement, factor);
   }, []);
 
   const resetMap = useCallback(() => {
@@ -673,8 +642,12 @@ function App() {
     );
   }, [parcels, villageFilter, consentFilter, stageFilter]);
 
+  if (!session || !isApproved || passwordSetup) {
+    return <AccessLanding profile={profile} email={session?.user.email} loading={!sessionChecked || Boolean(session && !profileChecked)} passwordSetup={passwordSetup && Boolean(session)} onPasswordDone={() => { setPasswordSetup(false); void refreshLiveData(); }} onRefresh={() => void refreshLiveData()} />;
+  }
+
   const consentPercent = metrics.totalParcels ? Math.round((metrics.receivedCount / metrics.totalParcels) * 100) : 0;
-  const liveLabel = isLiveData ? "Project records" : "Sample preview";
+  const liveLabel = isLiveData ? "Project records" : "Loading records";
   const inEntryWorkspace = entryViews.some((item) => item.id === activeView);
   const activeNav = activeView === "details" ? "registry" : inEntryWorkspace ? "consent" : activeView;
 
@@ -688,7 +661,7 @@ function App() {
         </div>
         <div className="sidebar-project"><span className="eyebrow">Land acquisition</span><span>Kutch, Gujarat · 3 villages</span></div>
         <nav className="nav-list" aria-label="Project sections">
-          {navItems.map((item) => (
+          {[...navItems, ...(isAdmin ? [{ id: "users" as ViewId, icon: "users" as IconName, label: "Users & access" }] : [])].map((item) => (
             <button
               aria-current={activeNav === item.id ? "page" : undefined}
               className={`nav-item ${activeNav === item.id ? "is-active" : ""}`}
@@ -717,16 +690,8 @@ function App() {
           </div>
           <div className="topbar-actions">
             {loading && <span className="muted">Refreshing…</span>}
-            {session ? (
-              <>
-                <span className="account-chip" title={session.user.email ?? "Signed-in user"}>{profile?.role === "admin" ? "Administrator" : "View access"}<small>{profile?.full_name || session.user.email || "Signed in"}</small></span>
-                <button className="button button-secondary" onClick={() => void signOut()} type="button">Sign out</button>
-              </>
-            ) : (
-              <button className="button button-primary" disabled={!sessionChecked} onClick={() => setShowSignIn(true)} type="button">
-                {sessionChecked ? "Sign in" : "Checking session…"}
-              </button>
-            )}
+            <span className="account-chip" title={session.user.email ?? "Signed-in user"}>{profile?.role === "admin" ? "Administrator" : profile?.role === "editor" ? "Editor" : profile?.role === "commenter" ? "Commenter" : "Viewer"}<small>{profile?.full_name || session.user.email || "Signed in"}</small></span>
+            <button className="button button-secondary" onClick={() => void signOut()} type="button">Sign out</button>
           </div>
         </header>
 
@@ -740,7 +705,7 @@ function App() {
 
         {!isLiveData && (
           <section className="preview-banner">
-            <span className="preview-label">Preview</span><span>Sample records shown. Sign in for your project data.</span>
+            <span className="preview-label">Project records</span><span>Project records are loading or temporarily unavailable.</span>
           </section>
         )}
 
@@ -748,6 +713,7 @@ function App() {
           {isAdmin && isLiveData && <DriveFolderSetup connected={driveConnected} onConnectDrive={() => void connectPersonalDrive()} selectedParcelId={selectedParcel?.id} selectedLabel={selectedParcel ? `${selectedParcel.village_name} · Survey ${selectedParcel.survey_number}` : undefined} visible={activeView === "documents"} />}
           {activeView === "details" && <button className="back-link" onClick={() => setActiveView("registry")} type="button"><Icon name="back" /> Back to land register</button>}
           {inEntryWorkspace && <nav className="workspace-tabs" aria-label="Entry type">{entryViews.map((item) => <button aria-current={activeView === item.id ? "page" : undefined} className={activeView === item.id ? "is-active" : ""} key={item.id} onClick={() => setActiveView(item.id)} type="button">{item.label}</button>)}</nav>}
+          {activeView === "users" && isAdmin && <UserManagement />}
           {activeView === "dashboard" && (
             <Dashboard
               metrics={metrics}
@@ -780,7 +746,7 @@ function App() {
               selectedParcel={selectedParcel}
               detail={activeDetail}
               loading={detailLoading}
-              isAdmin={isAdmin}
+              isAdmin={canEdit}
               onSelect={selectParcel}
               onGoConsent={() => setActiveView("consent")}
               onGoDocuments={() => setActiveView("documents")}
@@ -793,7 +759,7 @@ function App() {
               selectedParcel={selectedParcel}
               detail={activeDetail}
               loading={detailLoading}
-              isAdmin={isAdmin}
+              isAdmin={canEdit}
               onSelect={selectParcel}
               onSave={saveConsentEntry}
               onGoDetails={() => setActiveView("details")}
@@ -805,7 +771,7 @@ function App() {
               rows={parcels}
               selectedParcel={selectedParcel}
               workflow={workflow}
-              isWritable={Boolean(isAdmin && isLiveData && !detailLoading)}
+              isWritable={Boolean(canEdit && isLiveData && !detailLoading)}
               saving={savingWorkflow}
               onSelect={setSelectedParcelId}
               onChange={setWorkflow}
@@ -819,7 +785,7 @@ function App() {
               selectedParcel={selectedParcel}
               detail={activeDetail}
               loading={detailLoading}
-              isAdmin={isAdmin}
+              isAdmin={canEdit}
               onSelect={selectParcel}
               workspace={consentWorkspace}
             />
@@ -861,33 +827,11 @@ function App() {
               onGoRegistry={() => setActiveView("registry")}
             />
           )}
+          {["details", "consent", "documents"].includes(activeView) && activeDetail && <SurveyComments key={activeDetail.id} parcelId={activeDetail.id} userId={session.user.id} role={profile?.role || "viewer"} />}
         </section>
       </main>
 
-      {showSignIn && (
-        <div className="dialog-backdrop" role="presentation" onMouseDown={() => setShowSignIn(false)}>
-          <section className="dialog" ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sign-in-title" onMouseDown={(event) => event.stopPropagation()} onKeyDown={(event) => {
-            if (event.key === "Escape") { setShowSignIn(false); return; }
-            if (event.key !== "Tab") return;
-            const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [tabindex="0"]'));
-            const first = controls[0];
-            const last = controls[controls.length - 1];
-            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-            if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-          }}>
-            <button className="dialog-close" aria-label="Close" onClick={() => setShowSignIn(false)} type="button">×</button>
-            <div className="eyebrow">Bhachunda solar project</div>
-            <h2 id="sign-in-title">Welcome back</h2>
-            <p>Sign in with your project account to open the land register.</p>
-            <form className="stack-form" onSubmit={signInToDatabase}>
-              <label>Email<input autoComplete="email" onChange={(event) => setEmail(event.target.value)} required type="email" value={email} /></label>
-              <label>Password<input autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label>
-              <button className="button button-primary button-wide" disabled={signingIn} type="submit">{signingIn ? "Signing in…" : "Sign in"}</button>
-            </form>
-            <p className="fine-print">Only the administrator can edit project records.</p>
-          </section>
-        </div>
-      )}
+
     </div>
   );
 }
@@ -1095,7 +1039,7 @@ function WorkflowEntry({
           <label className="field-full">Legal / operational remarks<textarea onChange={(event) => update("legalRemarks", event.target.value)} placeholder="Review findings or pending documents" rows={4} value={workflow.legalRemarks} /></label>
         </div></details>
       </fieldset>
-      <div className="form-footer"><span>{isWritable ? "Changes are recorded against this survey." : "Only the administrator can save changes."}</span><button className="button button-primary" disabled={!isWritable || saving} type="submit">{saving ? "Saving…" : "Save workflow"}</button></div>
+      <div className="form-footer"><span>{isWritable ? "Changes are recorded against this survey." : "An approved Editor or Administrator can save changes."}</span><button className="button button-primary" disabled={!isWritable || saving} type="submit">{saving ? "Saving…" : "Save workflow"}</button></div>
     </form>
   </div>;
 }

@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import type { ParcelSummary } from "./types";
 
-export type IconName = "overview" | "register" | "map" | "reports" | "entry" | "search" | "arrow" | "back" | "filter" | "chevron";
+export type IconName = "overview" | "register" | "map" | "reports" | "entry" | "search" | "arrow" | "back" | "filter" | "chevron" | "users";
 
 const iconPaths: Record<IconName, ReactNode> = {
   overview: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
@@ -13,6 +13,7 @@ const iconPaths: Record<IconName, ReactNode> = {
   arrow: <path d="M5 12h14m-5-5 5 5-5 5" />,
   back: <path d="M19 12H5m5-5-5 5 5 5" />,
   filter: <><path d="M3 6h18M6 12h12M9 18h6" /></>,
+  users: <><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-4-5"/></>,
   chevron: <path d="m8 10 4 4 4-4" />
 };
 

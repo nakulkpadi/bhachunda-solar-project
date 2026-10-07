@@ -7,24 +7,23 @@ documents.
 ## 1. Create the Supabase foundation
 
 1. Open the existing `bhachunda-solar-erp` Supabase project.
-2. Run `supabase/migrations/20261002_001_land_erp.sql` through the Supabase
-   SQL editor or Supabase CLI. This creates all tables, roles, Row Level
-   Security policies, report views and Drive integration records.
-3. In **Authentication → Providers**, turn off public email sign-up unless
-   public access is a deliberate requirement. Invite the first staff user
-   instead.
+2. Apply all migrations in order through the Supabase CLI. The live project
+   already has its data and migrations; do not rerun the initial importer.
+3. Keep email sign-up enabled for this project's public access-request page.
+   New profiles default to inactive and pending. Follow
+   [USER_ACCESS_SETUP.md](./USER_ACCESS_SETUP.md) for email delivery.
 4. After that user has signed in once, change their row in `public.profiles`
    to `admin` in the SQL editor:
 
    ```sql
    update public.profiles
-   set role = 'admin'
+   set role = 'admin', is_active = true, approval_status = 'approved', approved_at = now()
    where id = 'THE_AUTH_USER_UUID';
    ```
 
-   Use the UUID from **Authentication → Users**. Invite all other staff and
-   assign only the least privilege role they need: `data_entry`, `legal`,
-   `finance`, or `viewer`.
+   The existing primary administrator is already configured. Use **Users &
+   access** in the ERP to invite and approve other staff as Editor, Viewer or
+   Commenter. Browser clients cannot change profile privileges directly.
 
 ## 2. Configure personal Google Drive OAuth
 

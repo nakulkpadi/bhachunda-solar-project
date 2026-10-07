@@ -22,7 +22,7 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers });
   if (request.method !== "GET") return json({ error: "Method not allowed." }, 405, headers);
   try {
-    const { admin } = await requireRole(request, ["admin"]);
+    const { admin } = await requireRole(request, ["admin", "editor"]);
     const { data, error } = await admin
       .from("integration_secrets")
       .select("key")

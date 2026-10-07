@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2.117.2";
 
-export type AppRole = "admin" | "data_entry" | "legal" | "finance" | "viewer";
+export type AppRole = "admin" | "editor" | "commenter" | "data_entry" | "legal" | "finance" | "viewer";
 export const GOOGLE_REFRESH_TOKEN_KEY = "google_drive_oauth_refresh_token";
 export const GOOGLE_DRIVE_SCOPE = Deno.env.get("GOOGLE_DRIVE_OAUTH_SCOPE") || "https://www.googleapis.com/auth/drive";
 
@@ -157,8 +157,8 @@ export async function requireRole(request: Request, roles: AppRole[]): Promise<{
   const admin = createAdminClient();
   const { data: userResult, error: userError } = await admin.auth.getUser(authorization.slice("Bearer ".length));
   if (userError || !userResult.user) throw new Error("Authentication is invalid or expired.");
-  const { data: profile, error: profileError } = await admin.from("profiles").select("role,is_active").eq("id", userResult.user.id).maybeSingle();
+  const { data: profile, error: profileError } = await admin.from("profiles").select("role,is_active,approval_status").eq("id", userResult.user.id).maybeSingle();
   const role = profile?.role as AppRole | undefined;
-  if (profileError || !profile?.is_active || !role || !roles.includes(role)) throw new Error("Your role cannot perform this action.");
+  if (profileError || !profile?.is_active || profile.approval_status !== "approved" || !role || !roles.includes(role)) throw new Error("Your role cannot perform this action.");
   return { admin, userId: userResult.user.id };
 }

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test:integration": "node --experimental-vm-modules --test ../../supabase/tests/consent-workspace.test.mjs",
+    "test:integration": "node --experimental-vm-modules --test ../../supabase/tests/*.test.mjs",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {

@@ -13,6 +13,7 @@ import type { OwnerDetailsInput } from "./types";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY)?.trim();
+export const authCallbackType = new URLSearchParams(window.location.hash.slice(1)).get("type") || "";
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseKey && !supabaseUrl.includes("your-project"));
 export const supabase: SupabaseClient | null = isSupabaseConfigured
@@ -43,6 +44,56 @@ export async function signOut(): Promise<void> {
   if (error) throw error;
 }
 
+export async function createAccount(fullName: string, email: string, password: string): Promise<void> {
+  const { error } = await requiredClient().auth.signUp({ email, password, options: { data: { full_name: fullName }, emailRedirectTo: new URL("./index.html", window.location.href).href } });
+  if (error) throw error;
+}
+
+export async function resetPassword(email: string): Promise<void> {
+  const { error } = await requiredClient().auth.resetPasswordForEmail(email, { redirectTo: new URL("./index.html", window.location.href).href });
+  if (error) throw error;
+}
+
+export async function setAccountPassword(password: string): Promise<void> {
+  const { error } = await requiredClient().auth.updateUser({ password });
+  if (error) throw error;
+}
+
+export interface ProjectAccount extends CurrentProfile {
+  id: string; email: string; created_at: string; approved_at: string | null; invited_by: string | null;
+}
+
+export async function loadProjectAccounts(): Promise<ProjectAccount[]> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/manage-users`, { headers: await sessionHeaders(), cache: "no-store" });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "Could not load accounts.");
+  return body.users || [];
+}
+
+export async function manageProjectAccount(input: { action: "invite" | "approve" | "reject" | "suspend" | "role"; user_id?: string; role: string; email?: string; full_name?: string }): Promise<void> {
+  const response = await fetch(`${supabaseUrl}/functions/v1/manage-users`, { method: "POST", headers: { ...await sessionHeaders(), "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "Account action failed.");
+}
+
+export interface SurveyComment { id: string; user_id: string; body: string; author_name: string; created_at: string }
+export async function loadSurveyComments(parcelId: string): Promise<SurveyComment[]> {
+  const { data, error } = await requiredClient().from("survey_comments").select("id,user_id,body,author_name,created_at").eq("parcel_id", parcelId).order("created_at", { ascending: false }).limit(100);
+  if (error) throw error;
+  return data || [];
+}
+export async function addSurveyComment(parcelId: string, body: string): Promise<void> {
+  const client = requiredClient();
+  const { data, error: authError } = await client.auth.getUser();
+  if (authError || !data.user) throw new Error("Please sign in.");
+  const { error } = await client.from("survey_comments").insert({ parcel_id: parcelId, user_id: data.user.id, body });
+  if (error) throw error;
+}
+export async function deleteSurveyComment(id: string): Promise<void> {
+  const { error } = await requiredClient().from("survey_comments").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function loadMyProfile(): Promise<CurrentProfile | null> {
   const client = requiredClient();
   const { data: userData, error: userError } = await client.auth.getUser();
@@ -50,7 +101,7 @@ export async function loadMyProfile(): Promise<CurrentProfile | null> {
   if (!userData.user) return null;
   const { data, error } = await client
     .from("profiles")
-    .select("full_name,role,is_active")
+    .select("full_name,role,is_active,approval_status,email")
     .eq("id", userData.user.id)
     .maybeSingle();
   if (error) throw error;
@@ -115,21 +166,18 @@ export async function recordConsent(input: {
   parcelId: string;
   status: ConsentStatus;
   receivedOn?: string;
-  sourceValue?: string;
   remarks?: string;
 }): Promise<void> {
   const client = requiredClient();
   const { data: userData, error: userError } = await client.auth.getUser();
   if (userError) throw userError;
   if (!userData.user) throw new Error("Please sign in first.");
-  const sourceValue = input.status === "received" ? (input.sourceValue?.trim() || "Manual ERP consent entry") : null;
   const { error } = await client
     .from("consent_records")
     .upsert({
       parcel_id: input.parcelId,
       status: input.status,
       received_on: input.status === "received" ? (input.receivedOn || new Date().toISOString().slice(0, 10)) : null,
-      source_value: sourceValue,
       remarks: input.remarks || null,
       updated_by: userData.user.id
     }, { onConflict: "parcel_id" });
@@ -250,13 +298,13 @@ export async function linkExistingDriveFile(parcelId: string, code: string, file
   if (!response.ok || !payload.linked) throw new Error(payload.error || "Could not link this Drive file.");
 }
 
-export interface DriveSetupProgress { total: number; completed: number; remaining: number; processed?: number; account_email?: string | null; blocked_folders?: Array<{ id: string; name: string }> }
+export interface DriveSetupProgress { total: number; completed: number; remaining: number; processed?: number; account_email?: string | null; public_folders?: string[]; blocked_folders?: Array<{ id: string; name: string }> }
 
-export async function driveFolderSetup(parcelId?: string, readOnly = false): Promise<DriveSetupProgress> {
+export async function driveFolderSetup(parcelId?: string, readOnly = false, repairExisting = false): Promise<DriveSetupProgress> {
   const response = await fetch(`${supabaseUrl}/functions/v1/drive-folder-setup`, {
     method: readOnly ? "GET" : "POST",
     headers: { ...await sessionHeaders(), "Content-Type": "application/json" },
-    ...(readOnly ? {} : { body: JSON.stringify({ parcel_id: parcelId }) }),
+    ...(readOnly ? {} : { body: JSON.stringify(repairExisting ? { action: "repair_existing" } : { parcel_id: parcelId }) }),
     cache: "no-store"
   });
   const payload = await response.json().catch(() => ({}));

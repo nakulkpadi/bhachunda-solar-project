@@ -81,6 +81,21 @@ async function ensureChildren(token: string, parentId: string, names: Record<str
   return result;
 }
 
+export async function ensureExistingTemplate(admin: SupabaseClient, token: string, folder: { id: string; name: string; parentId: string; village: string; parcelId?: string }): Promise<void> {
+  await withFolderLease(admin, `existing:${folder.id}`, async () => {
+    const main = await ensureChildren(token, folder.id, { kyc: "KYC With Bank Details", legal: "Legal Documents", other: "Other" });
+    const legal = await ensureChildren(token, main.legal, LEGAL_FOLDERS);
+    let ownerFolders: Record<string,string> = {};
+    if (folder.parcelId) {
+      const { data: owners, error } = await admin.from("parcel_owners").select("id,display_name,sequence_no").eq("parcel_id",folder.parcelId).order("sequence_no",{ascending:true,nullsFirst:false}).order("id");
+      if (error) throw new Error("Could not load owners for the existing folder.");
+      ownerFolders = await ensureChildren(token, main.kyc, Object.fromEntries((owners || []).map((owner: Owner,index: number) => [owner.id,ownerFolderName(owner,index)])));
+    }
+    const { error } = await admin.from("drive_existing_folder_templates").upsert({ google_folder_id: folder.id, parent_folder_id: folder.parentId, village_name: folder.village, survey_name: folder.name, parcel_id: folder.parcelId || null, structure: { kyc_id:main.kyc,legal_id:main.legal,other_id:main.other,legal,owners:ownerFolders },checked_at:new Date().toISOString() });
+    if (error) throw new Error("Could not save the existing folder structure.");
+  });
+}
+
 function completeStructure(value: unknown, rootId: string, owners: Owner[]): value is FolderStructure {
   if (!value || typeof value !== "object") return false;
   const s = value as FolderStructure;

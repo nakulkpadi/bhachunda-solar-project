@@ -12,7 +12,7 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers });
   if (!["GET", "POST"].includes(request.method)) return json({ error: "Method not allowed." }, 405, headers);
   try {
-    const { admin, userId } = await requireRole(request, ["admin"]);
+    const { admin, userId } = await requireRole(request, ["admin", "editor"]);
     const query = new URL(request.url).searchParams;
     let body: Record<string, unknown> = {};
     if (request.method === "POST") {

@@ -8,7 +8,7 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers });
   if (request.method !== "GET") return json({ error: "Method not allowed." }, 405, headers);
   try {
-    const { admin, userId } = await requireRole(request, ["admin", "data_entry", "legal", "finance", "viewer"]);
+    const { admin, userId } = await requireRole(request, ["admin", "editor", "commenter", "data_entry", "legal", "finance", "viewer"]);
     const documentId = new URL(request.url).searchParams.get("document_id") ?? "";
     if (!UUID.test(documentId)) return json({ error: "Select an attached document." }, 400, headers);
     const { data: profile, error: profileError } = await admin.from("profiles").select("role").eq("id", userId).single();

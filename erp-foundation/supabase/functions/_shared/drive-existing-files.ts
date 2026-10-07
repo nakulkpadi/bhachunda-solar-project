@@ -84,10 +84,17 @@ export async function resolveVillageFolder(token: string, rootId: string, villag
   return villages[0]?.id || await createFolder(villageName, rootId);
 }
 
+export function surveyFolderKey(name: string): string {
+  return name.normalize("NFKC").trim().toLocaleLowerCase()
+    .replace(/[૦-૯]/g, digit => String("૦૧૨૩૪૫૬૭૮૯".indexOf(digit)))
+    .replace(/(\d)\s*p\s*(\d)/g, "$1-p$2")
+    .replace(/[\s/_-]+/g, "-");
+}
+
 export async function resolveSurveyFolder(token: string, rootId: string, villageName: string, surveyNumber: string, createFolder: (name: string, parentId: string) => Promise<string>, knownVillageId?: string): Promise<string> {
   const villageId = knownVillageId || await resolveVillageFolder(token, rootId, villageName, createFolder);
-  const surveyKey = (name: string) => name.normalize("NFKC").trim().toLocaleLowerCase().replace(/[૦-૯]/g, (digit) => String("૦૧૨૩૪૫૬૭૮૯".indexOf(digit)));
-  const surveys = (await childFolders(token, villageId)).filter((folder) => surveyKey(folder.name) === surveyKey(surveyNumber));
-  if (surveys.length > 1) throw new Error("More than one folder matched this survey. Please check its Drive folders.");
-  return surveys[0]?.id || await createFolder(surveyNumber, villageId);
+  const surveys = (await childFolders(token, villageId)).filter(folder => surveyFolderKey(folder.name) === surveyFolderKey(surveyNumber));
+  const exact = surveys.filter(folder => folder.name.normalize("NFKC").trim() === surveyNumber.normalize("NFKC").trim());
+  if (surveys.length > 1 && exact.length !== 1) throw new Error("More than one folder matched this survey. Please check its Drive folders.");
+  return exact[0]?.id || surveys[0]?.id || await createFolder(surveyNumber, villageId);
 }

@@ -28,5 +28,5 @@ export function normaliseOwnerDetails(input: unknown): Record<string, string | n
 }
 
 export function mayViewDocument(role: string, sensitive: boolean): boolean {
-  return role === "admin" || (!sensitive && ["viewer", "data_entry", "legal", "finance"].includes(role));
+  return ["admin", "editor"].includes(role) || (!sensitive && ["viewer", "commenter", "data_entry", "legal", "finance"].includes(role));
 }

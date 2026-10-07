@@ -30,3 +30,9 @@ verify_jwt = true
 
 [functions.drive-folder-setup]
 verify_jwt = true
+
+[functions.manage-users]
+verify_jwt = true
+
+[functions.patel-report]
+verify_jwt = true

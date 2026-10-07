@@ -64,8 +64,10 @@ export function ConsentEntry({
     if (!selectedParcel) return;
     setStatus(detail?.consent?.status ?? "received");
     setReceivedOn(detail?.consent?.received_on ?? today());
-    setReference(referenceFromSource(detail?.consent?.source_value));
-    setRemarks(detail?.consent?.remarks ?? "");
+    const savedRemarks = detail?.consent?.remarks ?? "";
+    const referenceMatch = /^Reference: ([^\n]*)\n?/.exec(savedRemarks);
+    setReference(referenceMatch?.[1] ?? referenceFromSource(detail?.consent?.source_value));
+    setRemarks(referenceMatch ? savedRemarks.slice(referenceMatch[0].length) : savedRemarks);
     setSaveError("");
   }, [selectedParcel?.id, detail?.consent?.status, detail?.consent?.received_on, detail?.consent?.remarks, detail?.consent?.source_value]);
 

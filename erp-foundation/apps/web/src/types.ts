@@ -1,4 +1,4 @@
-export type AppRole = "admin" | "data_entry" | "legal" | "finance" | "viewer";
+export type AppRole = "admin" | "editor" | "commenter" | "data_entry" | "legal" | "finance" | "viewer";
 export type ConsentStatus = "received" | "pending" | "not_ready" | "blocked" | "rejected";
 export type AcquisitionStage = "identified" | "consent" | "legal" | "nfa" | "payment" | "executed" | "closed" | "blocked";
 
@@ -6,6 +6,8 @@ export interface CurrentProfile {
   full_name: string | null;
   role: AppRole;
   is_active: boolean;
+  approval_status: "pending" | "approved" | "rejected" | "suspended";
+  email?: string;
 }
 
 export interface ParcelSummary {
