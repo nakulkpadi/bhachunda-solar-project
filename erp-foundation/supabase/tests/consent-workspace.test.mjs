@@ -38,7 +38,13 @@ async function harness(slug, overrides = {}) {
     return { data: null, error: null };
   };
   const admin = {
-    rpc: async (name) => ({ data: name === "acquire_drive_folder_lease" ? !state.leaseBusy : null, error: null }),
+    rpc: async (name, args = {}) => {
+      // Match the production lease function's accepted scope prefixes.
+      if (name === "acquire_drive_folder_lease" && !/^(parcel:|village:|existing:)/.test(args.scope_key || "")) {
+        return { data: null, error: { message: "Invalid folder lease scope." } };
+      }
+      return { data: name === "acquire_drive_folder_lease" ? !state.leaseBusy : null, error: null };
+    },
     auth: { getUser: async (token) => ({ data: { user: token === "valid-session" ? { id: "test-admin-user" } : null }, error: null }) },
     from(table) {
       let operation = "select", values, filters = {};

@@ -131,7 +131,7 @@ export async function ensureSurveyStructure(admin: SupabaseClient, token: string
 export async function uploadFolder(admin: SupabaseClient, token: string, parcelId: string, userId: string, code: string, ownerId?: string | null): Promise<string> {
   if (code === "consent_form_draft") {
     // This explicit draft upload must not resume or repair the survey folder hierarchy.
-    return withFolderLease(admin, `draft:${parcelId}`, async () => {
+    return withFolderLease(admin, `parcel:${parcelId}`, async () => {
       const { data, error } = await admin.from("drive_folders").select("structure").eq("parcel_id", parcelId).maybeSingle();
       const parent = data?.structure?.other_id;
       if (error || !parent || !DRIVE_ID.test(parent)) throw new Error("This survey needs an existing Other folder linked before saving a draft PDF to Drive.");
