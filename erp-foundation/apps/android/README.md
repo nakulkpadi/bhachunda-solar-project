@@ -38,3 +38,11 @@ The first build creates a new release signing identity. Only its encrypted backu
 For later builds, set repository Actions secrets `ANDROID_KEYSTORE_BASE64` (base64 of that PKCS12 file) and `ANDROID_KEYSTORE_PASSWORD` (the saved password). The alias is `bhachunda-erp`. Increase `versionCode` for each update. Never commit the keystore, its password or the backup decryption key to GitHub.
 
 Folder repair is not automatically run by the app or its build. Existing folder work remains paused until requested.
+
+# Unsigned consent generator
+
+Version 1.0.1 adds the generator under More → Consent generator for approved Administrators and Editors. Village, survey, khata, area and owner names prefill from the ERP. Save the form as a separate Supabase draft, then save, share or print its English/Gujarati PDF. Draft PDFs use a separate document category and a targeted child of the survey's existing Other folder. Bulk Drive folder setup and repair are not started.
+
+Generated forms never write to `consent_records`, change map colours, record a signature, or confirm the token payment described by the original legal template. The owner still needs to sign; received consent is recorded through the existing receipt entry.
+
+Android updates must use the original production certificate. The publisher checks its SHA-256 fingerprint before release. Configure `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` in repository Actions secrets using the existing signing backup. A build with another certificate is tested but publication is paused so it cannot replace the installed app.

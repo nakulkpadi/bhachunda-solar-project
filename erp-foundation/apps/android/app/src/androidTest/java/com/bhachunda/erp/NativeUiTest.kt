@@ -51,6 +51,13 @@ class NativeUiTest {
             android.os.ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand("cp ${file.absolutePath} /sdcard/bhachunda-qa/$name")).use{it.readBytes()}
         }
     }
+    @Test fun consentGeneratorUsesNativeFieldsAndUnsignedDraftActions() {
+        val fields=FormFields(date="2026-10-08",survey_number="12/1",khata="0009",has="1.60.57",village_en="Bitta",village_gu="બીટા",owners=listOf("નમૂના માલિક / Sample Owner"))
+        val draft=FormDraft("10000000-0000-4000-8000-000000000001","20000000-0000-4000-8000-000000000001",fields=fields)
+        val vm=ErpViewModel(context.applicationContext as android.app.Application)
+        compose.setContent{ErpTheme{GeneratedFormScreen(UiState(initialLoading=false,signedIn=true,connected=true,profile=Profile(role="editor",is_active=true,approval_status="approved"),formFields=fields,formDraft=draft,formId=draft.id),vm,{_,_->},{_,_->},{})}}
+        compose.onNodeWithText("Unsigned draft",useUnmergedTree=true).assertExists();compose.onNodeWithText("Save draft").performScrollTo().assertIsEnabled();compose.onNodeWithText("Save PDF to phone").performScrollTo().assertIsEnabled();compose.onNodeWithText("Print form").performScrollTo().assertIsEnabled();screenshot("native-consent-generator.png")
+    }
     @Test fun completeCadGeometryIsPackagedAndRenderedNatively() {
         val geometry=parseSurveyMap(context);assertEquals(990,geometry.boundaries.size);assertEquals(1074,geometry.labels.size);assertEquals(990,geometry.boundaries.map{it.id}.toSet().size);assertTrue(geometry.bounds.width()>7000);assertTrue(geometry.bounds.height()>6800)
         compose.setContent{ErpTheme{MapScreen(UiState(initialLoading=false),{})}}

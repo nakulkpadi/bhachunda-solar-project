@@ -11,3 +11,6 @@
 -keep class com.bhachunda.erp.Account { *; }
 -keep class com.bhachunda.erp.DriveItem { *; }
 -keep class com.bhachunda.erp.DriveListing { *; }
+-keep class com.bhachunda.erp.FormFields { *; }
+-keep class com.bhachunda.erp.FormDraft { *; }
+
