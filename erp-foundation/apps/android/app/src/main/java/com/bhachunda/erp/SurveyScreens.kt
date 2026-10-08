@@ -125,7 +125,7 @@ import java.time.LocalDate
 }
 @Composable private fun WorkflowEditor(detail: JsonObject,disabled: Boolean,vm: ErpViewModel) {
     val a=detail.obj("acquisition"); var stage by remember {mutableStateOf(a.value("acquisition_stage").ifBlank{"identified"})};var category by remember{mutableStateOf(a.value("category"))};var target by remember{mutableStateOf(a.value("target_date"))}
-    Picker("Acquisition stage",stage,stageLabels.toList(),{stage=it},!disabled);Field("Category",category,{category=it},!disabled);DateField("Target date",target,{target=it},!disabled);Primary("Save workflow",{vm.workflow(stage,category,target)},!disabled)
+    Picker("Acquisition stage",stage,stageLabels.toList(),{stage=it},!disabled);Field("Category",category,{category=it},!disabled);DateField("Target date",target,{target=it},!disabled);if(target.isNotBlank()) TextButton(onClick={target=""},enabled=!disabled){Text("Clear target date")};Primary("Save workflow",{vm.workflow(stage,category,target)},!disabled)
 }
 @Composable private fun LandEditor(detail: JsonObject,disabled: Boolean,vm: ErpViewModel) {
     var old by remember{mutableStateOf(detail.value("old_survey_number"))};var area by remember{mutableStateOf(detail.value("acreage"))};var bunch by remember{mutableStateOf(detail.value("bunch_number"))}

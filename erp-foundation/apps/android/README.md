@@ -14,7 +14,7 @@ Native Kotlin and Jetpack Compose application for the existing Bhachunda Solar E
 
 ## Privacy and access
 
-Session tokens are AES-GCM encrypted with an Android Keystore key. Passwords are never persisted. Automatic backup/device transfer is disabled. Business data stays in memory; protected temporary files are app-private, removed on logout/access changes and on app startup. Approved ERP screens prevent screenshots. This version has no offline write queue: edits require a successful live connection, and failed requests never show a saved confirmation. Concurrent consent changes are checked before overwriting. The server still provides the final permission checks.
+Session tokens are AES-GCM encrypted with an Android Keystore key. Passwords are never persisted. Automatic backup/device transfer is disabled. Business data stays in memory; protected temporary files are app-private, removed on logout/access changes and on app startup. Screens containing survey/owner details, files, reports and user administration prevent screenshots; the overview and map allow them. This version has no offline write queue: edits require a successful live connection, and failed requests never show a saved confirmation. Concurrent consent changes are checked before overwriting. The server still provides the final permission checks.
 
 The same Drive privacy configuration applies to the web and Android apps. Existing public Drive links remain public until the owner restricts their sharing. The app preserves the server's block on private KYC uploads into publicly shared folders.
 

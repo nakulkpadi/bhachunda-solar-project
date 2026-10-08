@@ -12,7 +12,15 @@ import java.io.File
 class NativeUiTest {
     @get:Rule val compose=createComposeRule()
     private val context get()=InstrumentationRegistry.getInstrumentation().targetContext
-    private fun screenshot(name: String) {val dir=File(context.getExternalFilesDir(null),"qa");dir.mkdirs();File(dir,name).outputStream().use{compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG,100,it)}}
+    private fun screenshot(name: String) {
+        val dir=File(context.getExternalFilesDir(null),"qa");dir.mkdirs();val image=File(dir,name)
+        image.outputStream().use{compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG,100,it)}
+        // Gradle removes the test app after instrumentation. Keep fixture-only
+        // captures outside its app directory so the runner can collect them.
+        val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand("mkdir -p /sdcard/bhachunda-qa")).use{it.readBytes()}
+        android.os.ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand("cp ${image.absolutePath} /sdcard/bhachunda-qa/$name")).use{it.readBytes()}
+    }
     @Test fun loginAndRegistrationAreNativeAndRequireInput() {
         compose.setContent{ErpTheme{AuthScreen(false){_,_,_,_->}}}
         compose.onNodeWithTag("auth-submit").assertIsNotEnabled();compose.onNodeWithText("Create an account").assertExists();screenshot("native-login.png")

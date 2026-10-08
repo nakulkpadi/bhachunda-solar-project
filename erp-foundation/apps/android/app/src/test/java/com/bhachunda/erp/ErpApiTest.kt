@@ -41,6 +41,13 @@ class ErpApiTest {
     @Test fun missingConsentWriteConfirmationFails()=runBlocking {
         reply("[]");try{api.consent("parcel-test",ConsentDraft());fail("Must verify persisted row")}catch(_:IllegalStateException){}
     }
+    @Test fun nonReceivedConsentExplicitlyClearsDateAndEmptyRemarks()=runBlocking {
+        reply("""[{"parcel_id":"parcel-test","status":"pending"}]""")
+        api.consent("parcel-test",ConsentDraft(status="pending"))
+        val body=com.google.gson.JsonParser.parseString(server.takeRequest().body.readUtf8()).asJsonObject
+        assertTrue(body.has("received_on"));assertTrue(body["received_on"].isJsonNull)
+        assertTrue(body.has("remarks"));assertTrue(body["remarks"].isJsonNull)
+    }
     @Test fun uploadSizeRejectedWithoutNetwork()=runBlocking {
         try{api.upload("parcel-test","consent_letter",null,"consent.pdf","application/pdf",ByteArray(15*1024*1024+1));fail("Must reject oversize")}catch(_:IllegalArgumentException){}
         assertEquals(0,server.requestCount)

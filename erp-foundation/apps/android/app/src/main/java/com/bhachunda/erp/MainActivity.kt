@@ -52,9 +52,9 @@ class MainActivity: ComponentActivity() {
                     lifecycle.addObserver(observer);if(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))vm.foreground(true)
                     onDispose{lifecycle.removeObserver(observer);vm.foreground(false)}
                 }
-                LaunchedEffect(state.profile?.approved) {if(state.profile?.approved==true)window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)}
+                LaunchedEffect(state.profile?.approved,state.screen) {if(state.profile?.approved==true && state.screen in setOf("detail","consent","owner","documents","driveBrowser","preview","reports","team"))window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)}
                 LaunchedEffect(state.error,state.message) { val message=state.error ?: state.message;if(message!=null) {snackbar.showSnackbar(message,withDismissAction=true,duration=SnackbarDuration.Long);vm.notice()} }
-                BackHandler(enabled=state.screen!=null) {vm.back()}
+                BackHandler(enabled=state.screen!=null||state.busy) {vm.back()}
                 AppScaffold(state,vm,snackbar,save,share,openUrl)
             }
         }
@@ -64,7 +64,7 @@ class MainActivity: ComponentActivity() {
 @Composable private fun AppScaffold(state: UiState,vm: ErpViewModel,snackbar: SnackbarHostState,onSave: (File,String)->Unit,onShare: (File,String)->Unit,onUrl: (String)->Unit) {
     val approved=state.signedIn&&state.profile?.approved==true
     Scaffold(containerColor=Cream,snackbarHost={SnackbarHost(snackbar)},topBar={
-        if(approved) TopAppBar(title={Column {Text(if(state.screen=="preview")state.previewTitle else "Bhachunda ERP",maxLines=1,style=MaterialTheme.typography.titleMedium);Text(if(state.connected)"Synced ${state.syncedAt} · Auto sync 5s" else "Sync paused · Refresh or reconnect",style=MaterialTheme.typography.labelSmall,color=if(state.connected)Forest else Amber)}},navigationIcon={if(state.screen!=null)IconButton(onClick={vm.back()}){Icon(Icons.Outlined.ArrowBack,contentDescription="Back")}},actions={IconButton(onClick={vm.refreshNow()},enabled=!state.busy){Icon(Icons.Outlined.Refresh,contentDescription="Refresh ERP")}},colors=TopAppBarDefaults.topAppBarColors(containerColor=Cream))
+        if(approved) TopAppBar(title={Column {Text(if(state.screen=="preview")state.previewTitle else "Bhachunda ERP",maxLines=1,style=MaterialTheme.typography.titleMedium);Text(if(state.connected)"Synced ${state.syncedAt} · Auto sync 5s" else "Sync paused · Refresh or reconnect",style=MaterialTheme.typography.labelSmall,color=if(state.connected)Forest else Amber)}},navigationIcon={if(state.screen!=null)IconButton(onClick={vm.back()},enabled=!state.busy){Icon(Icons.Outlined.ArrowBack,contentDescription="Back")}},actions={IconButton(onClick={vm.refreshNow()},enabled=!state.busy){Icon(Icons.Outlined.Refresh,contentDescription="Refresh ERP")}},colors=TopAppBarDefaults.topAppBarColors(containerColor=Cream))
     },bottomBar={
         if(approved&&state.screen==null) NavigationBar(containerColor=Color.White,tonalElevation=0.dp) {
             listOf(Triple("home","Overview",Icons.Outlined.SpaceDashboard),Triple("surveys","Surveys",Icons.Outlined.ViewList),Triple("map","Map",Icons.Outlined.Map),Triple("more","More",Icons.Outlined.MoreHoriz)).forEach { (key,label,icon) -> NavigationBarItem(selected=state.tab==key,onClick={vm.tab(key)},icon={Icon(icon,contentDescription=label)},label={Text(label)},colors=NavigationBarItemDefaults.colors(indicatorColor=Color(0xFFE0EDE2),selectedIconColor=Forest,selectedTextColor=Forest)) }

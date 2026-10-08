@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 class ApiFailure(val code: Int, message: String): Exception(message)
 class AuthExpired: Exception("Your session has ended. Please sign in again.")
 class ErpApi(private val store: SessionStore, private val baseUrl: String = BuildConfig.SUPABASE_URL, private val publicKey: String = BuildConfig.PUBLIC_KEY, private val client: OkHttpClient = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(120, TimeUnit.SECONDS).writeTimeout(120, TimeUnit.SECONDS).build()) {
-    private val gson = Gson()
+    private val gson = GsonBuilder().serializeNulls().create()
     private val sessionLock = Mutex()
     @Volatile var session: Session? = store.read(); private set
     private val jsonType = "application/json; charset=utf-8".toMediaType()
@@ -80,8 +80,9 @@ class ErpApi(private val store: SessionStore, private val baseUrl: String = Buil
     }
     suspend fun profile(): Profile {
         // Revalidate identity before using the live database approval record.
+        val expectedUser=session?.user_id ?: throw AuthExpired()
         val user=json("/auth/v1/user").asJsonObject
-        if(user.value("id")!=session?.user_id) throw AuthExpired()
+        if(user.value("id")!=expectedUser) throw AuthExpired()
         val data=json("/rest/v1/profiles?select=full_name,role,is_active,approval_status,email&id=eq."+encode(user.value("id"))).asJsonArray
         return data.firstOrNull()?.let { gson.fromJson(it,Profile::class.java) } ?: Profile()
     }

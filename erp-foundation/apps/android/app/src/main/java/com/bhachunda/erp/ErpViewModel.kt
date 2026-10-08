@@ -47,9 +47,9 @@ class ErpViewModel(application: Application): AndroidViewModel(application) {
     }
     suspend fun refresh() {
         if(!refreshLock.tryLock()) return
+        val startedEpoch=epoch
         try {
             if(api.session==null) { change { it.copy(initialLoading=false,signedIn=false) }; return }
-            val startedEpoch=epoch
             val profile=api.profile()
             if(startedEpoch!=epoch || api.session==null) return
             if(!profile.approved) { clearAccess(profile); return }
@@ -66,7 +66,7 @@ class ErpViewModel(application: Application): AndroidViewModel(application) {
             val state=mutable.value
             if(!state.busy && state.screen in setOf("detail","documents") && state.selectedId!=null && detailJob?.isActive!=true && (previousSelection!=parcels.find{it.id==state.selectedId} || refreshTick%3==0)) loadDetail(state.selectedId,false)
         } catch(e: CancellationException) { throw e }
-        catch(e: AuthExpired) { clearAccess(); notice(error=e.message) }
+        catch(e: AuthExpired) { if(startedEpoch==epoch) { api.signOut(); clearAccess(); notice(error=e.message) } }
         catch(e: Exception) { change { it.copy(initialLoading=false,connected=false,error=if(it.initialLoading) e.message ?: "Could not connect to the ERP." else it.error) } }
         finally { refreshLock.unlock() }
     }
@@ -90,12 +90,13 @@ class ErpViewModel(application: Application): AndroidViewModel(application) {
             finally { change{it.copy(busy=false)} }
         }
     }
-    fun tab(tab: String) { change{it.copy(tab=tab,screen=null,preview=null)} }
+    fun tab(tab: String) { if(!mutable.value.busy) change{it.copy(tab=tab,screen=null,preview=null)} }
     fun screen(screen: String?) { change{it.copy(screen=screen,error=null,message=null)} }
     fun back() {
+        if(mutable.value.busy) return
         when(mutable.value.screen) { "consent","documents","owner","preview" -> screen("detail"); "driveBrowser" -> screen("documents"); "detail" -> screen(null); else -> screen(null) }
     }
-    fun choose(id: String, screen: String = "detail") { change{it.copy(selectedId=id,detail=null,comments=emptyList(),screen=screen,detailLoading=true,error=null,message=null)}; loadDetail(id) }
+    fun choose(id: String, screen: String = "detail") { if(mutable.value.busy) return; change{it.copy(selectedId=id,detail=null,comments=emptyList(),screen=screen,detailLoading=true,error=null,message=null)}; loadDetail(id) }
     private fun loadDetail(id: String,showLoading: Boolean=true) {
         detailJob?.cancel(); val generation=epoch
         detailJob=viewModelScope.launch {
