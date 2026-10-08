@@ -1,0 +1,68 @@
+name: Publish verified Android APK
+on:
+  workflow_run:
+    workflows: ['Build native Bhachunda Android APK']
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: bhachunda-android-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: { ref: main, persist-credentials: false }
+      - name: Download the tested signed artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: bhachunda-android-signed
+          path: android-apk
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Verify and prepare the native app release
+        id: package
+        env:
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+          BUILD_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: python3 .github/scripts/prepare-android-release.py
+      - name: Publish the APK and encrypted update backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.package.outputs.tag }}
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "This Android version is already published. Increase the app version before publishing an update."
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" publish/*.apk publish/*.zip publish/*.cms publish/*.pem publish/SHA256SUMS.txt publish/signature.txt publish/release-manifest.json publish/INSTALL.txt --repo "$GITHUB_REPOSITORY" --target "$BUILD_SHA" --title "Bhachunda ERP Android" --notes-file publish/RELEASE-NOTES.md
+      - name: Verify the public APK download
+        env:
+          RELEASE_TAG: ${{ steps.package.outputs.tag }}
+          APK_NAME: ${{ steps.package.outputs.apk }}
+          APK_SHA256: ${{ steps.package.outputs.sha256 }}
+        run: |
+          python3 - <<'PY'
+          import os, urllib.request, hashlib, time
+          url = "https://github.com/" + os.environ["GITHUB_REPOSITORY"] + "/releases/download/" + os.environ["RELEASE_TAG"] + "/" + os.environ["APK_NAME"]
+          for attempt in range(6):
+              try:
+                  with urllib.request.urlopen(url, timeout=30) as response:
+                      digest = hashlib.sha256(response.read()).hexdigest()
+                  assert digest == os.environ["APK_SHA256"], "Published APK hash does not match the tested build"
+                  print("Public APK download verified:", digest)
+                  break
+              except Exception:
+                  if attempt == 5:
+                      raise
+                  time.sleep(5)
+          PY
