@@ -39,7 +39,7 @@ const server=createServer((req,res)=>{const name=new URL(req.url,'http://localho
     return route.fulfill({status,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'},body:JSON.stringify(body)});
   });
   try {
-    await page.goto('http://127.0.0.1:4173/index.html');await page.getByLabel('Email address',{exact:true}).fill(user.email);await page.getByLabel('Password',{exact:true}).fill('FixturePassword123!');await page.getByRole('button',{name:'Sign in',exact:true}).click();
+    await page.goto('http://127.0.0.1:4173/index.html');await page.getByLabel('Email address',{exact:true}).fill(user.email);await page.getByLabel('Password',{exact:true}).fill('FixturePassword123!');await page.locator('form').getByRole('button',{name:'Sign in',exact:true}).click();
     await page.getByRole('button',{name:'Consent generator',exact:true}).click();await page.getByLabel('H.Are.Sq.Mt.',{exact:true}).waitFor();assert.equal(await page.getByLabel('H.Are.Sq.Mt.',{exact:true}).inputValue(),'1-56-87');assert.equal(await page.getByLabel('Khata number',{exact:true}).inputValue(),'0009');
     await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByText('Draft saved. Owner consent has not been recorded.',{exact:true}).waitFor();assert.equal(drafts.length,1);assert.equal(drafts[0].state,'draft');
     await page.screenshot({path:path.join(out,'web-consent-generator-desktop.png'),fullPage:true});
@@ -50,5 +50,5 @@ const server=createServer((req,res)=>{const name=new URL(req.url,'http://localho
     await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(out,'web-consent-generator-mobile.png'),fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'Generator overflows mobile screen');
     assert.ok(writes.filter(w=>w.path!=='/auth/v1/token').every(w=>w.path==='/functions/v1/consent-drafts'));assert.equal(rows[0].consent_status,'pending');assert.equal(rows[1].consent_status,'not_ready');assert.deepEqual(failures,[]);
     fs.writeFileSync(path.join(out,'verification.json'),JSON.stringify({passed:true,isolated_api:true,unique_village_survey_drafts:true,received_consent_unchanged:true,mobile_layout:true,pdf:true},null,2));console.log('Generator UI, prefill, duplicate survey identities, PDF and consent separation verified.');
-  }finally{await browser.close();await new Promise(resolve=>server.close(resolve))}
+  }catch(e){await page.screenshot({path:path.join(out,'qa-failure.png'),fullPage:true});fs.writeFileSync(path.join(out,'failure.txt'),String(e)+'\n'+JSON.stringify(failures));throw e}finally{await browser.close();await new Promise(resolve=>server.close(resolve))}
 })().catch(e=>{console.error(e);process.exitCode=1});
