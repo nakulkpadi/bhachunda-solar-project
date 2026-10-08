@@ -54,6 +54,7 @@ jobs:
       - name: Prepare isolated browser verification
         working-directory: .
         run: |
+          sudo apt-get install --yes poppler-utils
           npm install --prefix "$RUNNER_TEMP/erp-browser-qa" --no-audit --no-fund --ignore-scripts playwright@1.62.1
           "$RUNNER_TEMP/erp-browser-qa/node_modules/.bin/playwright" install --with-deps chromium
       - name: Verify consent generator and English/Gujarati PDF
