@@ -37,12 +37,12 @@ export function SurveyPicker({ rows, selectedParcel, onSelect, disabled = false 
     .sort((left, right) => left.survey_number.localeCompare(right.survey_number, undefined, { numeric: true })), [rows, selectedParcel.village_name]);
 
   return <div className="survey-picker">
-    <label>Village<select disabled={disabled} value={selectedParcel.village_name} onChange={(event) => {
+    <label>Village<select aria-label="Village" disabled={disabled} value={selectedParcel.village_name} onChange={(event) => {
       const first = rows.filter((row) => row.village_name === event.target.value)
         .sort((left, right) => left.survey_number.localeCompare(right.survey_number, undefined, { numeric: true }))[0];
       if (first) onSelect(first.id);
     }}>{villages.map((village) => <option key={village} value={village}>{village}</option>)}</select></label>
-    <label>Survey number<select disabled={disabled} value={selectedParcel.id} onChange={(event) => onSelect(event.target.value)}>
+    <label>Survey number<select aria-label="Survey number" disabled={disabled} value={selectedParcel.id} onChange={(event) => onSelect(event.target.value)}>
       {villageRows.map((row) => <option key={row.id} value={row.id}>{row.survey_number}{row.old_survey_number ? ` · old ${row.old_survey_number}` : ""}</option>)}
     </select></label>
     <p className="field-hint">{formatSurveyCount(villageRows.length)} in {selectedParcel.village_name}</p>
