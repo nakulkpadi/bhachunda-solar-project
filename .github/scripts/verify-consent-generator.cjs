@@ -16,6 +16,7 @@ const server=createServer((req,res)=>{const name=new URL(req.url,'http://localho
   await new Promise(resolve=>server.listen(4173,'127.0.0.1',resolve));
   const browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1440,height:1000}});
   page.on('pageerror',e=>failures.push(e.message));
+  await page.routeWebSocket('wss://aqgnkgyhuatpwdlqueat.supabase.co/**',ws=>ws.close());
   await page.route('https://aqgnkgyhuatpwdlqueat.supabase.co/**',async route=>{
     const request=route.request();const url=new URL(request.url());let body;let status=200;
     if(request.method()==='OPTIONS')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'}});

@@ -9,6 +9,7 @@ import { consentPrintHtml } from "./consent-print";
 const localDate=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
 const villageGujarati:Record<string,string>={bhavanipar:"ભવાનીપર",bitta:"બીટા","vandh-timbo":"વાંઢ ટીંબો"};
 function prefill(p:ParcelDetail):ConsentFormFields {
+  if(!p.village)throw new Error("This survey has no linked village. Ask the administrator to check the master record.");
   return { date:localDate(),survey_number:p.survey_number,khata:p.account_number || "",has:normalizeHas(p.hectare_are_sqmt || ""),village_en:p.village.name_en,village_gu:p.village.name_gu || villageGujarati[p.village.code] || "",taluka:p.village.taluka || "Abdasa",district:p.village.district || "Kutch",mobile:"",owners:p.owners.length ? p.owners.map(o=>o.display_name) : [""] };
 }
 export function ConsentGenerator({rows,canEdit}:{rows:ParcelSummary[];canEdit:boolean}) {

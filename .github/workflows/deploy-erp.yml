@@ -10,6 +10,7 @@ on:
       - "erp-foundation/supabase/functions/**"
       - "erp-foundation/supabase/tests/**"
       - "erp-foundation/shared/**"
+      - ".github/scripts/verify-consent-generator.cjs"
       - ".github/workflows/deploy-erp.yml"
 
 permissions:
