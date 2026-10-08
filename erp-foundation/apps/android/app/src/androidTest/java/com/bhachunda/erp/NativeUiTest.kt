@@ -48,7 +48,13 @@ class NativeUiTest {
 
     @Test fun mapTapAndConsentColourFollowTheVisibleBoundary() {
         val geometry=parseSurveyMap(context)
-        val boundary=geometry.boundaries.maxBy { it.bounds.width()*it.bounds.height() }
+        val boundary=geometry.boundaries.maxBy { boundary ->
+            val iterator=android.graphics.RegionIterator(boundary.region)
+            val rectangle=android.graphics.Rect()
+            var area=0L
+            while(iterator.next(rectangle)) area+=rectangle.width().toLong()*rectangle.height()
+            area
+        }
         val clicked=AtomicReference<String>()
         val instrumentation=InstrumentationRegistry.getInstrumentation()
         lateinit var view: SurveyMapView
@@ -56,8 +62,11 @@ class NativeUiTest {
         var point=0
         instrumentation.runOnMainSync {
             view=SurveyMapView(context)
+            // A bitmap fixture uses a software canvas. The separate full-map test
+            // exercises the app's hardware-rendered Android view with all 990 paths.
+            view.setLayerType(android.view.View.LAYER_TYPE_SOFTWARE,null)
             view.layout(0,0,1200,1500)
-            view.geometry=geometry
+            view.geometry=geometry.copy(boundaries=listOf(boundary))
             view.focus(setOf(boundary.id))
             view.statuses=mapOf(boundary.id to "received")
             view.onBoundary={clicked.set(it)}
