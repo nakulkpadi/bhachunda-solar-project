@@ -15,6 +15,7 @@ function prefill(p:ParcelDetail):ConsentFormFields {
 export function ConsentGenerator({rows,canEdit}:{rows:ParcelSummary[];canEdit:boolean}) {
   const [selectedId,setSelectedId]=useState(rows[0]?.id || "");
   const [fields,setFields]=useState<ConsentFormFields|null>(null);
+  const [baseline,setBaseline]=useState<ConsentFormFields|null>(null);
   const [saved,setSaved]=useState<ConsentFormDraft|null>(null);
   const [formId,setFormId]=useState<string>(()=>crypto.randomUUID());
   const [list,setList]=useState<ConsentFormDraft[]>([]);
@@ -25,14 +26,14 @@ export function ConsentGenerator({rows,canEdit}:{rows:ParcelSummary[];canEdit:bo
   const generation=useRef(0);const alive=useRef(true);
   useEffect(()=>{alive.current=true;return()=>{alive.current=false;generation.current++}},[]);
   const selected=rows.find(p=>p.id===selectedId) || rows[0];
-  const dirty=!!fields && (!saved || JSON.stringify(saved.fields)!==JSON.stringify(fields));
+  const dirty=!!fields && JSON.stringify(saved?.fields || baseline)!==JSON.stringify(fields);
   const filtered=list.filter(d=>`${d.fields.village_en} ${d.fields.survey_number} ${d.fields.owners.join(' ')} ${d.fields.mobile}`.toLowerCase().includes(search.toLowerCase()));
   const area=useMemo(()=>{try{return fields ? areaFromHas(fields.has) : null}catch{return null}},[fields?.has]);
   const refresh=async()=>{const drafts=await loadConsentFormDrafts();if(alive.current)setList(drafts)};
   useEffect(()=>{if(!canEdit)return;let cancelled=false;loadConsentFormDrafts().then(d=>{if(!cancelled)setList(d)}).catch(e=>{if(!cancelled)setError(e.message)});const timer=setInterval(()=>{loadConsentFormDrafts().then(d=>{if(!cancelled)setList(d)}).catch(()=>{})},15000);return()=>{cancelled=true;clearInterval(timer)}},[canEdit]);
   const choose=async(id:string)=>{
-    const request=++generation.current;setSelectedId(id);setSaved(null);setFields(null);setFormId(crypto.randomUUID());setPreview(null);setLoading(true);setError("");setMessage("");
-    try{const p=await loadParcelDetail(id);if(alive.current&&request===generation.current)setFields(prefill(p))}catch(e){if(alive.current&&request===generation.current)setError(e instanceof Error?e.message:"Could not prefill the form.")}finally{if(alive.current&&request===generation.current)setLoading(false)}
+    const request=++generation.current;setSelectedId(id);setSaved(null);setFields(null);setBaseline(null);setFormId(crypto.randomUUID());setPreview(null);setLoading(true);setError("");setMessage("");
+    try{const p=await loadParcelDetail(id);if(alive.current&&request===generation.current){const f=prefill(p);setFields(f);setBaseline(f)}}catch(e){if(alive.current&&request===generation.current)setError(e instanceof Error?e.message:"Could not prefill the form.")}finally{if(alive.current&&request===generation.current)setLoading(false)}
   };
   useEffect(()=>{if(canEdit&&selectedId)void choose(selectedId)},[canEdit]);
   const patch=(key:keyof ConsentFormFields,value:string|string[])=>setFields(f=>f?{...f,[key]:value}:f);
