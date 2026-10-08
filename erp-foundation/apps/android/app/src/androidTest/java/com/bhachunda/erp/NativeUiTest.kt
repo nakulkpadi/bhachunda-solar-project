@@ -1,6 +1,11 @@
 package com.bhachunda.erp
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.os.SystemClock
+import android.view.MotionEvent
+import java.util.concurrent.atomic.AtomicReference
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -39,5 +44,44 @@ class NativeUiTest {
         compose.setContent{ErpTheme{MapScreen(UiState(initialLoading=false),{})}}
         compose.waitUntil(10000){compose.onAllNodesWithText("Fit map").fetchSemanticsNodes().isNotEmpty()}
         compose.onNodeWithText("Green means consent received. Pinch to zoom; drag to pan.").assertExists();screenshot("native-full-cad-map.png")
+    }
+
+    @Test fun mapTapAndConsentColourFollowTheVisibleBoundary() {
+        val geometry=parseSurveyMap(context)
+        val boundary=geometry.boundaries.maxBy { it.bounds.width()*it.bounds.height() }
+        val clicked=AtomicReference<String>()
+        val instrumentation=InstrumentationRegistry.getInstrumentation()
+        lateinit var view: SurveyMapView
+        lateinit var received: Bitmap
+        var point=0
+        instrumentation.runOnMainSync {
+            view=SurveyMapView(context)
+            view.layout(0,0,1200,1500)
+            view.geometry=geometry
+            view.focus(setOf(boundary.id))
+            view.statuses=mapOf(boundary.id to "received")
+            view.onBoundary={clicked.set(it)}
+            received=Bitmap.createBitmap(1200,1500,Bitmap.Config.ARGB_8888)
+            view.draw(Canvas(received))
+            val pixels=IntArray(1200*1500)
+            received.getPixels(pixels,0,1200,0,0,1200,1500)
+            val green=Color.rgb(119,187,142)
+            point=(2405 until pixels.size-2405).firstOrNull {
+                pixels[it]==green && pixels[it-2]==green && pixels[it+2]==green &&
+                    pixels[it-2400]==green && pixels[it+2400]==green
+            } ?: error("A received boundary must be visibly green.")
+            val x=(point%1200).toFloat();val y=(point/1200).toFloat();val now=SystemClock.uptimeMillis()
+            MotionEvent.obtain(now,now,MotionEvent.ACTION_DOWN,x,y,0).let { view.dispatchTouchEvent(it);it.recycle() }
+            MotionEvent.obtain(now,now+80,MotionEvent.ACTION_UP,x,y,0).let { view.dispatchTouchEvent(it);it.recycle() }
+        }
+        SystemClock.sleep(450)
+        instrumentation.runOnMainSync {
+            assertEquals("Tapping the green boundary must return that boundary ID",boundary.id,clicked.get())
+            view.statuses=mapOf(boundary.id to "pending")
+            val pending=Bitmap.createBitmap(1200,1500,Bitmap.Config.ARGB_8888)
+            view.draw(Canvas(pending))
+            assertEquals("Pending consent must replace the received colour",Color.rgb(246,210,147),pending.getPixel(point%1200,point/1200))
+            pending.recycle();received.recycle()
+        }
     }
 }
