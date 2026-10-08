@@ -52,6 +52,10 @@ class ErpApiTest {
         try{api.upload("parcel-test","consent_letter",null,"consent.pdf","application/pdf",ByteArray(15*1024*1024+1));fail("Must reject oversize")}catch(_:IllegalArgumentException){}
         assertEquals(0,server.requestCount)
     }
+    @Test fun commentLimitMatchesTheServerBeforeSending()=runBlocking {
+        try{api.addComment("parcel-test","x".repeat(2001));fail("The database allows at most 2,000 characters")}catch(_:IllegalArgumentException){}
+        assertEquals(0,server.requestCount)
+    }
     @Test fun oauthRejectsLookalikeGoogleHost()=runBlocking {
         reply("""{"authorize_url":"https://accounts.google.com.evil.invalid/"}""")
         try{api.driveConnectUrl();fail("Must reject other hosts")}catch(_:IllegalArgumentException){}

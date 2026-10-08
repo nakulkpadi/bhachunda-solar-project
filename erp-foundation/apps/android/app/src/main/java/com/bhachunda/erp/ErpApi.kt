@@ -108,7 +108,7 @@ class ErpApi(private val store: SessionStore, private val baseUrl: String = Buil
     }
     suspend fun saveLegal(parcel: String, remarks: String) { val r=json("/rest/v1/legal_reviews?on_conflict=parcel_id&select=parcel_id","POST",mapOf("parcel_id" to parcel,"legal_remarks" to remarks.ifBlank{null}),prefer="resolution=merge-duplicates,return=representation").asJsonArray; check(r.size()==1) { "Legal notes were not saved." } }
     suspend fun comments(parcel: String): List<Comment> = json("/rest/v1/survey_comments?select=id,user_id,body,author_name,created_at&parcel_id=eq."+encode(parcel)+"&order=created_at.desc&limit=100").asJsonArray.map { gson.fromJson(it,Comment::class.java) }
-    suspend fun addComment(parcel: String, body: String) { require(body.isNotBlank() && body.length<=4000) { "Use 1 to 4,000 characters." }; json("/rest/v1/survey_comments","POST",mapOf("parcel_id" to parcel,"user_id" to (session?.user_id ?: throw AuthExpired()),"body" to body.trim())) }
+    suspend fun addComment(parcel: String, body: String) { require(body.isNotBlank() && body.length<=2000) { "Use 1 to 2,000 characters." }; json("/rest/v1/survey_comments","POST",mapOf("parcel_id" to parcel,"user_id" to (session?.user_id ?: throw AuthExpired()),"body" to body.trim())) }
     suspend fun deleteComment(id: String) { json("/rest/v1/survey_comments?id=eq."+encode(id),"DELETE") }
     suspend fun accounts(): List<Account> = json("/functions/v1/manage-users").asJsonObject.items("users")
     suspend fun manage(input: Map<String,String>) { json("/functions/v1/manage-users","POST",input) }
