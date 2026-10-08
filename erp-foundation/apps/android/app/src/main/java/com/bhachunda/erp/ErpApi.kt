@@ -91,6 +91,21 @@ class ErpApi(private val store: SessionStore, private val baseUrl: String = Buil
     suspend fun mapDefinitions(): List<MapDefinition> = json("/rest/v1/map_features?select=feature_key,svg_element_id&limit=2000").asJsonArray.map { gson.fromJson(it,MapDefinition::class.java) }
     suspend fun mapLinks(): List<MapLink> = json("/rest/v1/map_feature_parcel_links?select=feature_key,svg_element_id,parcel_id,survey_number,village_code,village_name&limit=3000").asJsonArray.map { gson.fromJson(it,MapLink::class.java) }
     suspend fun detail(id: String): JsonObject = json("/functions/v1/parcel-detail?parcel_id="+encode(id)).asJsonObject.obj("parcel").also { require(it.value("id")==id) { "The survey could not be loaded." } }
+    suspend fun generatedForms():List<FormDraft> {
+        val rows=mutableListOf<FormDraft>();var offset=0
+        while(true) {
+            val body=json("/functions/v1/consent-drafts?offset=$offset").asJsonObject
+            rows.addAll(body.items<FormDraft>("drafts"));val next=body.value("next_offset").toIntOrNull() ?: break
+            require(next>offset&&next<=100000){"Invalid forms response."};offset=next
+        }
+        return rows
+    }
+    suspend fun saveGeneratedForm(parcel:String,fields:FormFields,id:String,previous:FormDraft?):FormDraft {
+        val clean=fields.validated()
+        val payload=if(previous==null)mapOf("id" to id,"parcel_id" to parcel,"fields" to clean) else mapOf("id" to previous.id,"revision" to previous.revision,"fields" to clean)
+        return gson.fromJson(json("/functions/v1/consent-drafts",if(previous==null)"POST" else "PATCH",payload).asJsonObject.get("draft"),FormDraft::class.java)
+    }
+    suspend fun archiveGeneratedForm(draft:FormDraft):FormDraft = gson.fromJson(json("/functions/v1/consent-drafts","PATCH",mapOf("id" to draft.id,"revision" to draft.revision,"state" to if(draft.state=="draft")"archived" else "draft")).asJsonObject.get("draft"),FormDraft::class.java)
     suspend fun consent(id: String, draft: ConsentDraft) {
         val result=json("/rest/v1/consent_records?on_conflict=parcel_id&select=parcel_id,status,received_on,remarks", "POST", draft.payload(id,session?.user_id ?: throw AuthExpired()),prefer="resolution=merge-duplicates,return=representation").asJsonArray
         check(result.size()==1 && result[0].asJsonObject.value("parcel_id")==id) { "Consent was not saved. Please refresh and try again." }
@@ -123,10 +138,14 @@ class ErpApi(private val store: SessionStore, private val baseUrl: String = Buil
         return gson.fromJson(json("/functions/v1/drive-files?$query"),DriveListing::class.java)
     }
     suspend fun linkFile(parcel: String, code: String, file: String, owner: String?, path: List<String>) { json("/functions/v1/drive-files","POST",mapOf("parcel_id" to parcel,"document_type_code" to code,"file_id" to file,"owner_id" to owner,"folder_path" to path)) }
-    suspend fun upload(parcel: String, code: String, owner: String?, name: String, mime: String, bytes: ByteArray) {
+    suspend fun upload(parcel: String, code: String, owner: String?, name: String, mime: String, bytes: ByteArray, formDraft:FormDraft?=null) {
         require(bytes.isNotEmpty() && bytes.size<=15*1024*1024) { "Choose a file up to 15 MB." }; require(code in documentLabels)
         val form=MultipartBody.Builder().setType(MultipartBody.FORM).addFormDataPart("parcel_id",parcel).addFormDataPart("document_type_code",code).addFormDataPart("file",safeFilename(name),bytes.toRequestBody(mime.toMediaType()))
         if(owner!=null) form.addFormDataPart("owner_id",owner)
+        if(code=="consent_form_draft") {
+            require(formDraft!=null&&formDraft.parcel_id==parcel&&formDraft.state=="draft"&&owner==null&&mime=="application/pdf"){"Choose a saved unsigned form."}
+            form.addFormDataPart("draft_id",formDraft.id).addFormDataPart("draft_revision",formDraft.revision.toString())
+        } else require(formDraft==null){"Generated forms must use the unsigned draft category."}
         val bearer=token()
         withContext(Dispatchers.IO) { client.newCall(request("/functions/v1/drive-upload",bearer,"POST",form.build())).execute().use { r -> if(!r.isSuccessful) throw error(r); val data=JsonParser.parseString(r.body!!.string()).asJsonObject; require(data.value("document_id").isNotBlank()) { "Upload could not be confirmed." } } }
     }
@@ -141,3 +160,4 @@ class ErpApi(private val store: SessionStore, private val baseUrl: String = Buil
     suspend fun document(id: String, dir: File, name: String): Pair<File,String> = download("/functions/v1/drive-document?document_id="+encode(id),dir,name)
     suspend fun patel(village: String, consent: String, stage: String, dir: File): Pair<File,String> = download("/functions/v1/patel-report?village="+encode(village)+"&consent="+encode(consent)+"&stage="+encode(stage),dir,"patel-infra-report.xlsx")
 }
+

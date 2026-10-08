@@ -1,4 +1,4 @@
-export const SENSITIVE_DRIVE_TYPES = new Set(["pan", "aadhaar", "bank_details", "consent_letter", "lease_deed", "mutation_death_certificate", "other"]);
+export const SENSITIVE_DRIVE_TYPES = new Set(["pan", "aadhaar", "bank_details", "consent_letter", "lease_deed", "mutation_death_certificate", "other", "consent_form_draft"]);
 
 export async function projectFolderPrivacy(token: string, rootId: string): Promise<"restricted" | "public" | "unknown"> {
   const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(rootId)}?fields=id,permissions(type,role)&supportsAllDrives=true`, { headers: { Authorization: `Bearer ${token}` } });

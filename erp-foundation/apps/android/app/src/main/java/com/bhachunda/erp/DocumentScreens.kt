@@ -35,9 +35,10 @@ import java.io.File
         Text("Documents",style=MaterialTheme.typography.headlineMedium)
         Hint("${detail.obj("village").value("name_en")} · Survey ${detail.value("survey_number")}")
         Section {
-            Picker("Document category",code,documentLabels.filterKeys{canEdit || it !in kycCodes}.toList(),{code=it})
+            Picker("Document category",code,documentLabels.filterKeys{canEdit || (it !in kycCodes && it!=generatedFormDocumentCode)}.toList(),{code=it})
             if(isKyc) Picker("Owner",owner,listOf("" to "Choose owner")+owners.map{it.id to it.display_name},{owner=it},!state.busy)
-            if(canEdit) {
+            if(canEdit && code==generatedFormDocumentCode) Hint("Save unsigned PDFs from the Consent generator. These files do not record consent received.")
+            if(canEdit && code!=generatedFormDocumentCode) {
                 Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)) { Icon(if(state.driveConnected==true)Icons.Outlined.CloudDone else Icons.Outlined.CloudOff,contentDescription=null,tint=if(state.driveConnected==true)Forest else Muted);Hint(if(state.driveConnected==true)"Google Drive connected" else "Google Drive connection unavailable") }
                 Primary(if(state.busy)"Working…" else "Upload ${documentLabels[code]}",{if(vm.prepareUpload(code,if(isKyc)owner else null)) picker.launch(arrayOf("application/pdf","image/jpeg","image/png","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))},!state.busy&&state.connected&&state.driveConnected==true&&(!isKyc || owner.isNotBlank()))
                 Secondary("Link an existing Drive file",{vm.browse(code,if(isKyc)owner else null)},!state.busy&&state.connected&&state.driveConnected==true&&(!isKyc || owner.isNotBlank()))
@@ -95,3 +96,4 @@ import java.io.File
         }
     }
 }
+

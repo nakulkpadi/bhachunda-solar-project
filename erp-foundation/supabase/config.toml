@@ -14,7 +14,11 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.drive-upload]
-verify_jwt = true
+verify_jwt = false
+
+# Every request is verified with auth.getUser and fresh approved profile roles.
+[functions.consent-drafts]
+verify_jwt = false
 
 [functions.parcel-detail]
 verify_jwt = true

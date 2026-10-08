@@ -1,0 +1,53 @@
+// Runs the built ERP against isolated, synthetic APIs. Never touches production data.
+const assert=require('node:assert/strict');
+const {createServer}=require('node:http');
+const fs=require('node:fs');const path=require('node:path');
+const {chromium}=require(path.join(process.env.ERP_QA_NODE_MODULES,'playwright'));
+const root=path.resolve('erp-foundation/apps/web/dist');const out=path.resolve('consent-qa');fs.mkdirSync(out,{recursive:true});
+const actor='10000000-0000-4000-8000-000000000001';
+const parcel='20000000-0000-4000-8000-000000000001';
+const another='20000000-0000-4000-8000-000000000002';
+const rows=[{id:parcel,village_code:'bitta',village_name:'Bitta',survey_number:'12/1',acreage:3.9,account_number:'0009',consent_status:'pending',acquisition_stage:'identified',document_count:0,verified_document_count:0},{id:another,village_code:'vandh-timbo',village_name:'Vandh Timbo',survey_number:'12/1',acreage:3.9,account_number:'0010',consent_status:'not_ready',acquisition_stage:'identified',document_count:0,verified_document_count:0}];
+const drafts=[];const writes=[];const failures=[];
+const user={id:actor,email:'editor.fixture@example.invalid',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:'2026-10-08T00:00:00Z'};
+const detail=id=>{const p=rows.find(p=>p.id===id);return{...p,hectare_are_sqmt:'૧-પ૬-૮૭',village:{code:p.village_code,name_en:p.village_name,name_gu:p.village_code==='bitta'?'બીટા':'વાંઢ ટીંબો',taluka:'Abdasa',district:'Kutch'},owners:[{id:actor,display_name:'નમૂના માલિક / Sample Owner',sequence_no:1,is_primary:true}],private_owner_details:[],documents:[],consent:{status:p.consent_status},acquisition:{},legal:{},source_fields:null}};
+const server=createServer((req,res)=>{const name=new URL(req.url,'http://localhost').pathname;const file=path.resolve(root,'.'+decodeURIComponent(name==='/'?'/index.html':name));if(!file.startsWith(root+path.sep)||!fs.existsSync(file)){res.writeHead(404);return res.end()}const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.json':'application/json'}[path.extname(file)]||'application/octet-stream';res.writeHead(200,{'Content-Type':mime});fs.createReadStream(file).pipe(res)});
+(async()=>{
+  await new Promise(resolve=>server.listen(4173,'127.0.0.1',resolve));
+  const browser=await chromium.launch({headless:true});const page=await browser.newPage({viewport:{width:1440,height:1000}});
+  page.on('pageerror',e=>failures.push(e.message));
+  await page.route('https://aqgnkgyhuatpwdlqueat.supabase.co/**',async route=>{
+    const request=route.request();const url=new URL(request.url());let body;let status=200;
+    if(request.method()==='OPTIONS')return route.fulfill({status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'}});
+    if(request.method()!=='GET')writes.push({path:url.pathname,method:request.method(),body:request.postData()});
+    if(url.pathname==='/auth/v1/token')body={access_token:'fixture-access',refresh_token:'fixture-refresh',expires_in:3600,token_type:'bearer',user};
+    else if(url.pathname==='/auth/v1/user')body=user;
+    else if(url.pathname==='/rest/v1/profiles')body=[{role:'editor',full_name:'Editor fixture',is_active:true,approval_status:'approved',email:user.email}];
+    else if(url.pathname==='/rest/v1/parcel_overview')body=rows;
+    else if(['/rest/v1/map_status_summary','/rest/v1/map_features','/rest/v1/map_feature_parcel_links'].includes(url.pathname))body=[];
+    else if(url.pathname==='/functions/v1/drive-connection-status')body={connected:false};
+    else if(url.pathname==='/functions/v1/parcel-detail')body={role:'editor',parcel:detail(url.searchParams.get('parcel_id'))};
+    else if(url.pathname==='/functions/v1/consent-drafts'){
+      if(request.method()==='GET')body={drafts,next_offset:null};
+      else {
+        const input=request.postDataJSON();assert.equal(Object.hasOwn(input,'status'),false);assert.equal(Object.hasOwn(input,'received_on'),false);
+        if(request.method()==='POST'){status=201;const draft={id:input.id,parcel_id:input.parcel_id,fields:input.fields,state:'draft',revision:1,template_version:'bnpl-consent-v1',document_id:null,created_at:'2026-10-08T00:00:00Z',updated_at:'2026-10-08T00:00:00Z'};drafts.unshift(draft);body={draft}}
+        else{const i=drafts.findIndex(d=>d.id===input.id);assert.equal(input.revision,drafts[i].revision);drafts[i]={...drafts[i],...input,revision:input.revision+1};body={draft:drafts[i]}}
+      }
+    }else{failures.push('Unhandled isolated API: '+url.pathname);status=400;body={error:'No production calls are permitted during QA'}}
+    return route.fulfill({status,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'},body:JSON.stringify(body)});
+  });
+  try {
+    await page.goto('http://127.0.0.1:4173/index.html');await page.getByLabel('Email address',{exact:true}).fill(user.email);await page.getByLabel('Password',{exact:true}).fill('FixturePassword123!');await page.getByRole('button',{name:'Sign in',exact:true}).click();
+    await page.getByRole('button',{name:'Consent generator',exact:true}).click();await page.getByLabel('H.Are.Sq.Mt.',{exact:true}).waitFor();assert.equal(await page.getByLabel('H.Are.Sq.Mt.',{exact:true}).inputValue(),'1-56-87');assert.equal(await page.getByLabel('Khata number',{exact:true}).inputValue(),'0009');
+    await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByText('Draft saved. Owner consent has not been recorded.',{exact:true}).waitFor();assert.equal(drafts.length,1);assert.equal(drafts[0].state,'draft');
+    await page.screenshot({path:path.join(out,'web-consent-generator-desktop.png'),fullPage:true});
+    await page.getByRole('button',{name:'Preview & print',exact:true}).click();const frame=page.frameLocator('iframe[title="English and Gujarati generated consent form"]');await frame.getByRole('heading',{name:'CONSENT LETTER / સંમતિ પત્ર',exact:true}).waitFor();
+    const html=await page.locator('iframe').getAttribute('srcdoc');const pdfPage=await browser.newPage();await pdfPage.setContent(html);await pdfPage.emulateMedia({media:'print'});await pdfPage.pdf({path:path.join(out,'web-consent-draft.pdf'),preferCSSPageSize:true,printBackground:true});await pdfPage.close();await page.getByRole('button',{name:'Close',exact:true}).click();
+    await page.getByRole('button',{name:'New form',exact:true}).click();await page.getByLabel('Village',{exact:true}).selectOption('Vandh Timbo');await page.getByLabel('Khata number',{exact:true}).waitFor();await page.waitForFunction(()=>document.querySelector('.generator-grid input')&&Array.from(document.querySelectorAll('.generator-grid input')).some(i=>i.value==='0010'));
+    await page.getByRole('button',{name:'Save draft',exact:true}).click();await page.getByText('Draft saved. Owner consent has not been recorded.',{exact:true}).waitFor();assert.equal(drafts.length,2);assert.notEqual(drafts[0].id,drafts[1].id);assert.equal(drafts[0].fields.survey_number,drafts[1].fields.survey_number);assert.notEqual(drafts[0].parcel_id,drafts[1].parcel_id);
+    await page.setViewportSize({width:390,height:844});await page.screenshot({path:path.join(out,'web-consent-generator-mobile.png'),fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'Generator overflows mobile screen');
+    assert.ok(writes.filter(w=>w.path!=='/auth/v1/token').every(w=>w.path==='/functions/v1/consent-drafts'));assert.equal(rows[0].consent_status,'pending');assert.equal(rows[1].consent_status,'not_ready');assert.deepEqual(failures,[]);
+    fs.writeFileSync(path.join(out,'verification.json'),JSON.stringify({passed:true,isolated_api:true,unique_village_survey_drafts:true,received_consent_unchanged:true,mobile_layout:true,pdf:true},null,2));console.log('Generator UI, prefill, duplicate survey identities, PDF and consent separation verified.');
+  }finally{await browser.close();await new Promise(resolve=>server.close(resolve))}
+})().catch(e=>{console.error(e);process.exitCode=1});

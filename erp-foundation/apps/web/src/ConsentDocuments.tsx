@@ -176,6 +176,7 @@ export function SurveyDocumentPanel({ detail, isAdmin, actions }: { detail: Parc
       {isAdmin && detail.documents.some((item) => ["pan", "aadhaar", "bank_details"].includes(item.document_type_code) && !item.owner_id) && <details><summary>Earlier survey-level KYC files</summary>{["pan", "aadhaar", "bank_details"].map((code) => <DocumentAttachment actions={actions} code={code} documents={detail.documents} isAdmin={false} key={code} label={code === "pan" ? "PAN card" : code === "aadhaar" ? "Aadhaar card" : "Bank document"} parcelId={detail.id} recordLabel={recordLabel} />)}</details>}
     </div></details>
     {attachment("Consent Letter", "consent_letter")}
+    {detail.documents.some(d=>d.document_type_code==="consent_form_draft") && <DocumentAttachment label="Generated consent forms (unsigned drafts)" code="consent_form_draft" parcelId={detail.id} documents={detail.documents} recordLabel={recordLabel} isAdmin={false} actions={actions}/>}
     {attachment("Lease Deed", "lease_deed")}
     {attachment("Old 7/12", "old_712")}
     {attachment("Old Nondh No. 6 / Mutation Entry", "old_nondh_6")}

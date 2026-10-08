@@ -21,7 +21,8 @@ data class UiState(
     val tab: String = "home", val screen: String? = null, val selectedId: String? = null, val detail: JsonObject? = null, val detailLoading: Boolean = false,
     val busy: Boolean = false, val error: String? = null, val message: String? = null, val connected: Boolean = false, val syncedAt: String = "", val driveConnected: Boolean? = null,
     val comments: List<Comment> = emptyList(), val accounts: List<Account> = emptyList(), val listing: DriveListing? = null, val folderPath: List<String> = emptyList(),
-    val documentCode: String = "consent_letter", val ownerId: String? = null, val ownerName: String = "", val preview: Pair<File,String>? = null, val previewTitle: String = "", val progress: JsonObject? = null
+    val documentCode: String = "consent_letter", val ownerId: String? = null, val ownerName: String = "", val preview: Pair<File,String>? = null, val previewTitle: String = "", val progress: JsonObject? = null,
+    val generatedForms:List<FormDraft> = emptyList(),val formFields:FormFields?=null,val formDraft:FormDraft?=null,val formId:String=""
 )
 class ErpViewModel(application: Application): AndroidViewModel(application) {
     val api = ErpApi(SecureSessionStore(application))
@@ -64,6 +65,7 @@ class ErpViewModel(application: Application): AndroidViewModel(application) {
             if(profile.canEdit && mutable.value.driveConnected==null) { val connected=runCatching { api.driveConnected() }.getOrDefault(false); if(generation==epoch) change{it.copy(driveConnected=connected)} }
             refreshTick++
             val state=mutable.value
+            if(!state.busy&&profile.canEdit&&state.screen in setOf("generatedForms","generatedForm")&&refreshTick%3==0) { val forms=api.generatedForms();if(generation==epoch)change{it.copy(generatedForms=forms)} }
             if(!state.busy && state.screen in setOf("detail","documents") && state.selectedId!=null && detailJob?.isActive!=true && (previousSelection!=parcels.find{it.id==state.selectedId} || refreshTick%3==0)) loadDetail(state.selectedId,false)
         } catch(e: CancellationException) { throw e }
         catch(e: AuthExpired) { if(startedEpoch==epoch) { api.signOut(); clearAccess(); notice(error=e.message) } }
@@ -94,7 +96,7 @@ class ErpViewModel(application: Application): AndroidViewModel(application) {
     fun screen(screen: String?) { change{it.copy(screen=screen,error=null,message=null)} }
     fun back() {
         if(mutable.value.busy) return
-        when(mutable.value.screen) { "consent","documents","owner","preview" -> screen("detail"); "driveBrowser" -> screen("documents"); "detail" -> screen(null); else -> screen(null) }
+        when(mutable.value.screen) { "generatedForm" -> screen("generatedForms"); "consent","documents","owner","preview" -> screen("detail"); "driveBrowser" -> screen("documents"); "detail" -> screen(null); else -> screen(null) }
     }
     fun choose(id: String, screen: String = "detail") { if(mutable.value.busy) return; change{it.copy(selectedId=id,detail=null,comments=emptyList(),screen=screen,detailLoading=true,error=null,message=null)}; loadDetail(id) }
     private fun loadDetail(id: String,showLoading: Boolean=true) {
@@ -109,6 +111,35 @@ class ErpViewModel(application: Application): AndroidViewModel(application) {
         }
     }
     private fun editor() { check(mutable.value.profile?.canEdit==true && mutable.value.connected) { "An approved Editor or Administrator account and an internet connection are required." } }
+    fun generatedForms() = action { editor();val generation=epoch;val forms=api.generatedForms();if(generation==epoch)change{it.copy(generatedForms=forms,screen="generatedForms")} }
+    fun generateForSurvey(id:String) = action {
+        editor();val generation=epoch;val detail=api.detail(id)
+        if(generation==epoch)change{it.copy(selectedId=id,formFields=prefillForm(detail),formDraft=null,formId=java.util.UUID.randomUUID().toString(),screen="generatedForm")}
+    }
+    fun editGeneratedForm(draft:FormDraft) { if(mutable.value.busy||mutable.value.profile?.canEdit!=true)return;change{it.copy(selectedId=draft.parcel_id,formDraft=draft,formFields=draft.fields,formId=draft.id,screen="generatedForm")} }
+    fun formFields(fields:FormFields) { if(!mutable.value.busy)change{it.copy(formFields=fields)} }
+    fun saveGeneratedForm() = action {
+        editor();val state=mutable.value;val generation=epoch;check(state.formDraft?.state!="archived"){"Restore this draft before editing."}
+        val draft=api.saveGeneratedForm(state.selectedId ?: error("Choose a survey."),state.formFields ?: error("Enter form details."),state.formId,state.formDraft)
+        if(generation!=epoch)return@action
+        val forms=api.generatedForms();if(generation==epoch){change{it.copy(formFields=draft.fields,formDraft=draft,generatedForms=forms)};notice(message="Draft saved. Owner consent has not been recorded.")}
+    }
+    fun archiveGeneratedForm(draft:FormDraft) = action { editor();val generation=epoch;val updated=api.archiveGeneratedForm(draft);val forms=api.generatedForms();if(generation==epoch){change{it.copy(generatedForms=forms,formDraft=if(it.formDraft?.id==draft.id)updated else it.formDraft)};notice(message="Draft list updated. Received consent is unchanged.")} }
+    fun generatedFormPdf(draft:FormDraft,upload:Boolean=false,onFile:(File,String)->Unit={_,_->}) = action {
+        editor();check(!upload||draft.state=="draft"){"Restore the draft before uploading."};val generation=epoch
+        val current=api.generatedForms().find{it.id==draft.id} ?: error("This draft is unavailable.")
+        check(current.revision==draft.revision){"This draft changed. Open the latest form before generating a PDF."}
+        val file=withContext(Dispatchers.IO){generateFormPdf(getApplication(),draft,File(sharedDir,"${java.util.UUID.randomUUID()}-Consent-draft-${safeFilename(draft.fields.village_en)}-${safeFilename(draft.fields.survey_number)}.pdf"))}
+        if(generation!=epoch){file.delete();return@action}
+        if(upload) {
+            api.upload(draft.parcel_id,generatedFormDocumentCode,null,file.name,"application/pdf",withContext(Dispatchers.IO){file.readBytes()},draft)
+            val forms=api.generatedForms();if(generation==epoch){change{it.copy(generatedForms=forms,formDraft=if(it.formDraft?.id==draft.id)forms.find{f->f.id==draft.id} else it.formDraft)};notice(message="Unsigned PDF saved to Drive. Consent status is unchanged.")}
+        } else onFile(file,"application/pdf")
+    }
+    fun generatedFormsCsv(rows:List<FormDraft>,onFile:(File,String)->Unit) = action {
+        editor();val generation=epoch;val file=withContext(Dispatchers.IO){File(sharedDir,"${java.util.UUID.randomUUID()}-Generated-consent-forms.csv").apply{writeText("\uFEFF"+(listOf(listOf("Draft ID","Village","Survey","Form date","Owners","Mobile","Form state","Revision"))+rows.map{listOf(it.id,it.fields.village_en,it.fields.survey_number,it.fields.date,it.fields.owners.joinToString("; "),it.fields.mobile,it.state,it.revision.toString())}).joinToString("\r\n"){it.joinToString(","){csvCell(it)}})}}
+        if(generation==epoch)onFile(file,"text/csv") else file.delete()
+    }
     private fun admin() { check(mutable.value.profile?.isAdmin==true && mutable.value.connected) { "Administrator access is required." } }
     fun consent(draft: ConsentDraft) = action { editor(); val state=mutable.value; val id=state.selectedId ?: error("Select a survey."); val current=api.detail(id).obj("consent"); check(current==state.detail?.obj("consent")) { "This consent changed while you were editing. Refresh the record before saving." }; api.consent(id,draft); refresh(); loadDetail(id); screen("detail"); notice(message="Consent saved. The map and web ERP will show the same status.") }
     fun owner(id: String,name: String) { change{it.copy(ownerId=id,ownerName=name,screen="owner")} }
@@ -152,3 +183,4 @@ class ErpViewModel(application: Application): AndroidViewModel(application) {
         withContext(Dispatchers.IO) { file.writeText("\uFEFF"+listOf("Village,Survey number,Old survey,Area acres,Khata,Consent,Stage,Documents,Verified documents").plus(rows.map { row -> listOf(row.village_name,row.survey_number,row.old_survey_number.orEmpty(),row.acreage?.toString().orEmpty(),row.account_number.orEmpty(),consentLabels[row.consent_status].orEmpty(),stageLabels[row.acquisition_stage].orEmpty(),row.document_count.toString(),row.verified_document_count.toString()).joinToString(",",transform=::csvCell) }).joinToString("\r\n"),Charsets.UTF_8) }; onFile(file,"text/csv")
     }
 }
+

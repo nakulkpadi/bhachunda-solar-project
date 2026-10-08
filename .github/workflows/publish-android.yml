@@ -34,6 +34,7 @@ jobs:
           BUILD_RUN_ID: ${{ github.event.workflow_run.id }}
         run: python3 .github/scripts/prepare-android-release.py
       - name: Publish the APK and encrypted update backup
+        if: steps.package.outputs.ready == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.package.outputs.tag }}
@@ -46,6 +47,7 @@ jobs:
           fi
           gh release create "$RELEASE_TAG" publish/*.apk publish/*.zip publish/*.cms publish/*.pem publish/SHA256SUMS.txt publish/signature.txt publish/release-manifest.json publish/INSTALL.txt --repo "$GITHUB_REPOSITORY" --target "$BUILD_SHA" --title "Bhachunda ERP Android" --notes-file publish/RELEASE-NOTES.md
       - name: Verify the public APK download
+        if: steps.package.outputs.ready == 'true'
         env:
           RELEASE_TAG: ${{ steps.package.outputs.tag }}
           APK_NAME: ${{ steps.package.outputs.apk }}
@@ -66,3 +68,4 @@ jobs:
                       raise
                   time.sleep(5)
           PY
+

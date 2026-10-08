@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['erp-foundation/apps/android/**', '.github/workflows/build-android.yml']
+    paths: ['erp-foundation/apps/android/**', 'erp-foundation/shared/**', '.github/workflows/build-android.yml']
 permissions:
   contents: read
 concurrency:
@@ -80,10 +80,10 @@ jobs:
           fi
           gradle :app:assembleRelease --no-daemon
           mkdir -p output
-          cp app/build/outputs/apk/release/app-release.apk output/Bhachunda-ERP-1.0.0.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs output/Bhachunda-ERP-1.0.0.apk > output/signature.txt
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging output/Bhachunda-ERP-1.0.0.apk > output/package-info.txt
-          sha256sum output/Bhachunda-ERP-1.0.0.apk > output/SHA256SUMS.txt
+          cp app/build/outputs/apk/release/app-release.apk output/Bhachunda-ERP-1.0.1.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs output/Bhachunda-ERP-1.0.1.apk > output/signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging output/Bhachunda-ERP-1.0.1.apk > output/package-info.txt
+          sha256sum output/Bhachunda-ERP-1.0.1.apk > output/SHA256SUMS.txt
           printf '%s' "$APK_KEYSTORE_PASSWORD" > "$signing_dir/keystore-password.txt"
           tar -C "$signing_dir" -cf "$signing_dir/signing-backup.tar" release-signing.p12 keystore-password.txt
           openssl cms -encrypt -binary -aes-256-cbc -in "$signing_dir/signing-backup.tar" -out output/signing-backup.cms -outform DER signing-backup-certificate.pem
@@ -111,7 +111,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
-            adb install android-apk/Bhachunda-ERP-1.0.0.apk
+            adb install android-apk/Bhachunda-ERP-1.0.1.apk
             adb logcat -c
             adb shell am start -W -n com.bhachunda.erp/.MainActivity
             sleep 8
@@ -127,3 +127,4 @@ jobs:
           name: bhachunda-android-install-check
           path: android-apk/release-*
           retention-days: 30
+

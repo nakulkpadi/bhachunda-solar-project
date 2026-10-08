@@ -32,8 +32,9 @@ data class ConsentDraft(val status: String = "received", val date: String = toda
 }
 val consentLabels = linkedMapOf("received" to "Received", "pending" to "Pending", "not_ready" to "Not ready", "blocked" to "Blocked", "rejected" to "Rejected")
 val stageLabels = linkedMapOf("identified" to "Identified", "consent" to "Consent", "legal" to "Legal review", "nfa" to "NFA", "payment" to "Payment", "executed" to "Executed", "closed" to "Closed", "blocked" to "Blocked")
-val documentLabels = linkedMapOf("consent_letter" to "Consent letter", "current_712" to "Current 7/12", "nondh_6" to "Nondh No. 6 / Mutation", "lease_deed" to "Lease deed", "old_712" to "Old 7/12", "old_nondh_6" to "Old Nondh No. 6", "pan" to "PAN card", "aadhaar" to "Aadhaar card", "bank_details" to "Passbook / cancelled cheque", "mutation_death_certificate" to "Mutation / death certificate", "other" to "Other")
+val documentLabels = linkedMapOf("consent_letter" to "Consent letter", "current_712" to "Current 7/12", "nondh_6" to "Nondh No. 6 / Mutation", "lease_deed" to "Lease deed", "old_712" to "Old 7/12", "old_nondh_6" to "Old Nondh No. 6", "pan" to "PAN card", "aadhaar" to "Aadhaar card", "bank_details" to "Passbook / cancelled cheque", "mutation_death_certificate" to "Mutation / death certificate", "other" to "Other", "consent_form_draft" to "Generated consent form (unsigned draft)")
 val kycCodes = setOf("pan", "aadhaar", "bank_details")
+val generatedFormDocumentCode = "consent_form_draft"
 fun today(): String = LocalDate.now(ZoneId.of("Asia/Kolkata")).toString()
 fun JsonObject.value(key: String): String = get(key)?.takeUnless { it.isJsonNull }?.let { if(it.isJsonPrimitive) it.asString else it.toString() } ?: ""
 fun JsonObject.obj(key: String): JsonObject = get(key)?.takeIf { it.isJsonObject }?.asJsonObject ?: JsonObject()
@@ -43,3 +44,4 @@ fun display(v: String) = v.ifBlank { "—" }
 fun acres(v: Double?) = v?.let { String.format(java.util.Locale.forLanguageTag("en-IN"), "%.2f ac", it) } ?: "—"
 fun safeFilename(name: String): String = name.substringAfterLast('/').substringAfterLast('\\').replace(Regex("[^\\p{L}\\p{N} ._()-]"), "_").trim().trim('.').take(140).ifBlank { "document" }
 fun csvCell(value: String): String { val text = if(value.trimStart().firstOrNull() in setOf('=','+','-','@','\t','\r')) "'$value" else value; return "\"${text.replace("\"","\"\"")}\"" }
+

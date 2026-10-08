@@ -32,6 +32,7 @@ import { DriveFolderSetup } from "./DriveFolderSetup";
 import { SurveyDocumentPanel, type ConsentWorkspaceActions } from "./ConsentDocuments";
 import { FullSurveyMap, type LiveMapSelection } from "./FullSurveyMap";
 import { SurveyDetails } from "./SurveyDetails";
+import { ConsentGenerator } from "./ConsentGenerator";
 import { formatSurveyCount, Icon, SurveyPicker, type IconName } from "./ui";
 import type {
   AcquisitionStage,
@@ -47,7 +48,7 @@ import type {
   ParcelWorkflowInput
 } from "./types";
 
-type ViewId = "dashboard" | "registry" | "details" | "consent" | "entry" | "documents" | "reports" | "map" | "users";
+type ViewId = "dashboard" | "registry" | "details" | "consent" | "entry" | "documents" | "reports" | "map" | "users" | "generator";
 type Notice = { kind: "success" | "error" | "info"; text: string } | null;
 
 const viewTitles: Record<ViewId, string> = {
@@ -55,6 +56,7 @@ const viewTitles: Record<ViewId, string> = {
   registry: "Land register",
   details: "Survey details",
   consent: "Consent entry",
+  generator: "Consent generator",
   entry: "Workflow entry",
   documents: "Documents",
   reports: "Reports",
@@ -67,6 +69,7 @@ const navItems: Array<{ id: ViewId; icon: IconName; label: string }> = [
   { id: "registry", icon: "register", label: "Land register" },
   { id: "map", icon: "map", label: "Survey map" },
   { id: "consent", icon: "entry", label: "Entries" },
+  { id: "generator", icon: "register", label: "Consent generator" },
   { id: "reports", icon: "reports", label: "Reports" }
 ];
 
@@ -753,6 +756,7 @@ function App() {
               workspace={consentWorkspace}
             />
           )}
+          {activeView === "generator" && <ConsentGenerator rows={parcels} canEdit={canEdit && isLiveData} />}
           {activeView === "consent" && (
             <ConsentEntry
               rows={parcels}

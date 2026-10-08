@@ -4,7 +4,9 @@ import os, re, hashlib, json, zipfile, shutil, datetime
 source = Path("android-apk")
 out = Path("publish")
 out.mkdir(exist_ok=True)
-apk = source / "Bhachunda-ERP-1.0.0.apk"
+apks=list(source.glob("Bhachunda-ERP-*.apk"))
+assert len(apks)==1, "Expected exactly one tested APK"
+apk=apks[0]
 expected = (source / "SHA256SUMS.txt").read_text().split()[0]
 actual = hashlib.sha256(apk.read_bytes()).hexdigest()
 assert actual == expected, "APK checksum differs from the tested build"
@@ -20,6 +22,14 @@ assert "targetSdkVersion:'35'" in info
 signature = (source / "signature.txt").read_text()
 assert "Verifies" in signature
 cert_sha = re.search(r"Signer #1 certificate SHA-256 digest: ([0-9a-fA-F]+)", signature).group(1)
+expected_signer="c5558fce47d1aa0f358eec23f5153660a0de1296295ffb7fbf9034a02bbdeaf1"
+if cert_sha.lower()!=expected_signer:
+    with open(os.environ["GITHUB_OUTPUT"],"a") as output:
+        output.write("ready=false\n")
+    print("Android update publication paused: configure the original production signing certificate in repository Actions secrets.")
+    raise SystemExit(0)
+with open(os.environ["GITHUB_OUTPUT"],"a") as output:
+    output.write("ready=true\n")
 sha = os.environ["BUILD_SHA"]
 assert re.fullmatch(r"[0-9a-f]{40}", sha)
 repository = os.environ["GITHUB_REPOSITORY"]
@@ -96,3 +106,4 @@ The owner should retain the encrypted signing backup and the separately saved pr
 with open(os.environ["GITHUB_OUTPUT"], "a") as output:
     output.write(f"tag={tag}\napk={name}\nsha256={actual}\n")
 print(json.dumps({"version": version, "apk_bytes": apk.stat().st_size, "sha256": actual, "signer_sha256": cert_sha, "verified_source": sha}))
+

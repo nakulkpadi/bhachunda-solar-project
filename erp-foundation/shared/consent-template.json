@@ -1,0 +1,36 @@
+{
+  "version": "bnpl-consent-v1",
+  "consent_title": "CONSENT LETTER / સંમતિ પત્ર",
+  "undertaking_title": "ચિઠ્ઠી-કમ-બાંહેધરી / Letter-cum-Undertaking",
+  "consent_english": [
+    "We, the undersigned, are providing our land located in {{taluka}}, District {{district}} having survey number {{survey_number}} village {{village_en}}, Tehsil {{taluka}}, and admeasuring H.Are.Sq.Mt. {{has}} acres {{acres}} guntha {{guntha}} (Said Land) on yearly lease to Balarama Novagrid Private Limited (BNPL), for 29 years and 11 months for development of a Solar Project on the Said Land.",
+    "We hereby provide our consent for conversion of land from agricultural to non-agricultural status and shall undertake to sign all the necessary documents for submission to the Government Authorities.",
+    "We also provide our consent to BNPL to appoint Sutariya Law firm to issue public notice and undertake Title Due Diligence for Title Clearance and to receive objections and to undertake such necessary steps required for the said purpose.",
+    "It is mutually agreed that after the signing of this consent letter, if the title of the land is found to be clear, we will execute the formal lease agreement within two (2) months of the signing of this consent letter."
+  ],
+  "consent_gujarati": [
+    "અમો નીચે હસ્તાક્ષર કરનારાઓ, અમારી જમીન જે ગામ: {{village_gu}}, તાલુકો {{taluka}}, જીલ્લો {{district}} ખાતે આવેલી છે, જેનો સર્વે નંબર {{survey_number}} છે અને કુલ વિસ્તાર હે.આરે.ચો.મી {{has}}, એકર {{acres}} ગુંઠા {{guntha}} છે (ઉલ્લેખિત જમીન) - તેને ૨૯ વર્ષ અને ૧૧ મહિનાની વાર્ષિક લીઝ પર બાલારામા નોવાગ્રિડ પ્રાઇવેટ લિમિટેડ (BNPL) ને સોલાર પ્રોજેક્ટના વિકાસ માટે આપી રહ્યા છીએ.",
+    "અમો સદરહું ખેતીની જમીનને હંગામી બિનખેતી (Temporary NA) જમીનમાં રૂપાંતર કરવા માટે અમારી સંમતિ આપીએ છીએ અને સરકારની સત્તાઓ સમક્ષ રજૂઆત માટે જરૂરી તમામ દસ્તાવેજો પર હસ્તાક્ષર કરવાની ખાતરી આપીએ છીએ.",
+    "અમે BNPL ને સુતરિયા લો ફર્મની નિમણૂક કરવા માટે પણ અમારી સંમતિ આપીએ છીએ જેથી સદરહું જમીન અંગે જાહેર નોટિસ બહાર પાડવામાં આવે, ટાઇટલ ક્લીયરન્સ માટે ટાઇટલ ડ્યુ ડીલીજન્સ હાથ ધરવામાં આવે, કોઈ પણ વાંધા અરજી પ્રાપ્ત કરવામાં આવે અને તે સંબંધિત જરૂરી કાર્યવાહી હાથ ધરવામાં આવે.",
+    "એ પણ પરસ્પર સંમતિ આપવામાં આવે છે કે આ સંમતિ પત્ર પર હસ્તાક્ષર કર્યા પછી, જો જમીનનું ટાઇટલ ક્લીયર (ચોખ્ખું) માલુમ પડશે, તો આ સંમતિ પત્ર પર હસ્તાક્ષર કર્યાના બે (૨) મહિનાની અંદર અમે રીતસરનો લીઝ એગ્રીમેન્ટ (ભાડા કરાર) કરી આપીશું."
+  ],
+  "undertaking_gujarati": [
+    "ગુજરાતી: અમો નીચે સહી કરનાર ખેડૂત/ખેડૂતો, જમીન માલિક/કબજેદાર તરીકે આથી પુષ્ટિ કરીએ છીએ કે, ૩૫૦ MW પાવર પ્રોજેક્ટ, જેનું પાવર 400 KV ભાચુંડા (અબડાસા) સબસ્ટેશનમાં ફીડ થવાનું છે, તે માટે પ્રોજેક્ટ ડેવલપર M/s Balaram Novagrid Private Limited વતી જમીન ફેસિલિટેટર અને EPC કોન્ટ્રાક્ટર M/s Pahal Green Energy Private Limited તરફથી મારા/અમારા બેંક ખાતામાં રૂ. ૧૦,૦૦૦/- ટોકન ફી તરીકે પ્રાપ્ત કર્યા છે.",
+    "અમે/અમો સમજીએ છીએ કે ઉપરોક્ત જમીનનો અંતે NA એટલે કે હંગામી બિનખેતી ઉપયોગ માટે રૂપાંતર કરાવવાનું રહેશે.",
+    "જો મારી/અમારી જમીન સંબંધિત કોઈપણ મુદ્દો, વિવાદ, દસ્તાવેજો ખામી, માલિકી/કબજાની ખામી, રેવન્યુ રેકોર્ડની ખામી અથવા અન્ય કોઈ જમીન સંબંધિત કારણોસર આગળની પ્રક્રિયામાં અડચણ આવે, તો હું/અમે પ્રાપ્ત કરેલી રૂ. ૧૦,૦૦૦/- ટોકન રકમ પરત કરવાની બાંહેધરી આપું/આપીએ છીએ.",
+    "એ પણ પરસ્પર સંમતિ આપવામાં આવે છે કે આ ચિઠ્ઠી-કમ-બાંહેધરી પર હસ્તાક્ષર કર્યા પછી, જે જમીનનું ટાઇટલ ક્લિયર (ચોખ્ખું) માલુમ પડશે. તો આ ચિઠ્ઠી-કમ-બાંહેધરી પર હસ્તાક્ષર કર્યાના બે (૨) મહિનાની અંદર અમે રીતસરનો લીઝ એગ્રીમેન્ટ (ભાડા કરાર) કરી આપીશું.",
+    "આ ચિઠ્ઠી/બાંહેધરી મેં/અમે મારી/અમારી સ્વેચ્છાએ અને કોઈપણ દબાણ વગર આપી છે."
+  ],
+  "undertaking_english": [
+    "English: I/We, the undersigned farmer/farmers listed below, owner/possessor of land, hereby confirm that I/we have accepted Rs. 10,000/- as token fee in my/our bank account from the land facilitator and EPC contractor M/s Pahal Green Energy Private Limited, on behalf of M/s Balaram Novagrid Private Limited, the project developer for the 350 MW power project to be fed into the 400 kV Bhachunda (Abdasa) Substation.",
+    "I/We understand that the said land is ultimately required to be converted into NA, i.e. Temporary Non-Agricultural use.",
+    "In case any land-related issue, dispute, defect in documents, title/possession issue, revenue record issue, or any other issue related to my/our land creates any obstruction in the further process, I/we undertake to return/refund the token amount of Rs. 10,000/- received by me/us.",
+    "It is mutually agreed that after the signing of this letter-cum-undertaking, if the title of the land is found to be clear, we will execute the formal lease agreement within two (2) months of the signing of this letter-cum-undertaking.",
+    "This letter/undertaking is given by me/us voluntarily and without any pressure."
+  ],
+  "enclosures": [
+    "કેવાયસી દસ્તાવેજો (આધાર કાર્ડ, પાન કાર્ડ) / KYC Documents",
+    "જમીન ૭/૧૨ / Land Form - 7/12",
+    "કેન્સલ ચેક અથવા બેંક પાસબુક / Cancelled Cheque or Bank Passbook"
+  ]
+}

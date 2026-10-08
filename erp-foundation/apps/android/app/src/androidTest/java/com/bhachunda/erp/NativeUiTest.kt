@@ -39,6 +39,18 @@ class NativeUiTest {
         val store=SecureSessionStore(context);store.clear();val session=Session("access-fixture","refresh-fixture",9999999999,"fixture-user","sample@example.invalid")
         try{store.write(session);assertEquals(session,store.read());val xml=File(context.applicationInfo.dataDir,"shared_prefs/encrypted_session.xml").readText();assertFalse(xml.contains("access-fixture"));assertFalse(xml.contains("refresh-fixture"));store.clear();assertNull(store.read())}finally{store.clear()}
     }
+    @Test fun generatedConsentPdfRetainsGujaratiAndPaginatesLargeOwnerLists() {
+        val fields=FormFields(date="2026-10-08",survey_number="12/1",khata="0009",has="1.60.57",village_en="Bitta",village_gu="બીટા",owners=listOf("નમૂના જમીન માલિક","Sample Owner"))
+        val draft=FormDraft("10000000-0000-4000-8000-000000000001","20000000-0000-4000-8000-000000000001",fields=fields)
+        val dir=File(context.getExternalFilesDir(null),"qa");dir.mkdirs()
+        listOf("consent-draft.pdf" to draft,"consent-many-owners.pdf" to draft.copy(fields=fields.copy(owners=(1..50).map{"પરીક્ષણ માલિક $it / Sample Owner $it"}))).forEach { (name,form)->
+            val file=generateFormPdf(context,form,File(dir,name));assertTrue(file.length()>2000)
+            android.graphics.pdf.PdfRenderer(android.os.ParcelFileDescriptor.open(file,android.os.ParcelFileDescriptor.MODE_READ_ONLY)).use{pdf->assertTrue(pdf.pageCount>=3);if(name.contains("many"))assertTrue(pdf.pageCount>3)}
+            val automation=InstrumentationRegistry.getInstrumentation().uiAutomation
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand("mkdir -p /sdcard/bhachunda-qa")).use{it.readBytes()}
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(automation.executeShellCommand("cp ${file.absolutePath} /sdcard/bhachunda-qa/$name")).use{it.readBytes()}
+        }
+    }
     @Test fun completeCadGeometryIsPackagedAndRenderedNatively() {
         val geometry=parseSurveyMap(context);assertEquals(990,geometry.boundaries.size);assertEquals(1074,geometry.labels.size);assertEquals(990,geometry.boundaries.map{it.id}.toSet().size);assertTrue(geometry.bounds.width()>7000);assertTrue(geometry.bounds.height()>6800)
         compose.setContent{ErpTheme{MapScreen(UiState(initialLoading=false),{})}}
@@ -94,3 +106,4 @@ class NativeUiTest {
         }
     }
 }
+

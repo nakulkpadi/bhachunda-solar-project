@@ -10,6 +10,7 @@ import type {
   ParcelWorkflowInput
 } from "./types";
 import type { OwnerDetailsInput } from "./types";
+import type { ConsentFormDraft, ConsentFormFields } from "../../../shared/consent-draft";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
 const supabaseKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY)?.trim();
@@ -25,6 +26,25 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
 function requiredClient(): SupabaseClient {
   if (!supabase) throw new Error("Supabase is not configured. Add the browser-safe values to .env.local.");
   return supabase;
+}
+
+export async function loadConsentFormDrafts(): Promise<ConsentFormDraft[]> {
+  const drafts: ConsentFormDraft[]=[]; let offset: number | null=0;
+  while(offset!==null) {
+    const response=await fetch(`${supabaseUrl}/functions/v1/consent-drafts?offset=${offset}`,{headers:await sessionHeaders(),cache:"no-store"});
+    const body=await response.json(); if(!response.ok) throw new Error(body.error || "Could not load generated forms.");
+    drafts.push(...body.drafts); offset=body.next_offset;
+  }
+  return drafts;
+}
+export async function saveConsentFormDraft(input: { id:string; parcel_id?:string; revision?:number; fields?:ConsentFormFields; state?:"draft"|"archived" }): Promise<ConsentFormDraft> {
+  const response=await fetch(`${supabaseUrl}/functions/v1/consent-drafts`,{method:input.revision ? "PATCH":"POST",headers:{...await sessionHeaders(),"Content-Type":"application/json"},body:JSON.stringify(input)});
+  const body=await response.json(); if(!response.ok) throw new Error(body.error || "Could not save this draft."); return body.draft;
+}
+export async function uploadConsentFormDraftPdf(draft:ConsentFormDraft,file:File): Promise<void> {
+  const form=new FormData(); form.append("parcel_id",draft.parcel_id);form.append("draft_id",draft.id);form.append("draft_revision",String(draft.revision));form.append("document_type_code","consent_form_draft");form.append("file",file);
+  const response=await fetch(`${supabaseUrl}/functions/v1/drive-upload`,{method:"POST",headers:await sessionHeaders(),body:form});
+  const body=await response.json(); if(!response.ok) throw new Error(body.error || "Could not save draft PDF to Drive.");
 }
 
 export async function getSession(): Promise<Session | null> {

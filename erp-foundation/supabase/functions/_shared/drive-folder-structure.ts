@@ -10,7 +10,7 @@ export const LEGAL_FOLDERS: Record<string, string> = {
   old_712: "Old 7-12",
   old_nondh_6: "Old Nondh No. 6 - Mutation Entry"
 };
-export const DOCUMENT_CODES = new Set([...Object.keys(LEGAL_FOLDERS), "pan", "aadhaar", "bank_details", "mutation_death_certificate", "other"]);
+export const DOCUMENT_CODES = new Set([...Object.keys(LEGAL_FOLDERS), "pan", "aadhaar", "bank_details", "mutation_death_certificate", "other", "consent_form_draft"]);
 export interface FolderStructure {
   root_id: string; village_id: string; survey_id: string;
   kyc_id: string; legal_id: string; other_id: string;
@@ -129,6 +129,17 @@ export async function ensureSurveyStructure(admin: SupabaseClient, token: string
 }
 
 export async function uploadFolder(admin: SupabaseClient, token: string, parcelId: string, userId: string, code: string, ownerId?: string | null): Promise<string> {
+  if (code === "consent_form_draft") {
+    // This explicit draft upload must not resume or repair the survey folder hierarchy.
+    return withFolderLease(admin, `draft:${parcelId}`, async () => {
+      const { data, error } = await admin.from("drive_folders").select("structure").eq("parcel_id", parcelId).maybeSingle();
+      const parent = data?.structure?.other_id;
+      if (error || !parent || !DRIVE_ID.test(parent)) throw new Error("This survey needs an existing Other folder linked before saving a draft PDF to Drive.");
+      const file = await getDriveFile(token, parent);
+      if (file.trashed || file.mimeType !== FOLDER_MIME) throw new Error("The linked Other folder is unavailable. Ask the administrator to link the existing folder.");
+      return (await ensureChildren(token, parent, { drafts: "Generated Consent Forms - Unsigned" })).drafts;
+    });
+  }
   let structure = await ensureSurveyStructure(admin, token, parcelId, userId);
   let folderId = documentFolder(structure, code, ownerId);
   let available = false;

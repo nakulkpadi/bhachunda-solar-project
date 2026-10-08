@@ -190,7 +190,15 @@ Deno.serve(async (request) => {
     if (!UUID.test(parcelId) || (ownerId && !UUID.test(ownerId))) return response({ error: "Invalid parcel or owner ID." }, 400, headers);
     if (!ACCEPTED_DOCUMENT_TYPES.has(documentTypeCode)) return response({ error: "Unknown document type." }, 400, headers);
     if (!(file instanceof File)) return response({ error: "One document file is required." }, 400, headers);
-
+    const isDraft = documentTypeCode === "consent_form_draft";
+    const draftId = String(formData.get("draft_id") || "");
+    const draftRevision = Number(formData.get("draft_revision") || 0);
+    if (isDraft) {
+      if (!UUID.test(draftId) || !Number.isInteger(draftRevision) || draftRevision < 1 || ownerId || extensionOf(file.name) !== "pdf") return response({error:"Choose a saved unsigned form and its PDF."},400,headers);
+      const {data:draft,error} = await admin.from("consent_form_drafts").select("id,revision,state").eq("id",draftId).eq("parcel_id",parcelId).maybeSingle();
+      if (error) throw new Error("Could not verify the saved form.");
+      if (!draft || draft.state !== "draft" || draft.revision !== draftRevision) return response({error:"This form changed or was archived. Reload it and generate a new PDF."},409,headers);
+    } else if (draftId || formData.has("draft_revision")) return response({error:"Generated forms must use the unsigned draft document category."},400,headers);
 
     const { data: parcel, error: parcelError } = await admin
       .from("parcels")
@@ -244,6 +252,14 @@ Deno.serve(async (request) => {
     if (documentError || !document) {
       await googleDeleteFile(googleAccessToken, uploaded.id);
       throw new Error("Could not record the uploaded document.");
+    }
+    if (isDraft) {
+      const {data:linked,error:linkError} = await admin.from("consent_form_drafts").update({document_id:document.id,updated_by:userId,updated_at:new Date().toISOString()}).eq("id",draftId).eq("revision",draftRevision).eq("state","draft").select("id").maybeSingle();
+      if (linkError || !linked) {
+        await googleDeleteFile(googleAccessToken,uploaded.id);
+        await admin.from("parcel_documents").delete().eq("id",document.id);
+        return response({error:"This form changed during upload. Generate a PDF from the latest draft."},409,headers);
+      }
     }
     await admin.from("activity_log").insert({
       parcel_id: parcelId,

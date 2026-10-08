@@ -47,21 +47,22 @@ class MainActivity: ComponentActivity() {
                     }.onFailure{vm.notice(error="No compatible app could open the file.")}
                 }
                 val openUrl: (String)->Unit={url -> runCatching {startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))}.onFailure{vm.notice(error="No browser is available for Google’s secure sign-in.")} }
+                val printForm:(File)->Unit={file -> runCatching{(getSystemService(PRINT_SERVICE) as android.print.PrintManager).print("Unsigned consent form",ConsentPrintAdapter(file),android.print.PrintAttributes.Builder().setMediaSize(android.print.PrintAttributes.MediaSize.ISO_A4).build())}.onFailure{vm.notice(error="Printing is unavailable. Save or share the PDF instead.")} }
                 DisposableEffect(lifecycle) {
                     val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_RESUME)vm.foreground(true) else if(event==Lifecycle.Event.ON_PAUSE)vm.foreground(false)}
                     lifecycle.addObserver(observer);if(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))vm.foreground(true)
                     onDispose{lifecycle.removeObserver(observer);vm.foreground(false)}
                 }
-                LaunchedEffect(state.profile?.approved,state.screen) {if(state.profile?.approved==true && state.screen in setOf("detail","consent","owner","documents","driveBrowser","preview","reports","team"))window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)}
+                LaunchedEffect(state.profile?.approved,state.screen) {if(state.profile?.approved==true && state.screen in setOf("detail","consent","owner","documents","driveBrowser","preview","reports","team","generatedForms","generatedForm"))window.addFlags(WindowManager.LayoutParams.FLAG_SECURE) else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)}
                 LaunchedEffect(state.error,state.message) { val message=state.error ?: state.message;if(message!=null) {snackbar.showSnackbar(message,withDismissAction=true,duration=SnackbarDuration.Long);vm.notice()} }
                 BackHandler(enabled=state.screen!=null||state.busy) {vm.back()}
-                AppScaffold(state,vm,snackbar,save,share,openUrl)
+                AppScaffold(state,vm,snackbar,save,share,openUrl,printForm)
             }
         }
     }
 }
 @OptIn(ExperimentalMaterial3Api::class)
-@Composable private fun AppScaffold(state: UiState,vm: ErpViewModel,snackbar: SnackbarHostState,onSave: (File,String)->Unit,onShare: (File,String)->Unit,onUrl: (String)->Unit) {
+@Composable private fun AppScaffold(state: UiState,vm: ErpViewModel,snackbar: SnackbarHostState,onSave: (File,String)->Unit,onShare: (File,String)->Unit,onUrl: (String)->Unit,onPrint:(File)->Unit) {
     val approved=state.signedIn&&state.profile?.approved==true
     Scaffold(containerColor=Cream,snackbarHost={SnackbarHost(snackbar)},topBar={
         if(approved) TopAppBar(title={Column {Text(if(state.screen=="preview")state.previewTitle else "Bhachunda ERP",maxLines=1,style=MaterialTheme.typography.titleMedium);Text(if(state.connected)"Synced ${state.syncedAt} · Auto sync 5s" else "Sync paused · Refresh or reconnect",style=MaterialTheme.typography.labelSmall,color=if(state.connected)Forest else Amber)}},navigationIcon={if(state.screen!=null)IconButton(onClick={vm.back()},enabled=!state.busy){Icon(Icons.Outlined.ArrowBack,contentDescription="Back")}},actions={IconButton(onClick={vm.refreshNow()},enabled=!state.busy){Icon(Icons.Outlined.Refresh,contentDescription="Refresh ERP")}},colors=TopAppBarDefaults.topAppBarColors(containerColor=Cream))
@@ -86,6 +87,8 @@ class MainActivity: ComponentActivity() {
                         "driveBrowser" -> DriveBrowserScreen(state,vm)
                         "preview" -> DocumentPreviewScreen(state,onShare,onSave)
                         "reports" -> ReportsScreen(state,vm,onSave)
+                        "generatedForms" -> if(state.profile?.canEdit==true)GeneratedFormsScreen(state,vm,onSave,onShare,onPrint)
+                        "generatedForm" -> if(state.profile?.canEdit==true)GeneratedFormScreen(state,vm,onSave,onShare,onPrint)
                         "team" -> if(state.profile?.isAdmin==true)TeamScreen(state,vm)
                         else -> when(state.tab) {"surveys"->SurveysScreen(state,vm);"map"->MapScreen(state){vm.choose(it)};"more"->MoreScreen(state,vm,onUrl);else->OverviewScreen(state,vm)}
                     }
@@ -94,3 +97,4 @@ class MainActivity: ComponentActivity() {
         }
     }
 }
+

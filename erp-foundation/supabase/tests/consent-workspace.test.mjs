@@ -12,6 +12,7 @@ const otherParcelId = "10000000-0000-4000-8000-000000000002";
 const ownerId = "20000000-0000-4000-8000-000000000001";
 const secondOwnerId = "20000000-0000-4000-8000-000000000002";
 const documentId = "30000000-0000-4000-8000-000000000001";
+const draftId = "40000000-0000-4000-8000-000000000001";
 const origin = "https://nakulkpadi.github.io";
 
 async function harness(slug, overrides = {}) {
@@ -25,9 +26,10 @@ async function harness(slug, overrides = {}) {
   if (state.deletedOwnerFolder) driveFolders.find((folder) => folder.id === "owner-one-folder").trashed = true;
   let bound = state.noExistingFolder ? null : { parcel_id: parcelId, google_folder_id: "existing-survey-folder", structure, structure_version: 1 };
   state.driveFolders = driveFolders;
-  const run = (table, operation, values, single = false) => {
+  const run = (table, operation, values, single = false, filters = {}) => {
     if (operation !== "select") state.writes.push({ table, operation, values });
     if (table === "profiles") return { data: { role: state.role, is_active: state.active, approval_status: state.approval }, error: null };
+    if (table === "consent_form_drafts") return { data: state.failDraftLink && operation === "update" ? null : filters.id === draftId && (!filters.parcel_id || filters.parcel_id === parcelId) ? {id:draftId,revision:state.draftRevision || 1,state:state.draftState || "draft"} : null, error: null };
     if (table === "villages") return { data: [{ drive_root_folder_id: "existing-root" }], error: null };
     if (table === "parcel_owners") return { data: single ? state.ownerParcel ? { parcel_id: state.ownerParcel } : null : [{ id: ownerId, display_name: "Owner One", sequence_no: 1 }, { id: secondOwnerId, display_name: "Owner Two", sequence_no: 2 }], error: null };
     if (table === "parcels") { const parcel = { id: parcelId, survey_number: "451", villages: { code: "BVP", name_en: "Bhavanipar", drive_root_folder_id: "existing-root" }, ...(slug === "parcel-detail" ? { source_workbook: "private-import.xlsx", source_row_number: 42, consent_records: { status: "received", received_on: "2026-10-07", remarks: "Survey note", source_value: "private-import-source" }, acquisition_cases: { category: "Lease", source_fields: { raw_bank_data: "private-import-value" } }, parcel_owners: [{ id: ownerId, display_name: "Owner One", source_owner_text: "private-import-owner", sequence_no: 1, is_primary: true }], parcel_documents: [] } : {}) }; return { data: single ? parcel : [parcel], error: null }; }
@@ -39,14 +41,15 @@ async function harness(slug, overrides = {}) {
     rpc: async (name) => ({ data: name === "acquire_drive_folder_lease" ? !state.leaseBusy : null, error: null }),
     auth: { getUser: async (token) => ({ data: { user: token === "valid-session" ? { id: "test-admin-user" } : null }, error: null }) },
     from(table) {
-      let operation = "select", values;
+      let operation = "select", values, filters = {};
       const query = {
-        select() { return query; }, eq() { return query; }, in() { return query; }, is() { return query; }, limit() { return query; }, order() { return query; },
+        select() { return query; }, eq(k,v) { filters[k]=v; return query; }, in() { return query; }, is() { return query; }, limit() { return query; }, order() { return query; },
+        update(input) { operation="update";values=input;return query; }, delete() { operation="delete";return query; },
         insert(input) { operation = "insert"; values = input; return query; },
         upsert(input) { operation = "upsert"; values = input; return query; },
-        maybeSingle: async () => run(table, operation, values, true),
-        single: async () => run(table, operation, values, true),
-        then(onFulfilled, onRejected) { return Promise.resolve(run(table, operation, values)).then(onFulfilled, onRejected); }
+        maybeSingle: async () => run(table, operation, values, true, filters),
+        single: async () => run(table, operation, values, true, filters),
+        then(onFulfilled, onRejected) { return Promise.resolve(run(table, operation, values, false, filters)).then(onFulfilled, onRejected); }
       };
       return query;
     }
@@ -116,9 +119,10 @@ function ownerRequest(details, extra = {}) {
   return new Request("https://project.supabase.co/functions/v1/owner-details", { method: "POST", headers: { Origin: origin, Authorization: "Bearer valid-session", "Content-Type": "application/json" }, body: JSON.stringify({ parcel_id: parcelId, owner_id: ownerId, details, ...extra }) });
 }
 
-function uploadRequest(code = "pan", owner = ownerId, contents = "%PDF-test", auth = "valid-session") {
+function uploadRequest(code = "pan", owner = ownerId, contents = "%PDF-test", auth = "valid-session", draft = null) {
   const form = new FormData(); form.set("parcel_id", parcelId); form.set("document_type_code", code); if (owner) form.set("owner_id", owner);
   form.set("file", new File([contents], "test.pdf", { type: "application/pdf" }));
+  if(draft){form.set("draft_id",draft.id);form.set("draft_revision",String(draft.revision));}
   return new Request("https://project.supabase.co/functions/v1/drive-upload", { method: "POST", headers: { Origin: origin, Authorization: `Bearer ${auth}` }, body: form });
 }
 
@@ -427,4 +431,21 @@ test("raw import metadata is restricted to the administrator in survey details",
       assert.equal(JSON.stringify(parcel).includes("private-import"), false);
     }
   }
+});
+test("unsigned PDF uploads only create a draft child folder and never receive consent or repair the hierarchy",async()=>{
+  const h=await harness("drive-upload");const r=await h.handler(uploadRequest("consent_form_draft",null,"%PDF-test","valid-session",{id:draftId,revision:1}));assert.equal(r.status,201);
+  const folders=h.state.google.filter(c=>c.method==="POST"&&!c.url.includes("/upload/"));assert.equal(folders.length,1);assert.equal(JSON.parse(folders[0].body).name,"Generated Consent Forms - Unsigned");assert.deepEqual(JSON.parse(folders[0].body).parents,["other-folder"]);
+  assert.equal(h.state.writes.find(w=>w.table==="consent_form_drafts").values.document_id,documentId);assert.equal(h.state.writes.find(w=>w.table==="parcel_documents").values.document_type_code,"consent_form_draft");
+  assert.equal(h.state.writes.some(w=>["consent_records","parcels","drive_folders","drive_existing_folder_templates"].includes(w.table)),false);
+});
+test("draft upload rejects missing, archived, stale and mismatched forms before any Drive call",async()=>{
+  for(const config of [{draftState:"archived"},{draftRevision:2}]){const h=await harness("drive-upload",config);assert.equal((await h.handler(uploadRequest("consent_form_draft",null,"%PDF-test","valid-session",{id:draftId,revision:1}))).status,409);assert.equal(h.state.google.length,0)}
+  const h=await harness("drive-upload");assert.equal((await h.handler(uploadRequest("consent_form_draft",null))).status,400);assert.equal((await h.handler(uploadRequest("consent_letter",null,"%PDF-test","valid-session",{id:draftId,revision:1}))).status,400);assert.equal(h.state.google.length,0);
+});
+test("draft uploads stop at missing mappings without rebuilding survey folders and respect public-sharing block",async()=>{
+  for(const config of [{noExistingFolder:true},{publicDrive:true}]){const h=await harness("drive-upload",config);assert.ok((await h.handler(uploadRequest("consent_form_draft",null,"%PDF-test","valid-session",{id:draftId,revision:1}))).status>=400);assert.equal(h.state.google.some(c=>c.method==="POST"),false);assert.equal(h.state.writes.length,0)}
+});
+test("a draft changed during upload deletes the new PDF attachment and never touches final consent",async()=>{
+  const h=await harness("drive-upload",{failDraftLink:true});assert.equal((await h.handler(uploadRequest("consent_form_draft",null,"%PDF-test","valid-session",{id:draftId,revision:1}))).status,409);
+  assert.ok(h.state.google.some(c=>c.method==="DELETE"&&c.url.includes("new-drive-file-id")));assert.ok(h.state.writes.some(w=>w.table==="parcel_documents"&&w.operation==="delete"));assert.equal(h.state.writes.some(w=>w.table==="consent_records"),false);
 });

@@ -19,8 +19,8 @@ android {
         applicationId = "com.bhachunda.erp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10000
-        versionName = "1.0.0"
+        versionCode = 10001
+        versionName = "1.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SUPABASE_URL", quoted(apiUrl))
         buildConfigField("String", "PUBLIC_KEY", quoted(publicKey))
@@ -36,7 +36,7 @@ android {
     }
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("erpRelease")
+            if(System.getenv("APK_KEYSTORE")!=null) signingConfig = signingConfigs.getByName("erpRelease")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -55,8 +55,12 @@ val syncSurveyMap by tasks.registering(Copy::class) {
     into(layout.buildDirectory.dir("generated/erpAssets"))
     rename { "survey-map.svg" }
 }
+val syncConsentTemplate by tasks.registering(Copy::class) {
+    from("../../../shared/consent-template.json")
+    into(layout.buildDirectory.dir("generated/erpAssets"))
+}
 android.sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/erpAssets"))
-tasks.named("preBuild").configure { dependsOn(syncSurveyMap) }
+tasks.named("preBuild").configure { dependsOn(syncSurveyMap,syncConsentTemplate) }
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.04.00"))
     implementation("androidx.activity:activity-compose:1.10.1")
@@ -78,3 +82,4 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+

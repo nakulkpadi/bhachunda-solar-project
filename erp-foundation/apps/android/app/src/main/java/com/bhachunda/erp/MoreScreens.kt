@@ -15,6 +15,7 @@ import java.io.File
         Text("Project tools",style=MaterialTheme.typography.headlineMedium)
         Section { Fact("Signed in",state.email);Fact("Access",state.profile?.role?.replaceFirstChar{it.uppercase()}.orEmpty());Hint("Data refreshes every 5 seconds while the app is open. Changes are saved to the same ERP used on the web.") }
         Section("Reports") { Hint("Filter by village, consent and acquisition stage.");Primary("Generate report",{vm.screen("reports")},!state.busy) }
+        if(state.profile?.canEdit==true) Section("Consent generator") { Hint("Prepare unsigned English and Gujarati forms using survey details. Generated forms do not record consent received.");Primary("Consent generator",{vm.generatedForms()},state.connected&&!state.busy) }
         if(state.profile?.isAdmin==true) Section("Team access") { Hint("Invite users, approve requests and manage Editor, Viewer and Commenter rights.");Primary("Users & access",{vm.accounts()},state.connected&&!state.busy) }
         if(state.profile?.canEdit==true) Section("Google Drive") {
             Hint(if(state.driveConnected==true)"Connected to the project’s Drive account." else "The project Drive connection is unavailable.")
@@ -71,3 +72,4 @@ import java.io.File
     }
     confirm?.let { input -> AlertDialog(onDismissRequest={confirm=null},title={Text("Confirm access change")},text={Text("${input["action"]?.replaceFirstChar{it.uppercase()}} this account with ${input["role"]} rights?")},confirmButton={TextButton(onClick={confirm=null;vm.manage(input)},enabled=!state.busy){Text("Confirm")}},dismissButton={TextButton(onClick={confirm=null}){Text("Cancel")}}) }
 }
+
