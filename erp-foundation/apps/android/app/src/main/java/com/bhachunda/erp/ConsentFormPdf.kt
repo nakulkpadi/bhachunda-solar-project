@@ -16,7 +16,8 @@ fun generateFormPdf(context:Context,draft:FormDraft,target:File):File {
     val template=context.assets.open("consent-template.json").bufferedReader().use{JsonParser.parseReader(it).asJsonObject}
     val tokens=mapOf("survey_number" to f.survey_number,"has" to f.has,"village_en" to f.village_en,"village_gu" to f.village_gu,"taluka" to f.taluka,"district" to f.district,"acres" to area.acres.toString(),"guntha" to area.guntha.toString())
     fun filled(s:String)=Regex("\\{\\{(\\w+)\\}\\}").replace(s){tokens[it.groupValues[1]].orEmpty()}
-    PdfDocument().use { pdf ->
+    val pdf=PdfDocument()
+    try {
         var page:PdfDocument.Page?=null;var canvas:Canvas?=null;var y=40f;var count=0
         val width=515;val bottom=782f
         fun finish() { page?.let { p ->
@@ -71,6 +72,6 @@ fun generateFormPdf(context:Context,draft:FormDraft,target:File):File {
         paragraph("સાક્ષીની સહી / Witness Signature: ____________________",10f,false,12f)
         tableRow("PASTE REVENUE TICKET HERE\n(રેવન્યુ સ્ટેમ્પ અહીં ચોંટાડો)","ખેડૂતની સહી / Farmer’s Signature",50f)
         finish();target.parentFile?.mkdirs();target.outputStream().use{pdf.writeTo(it)}
-    }
+    } finally { pdf.close() }
     return target
 }
