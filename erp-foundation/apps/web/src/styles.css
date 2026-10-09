@@ -587,3 +587,5 @@ p { line-height: 1.6; }
 .generator-workspace .field-hint{margin:12px 0 0;font-size:12px;line-height:1.5}
 
 .generator-owner label{min-width:0}@media(max-width:650px){.generator-owner{flex-wrap:wrap}.generator-owner label{flex:1 1 100%}}
+
+.generator-form{scroll-margin-top:110px}.generator-action-feedback{margin:8px 0 0;max-width:360px;font-size:12px;line-height:1.5;color:#345438}.generator-action-feedback.is-error{color:#9a3927}
