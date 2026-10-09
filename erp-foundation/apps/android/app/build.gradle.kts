@@ -1,4 +1,5 @@
 import java.util.Base64
+import java.net.URI
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -23,8 +24,8 @@ val publicKey = publicSetting("ERP_SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_PUB
     ?: error("Set a public Supabase client key; never use a service-role key")
 val webUrl = publicSetting("ERP_WEB_URL", "VITE_WEB_URL")
     ?: "https://nakulkpadi.github.io/bhachunda-solar-project/index.html"
-require(java.net.URI(apiUrl).let { it.scheme == "https" && !it.host.isNullOrBlank() && it.userInfo == null && it.query == null && it.fragment == null && it.path.orEmpty() in setOf("", "/") }) { "The API URL must be an HTTPS origin" }
-require(java.net.URI(webUrl).let { it.scheme == "https" && !it.host.isNullOrBlank() && it.userInfo == null }) { "The web URL must use HTTPS" }
+require(URI(apiUrl).let { it.scheme == "https" && !it.host.isNullOrBlank() && it.userInfo == null && it.query == null && it.fragment == null && it.path.orEmpty() in setOf("", "/") }) { "The API URL must be an HTTPS origin" }
+require(URI(webUrl).let { it.scheme == "https" && !it.host.isNullOrBlank() && it.userInfo == null }) { "The web URL must use HTTPS" }
 require(publicKey.startsWith("sb_publishable_") || (publicKey.split('.').size == 3 && runCatching { String(Base64.getUrlDecoder().decode(publicKey.split('.')[1])).contains("\"role\":\"anon\"") }.getOrDefault(false))) { "Only a public client key may be packaged" }
 // Staging is permitted for debug builds only; production releases keep the original project.
 tasks.matching { it.name == "preReleaseBuild" }.configureEach {

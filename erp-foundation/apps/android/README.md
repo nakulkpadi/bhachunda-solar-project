@@ -46,3 +46,15 @@ Version 1.0.1 adds the generator under More → Consent generator for approved A
 Generated forms never write to `consent_records`, change map colours, record a signature, or confirm the token payment described by the original legal template. The owner still needs to sign; received consent is recorded through the existing receipt entry.
 
 Android updates must use the original production certificate. The publisher checks its SHA-256 fingerprint before release. Configure `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` in repository Actions secrets using the existing signing backup. A build with another certificate is tested but publication is paused so it cannot replace the installed app.
+
+## Isolated validation branch (9 October 2026)
+
+The `erp-apk-validation-20261009` branch runs `.github/workflows/validate-erp-apk.yml` without deploying the web app, Edge Functions or database. It does not request signing secrets, build a release, publish an APK or call folder setup/repair. Emulator tests use synthetic records and no authenticated business account.
+
+Configuration precedence is process environment, then `android.properties` if present, otherwise the historical web `.env.production`. Copy `android.properties.example` to `android.properties` for a separate staging project. Provide only public Supabase client settings: `ERP_SUPABASE_URL`, `ERP_SUPABASE_PUBLISHABLE_KEY` (or legacy `ERP_SUPABASE_ANON_KEY`), and optional `ERP_WEB_URL`. Do not package a service-role key. Production release builds still require the original Supabase project.
+
+Debug APKs use `com.bhachunda.erp.debug` and version name `1.0.1-debug`, so they install alongside the original production app. GitHub validation falls back to the repository's existing public production client configuration, but makes no live authenticated data requests. An owner who logs into this debug build will access the real ERP; its data writes require the normal server permissions. There is no offline queue. This build is not a production update, and authenticated sync/upload/email operations remain unverified until tested deliberately with an authorized account.
+
+Survey rows and map bindings now use ordered, cancellable pagination and continue after short pages. A later-page error aborts the refresh instead of publishing an incomplete list. Offset pagination is not a transactional snapshot; simultaneous insert/delete operations can still change page boundaries, and the next foreground refresh reconciles them. This should be replaced by cursor/snapshot pagination if project scale or concurrent imports make that necessary.
+
+Fresh build/test results belong in the validation report; older successful CI evidence is not proof that these changes pass.
