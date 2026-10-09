@@ -4,13 +4,34 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
-val publicConfig = file("../../web/.env.production").readLines().filter { it.contains('=') && !it.startsWith('#') }.associate {
-    it.substringBefore('=').trim() to it.substringAfter('=').trim().trim('"', '\'')
+// Public client configuration only. Environment variables override local files.
+val androidConfigFile = rootProject.file("android.properties")
+val webConfigFile = file("../../web/.env.production")
+val configFile = if (androidConfigFile.exists()) androidConfigFile else webConfigFile
+val publicConfig = if (configFile.exists()) configFile.readLines()
+    .filter { it.contains('=') && !it.trimStart().startsWith('#') }
+    .associate { it.substringBefore('=').trim() to it.substringAfter('=').trim().trim('"', '\'') }
+    else emptyMap()
+fun publicSetting(androidName: String, webName: String): String? =
+    System.getenv(androidName)?.takeIf { it.isNotBlank() }
+        ?: publicConfig[androidName]?.takeIf { it.isNotBlank() }
+        ?: publicConfig[webName]?.takeIf { it.isNotBlank() }
+val apiUrl = publicSetting("ERP_SUPABASE_URL", "VITE_SUPABASE_URL")
+    ?: error("Set ERP_SUPABASE_URL or copy android.properties.example to android.properties")
+val publicKey = publicSetting("ERP_SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_PUBLISHABLE_KEY")
+    ?: publicSetting("ERP_SUPABASE_ANON_KEY", "VITE_SUPABASE_ANON_KEY")
+    ?: error("Set a public Supabase client key; never use a service-role key")
+val webUrl = publicSetting("ERP_WEB_URL", "VITE_WEB_URL")
+    ?: "https://nakulkpadi.github.io/bhachunda-solar-project/index.html"
+require(java.net.URI(apiUrl).let { it.scheme == "https" && !it.host.isNullOrBlank() && it.userInfo == null && it.query == null && it.fragment == null && it.path.orEmpty() in setOf("", "/") }) { "The API URL must be an HTTPS origin" }
+require(java.net.URI(webUrl).let { it.scheme == "https" && !it.host.isNullOrBlank() && it.userInfo == null }) { "The web URL must use HTTPS" }
+require(publicKey.startsWith("sb_publishable_") || (publicKey.split('.').size == 3 && runCatching { String(Base64.getUrlDecoder().decode(publicKey.split('.')[1])).contains("\"role\":\"anon\"") }.getOrDefault(false))) { "Only a public client key may be packaged" }
+// Staging is permitted for debug builds only; production releases keep the original project.
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    doFirst {
+        require(apiUrl == "https://aqgnkgyhuatpwdlqueat.supabase.co") { "Production releases must use the original project" }
+    }
 }
-val apiUrl = publicConfig.getValue("VITE_SUPABASE_URL")
-val publicKey = publicConfig["VITE_SUPABASE_PUBLISHABLE_KEY"] ?: publicConfig.getValue("VITE_SUPABASE_ANON_KEY")
-require(apiUrl == "https://aqgnkgyhuatpwdlqueat.supabase.co") { "Unexpected project configuration" }
-require(publicKey.startsWith("sb_publishable_") || (publicKey.split('.').size == 3 && String(Base64.getUrlDecoder().decode(publicKey.split('.')[1])).contains("\"role\":\"anon\""))) { "Only a public client key may be packaged" }
 fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 android {
     namespace = "com.bhachunda.erp"
@@ -24,7 +45,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SUPABASE_URL", quoted(apiUrl))
         buildConfigField("String", "PUBLIC_KEY", quoted(publicKey))
-        buildConfigField("String", "WEB_URL", quoted("https://nakulkpadi.github.io/bhachunda-solar-project/index.html"))
+        buildConfigField("String", "WEB_URL", quoted(webUrl))
     }
     signingConfigs {
         create("erpRelease") {
@@ -35,6 +56,7 @@ android {
         }
     }
     buildTypes {
+        debug { applicationIdSuffix = ".debug"; versionNameSuffix = "-debug" }
         release {
             if(System.getenv("APK_KEYSTORE")!=null) signingConfig = signingConfigs.getByName("erpRelease")
             isMinifyEnabled = true

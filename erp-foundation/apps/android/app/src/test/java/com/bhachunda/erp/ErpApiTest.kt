@@ -65,6 +65,30 @@ class ErpApiTest {
         val directory=Files.createTempDirectory("erp-test").toFile()
         try{val(file,mime)=api.patel("bitta","received","legal",directory);assertEquals("PK-test-workbook",file.readText());assertTrue(mime.contains("spreadsheetml"));val request=server.takeRequest();assertEquals("/functions/v1/patel-report?village=bitta&consent=received&stage=legal",request.path);assertEquals("Bearer access-test",request.getHeader("Authorization"))}finally{directory.deleteRecursively()}
     }
+    @Test fun surveyPaginationContinuesPastShortServerPages()=runBlocking {
+        reply("""[{"id":"p1","village_code":"sample","village_name":"Sample","survey_number":"1"}]""")
+        reply("""[{"id":"p2","village_code":"sample","village_name":"Sample","survey_number":"2"}]""")
+        reply("[]")
+        assertEquals(listOf("p1","p2"),api.parcels().map { it.id })
+        for(offset in 0..2) {
+            val path=server.takeRequest().path!!
+            assertTrue(path.contains("order=village_name.asc,survey_number.asc,id.asc"))
+            assertTrue(path.endsWith("limit=500&offset=$offset"))
+        }
+    }
+    @Test fun mapLinksDoNotStopAtTheFirstPage()=runBlocking {
+        reply("""[{"feature_key":"f1","parcel_id":"p1","survey_number":"1","village_code":"sample","village_name":"Sample"}]""")
+        reply("""[{"feature_key":"f2","parcel_id":"p2","survey_number":"2","village_code":"sample","village_name":"Sample"}]""")
+        reply("[]")
+        assertEquals(listOf("f1","f2"),api.mapLinks().map { it.feature_key })
+        for(offset in 0..2) assertTrue(server.takeRequest().path!!.endsWith("order=feature_key.asc,parcel_id.asc&limit=500&offset=$offset"))
+    }
+    @Test fun failedLaterPageNeverReturnsAnIncompleteSurveyList()=runBlocking {
+        reply("""[{"id":"p1","village_code":"sample","village_name":"Sample","survey_number":"1"}]""")
+        reply("""{"message":"temporary failure"}""",503)
+        try { api.parcels(); fail("A partial survey list must not appear complete") } catch(e:ApiFailure) { assertEquals(503,e.code) }
+        assertEquals(2,server.requestCount)
+    }
     @Test fun signoutClearsPhoneSessionAndRevokesLocalSession()=runBlocking {
         reply("",204);api.signOut();assertNull(api.session);assertNull(store.value);assertEquals("/auth/v1/logout?scope=local",server.takeRequest().path)
     }

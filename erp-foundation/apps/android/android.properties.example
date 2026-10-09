@@ -1,0 +1,5 @@
+# Public client settings only. Copy to android.properties (never commit that file).
+ERP_SUPABASE_URL=https://YOUR-STAGING-PROJECT.supabase.co
+ERP_SUPABASE_PUBLISHABLE_KEY=sb_publishable_REPLACE_WITH_PUBLIC_KEY
+ERP_WEB_URL=https://YOUR-STAGING-WEB-APP.example
+# Release signing must use the original production identity through environment/CI secrets.

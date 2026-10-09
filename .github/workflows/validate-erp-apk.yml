@@ -1,0 +1,79 @@
+name: Validate ERP and native Android without deployment
+on:
+  push:
+    branches: ['erp-apk-validation-20261009']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: erp-apk-validation
+  cancel-in-progress: false
+jobs:
+  erp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: erp-foundation/apps/web/package-lock.json
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with: { deno-version: 'v2.9.7' }
+      - name: Backend semantic typecheck (no handlers executed)
+        run: deno check erp-foundation/supabase/functions/*/index.ts
+      - name: Web build and fixture integration tests
+        working-directory: erp-foundation/apps/web
+        run: |
+          npm ci
+          npm run build
+          npm run test:integration
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: erp-foundation/apps/android
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with: { persist-credentials: false }
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        with: { distribution: temurin, java-version: '17' }
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
+        with: { gradle-version: '8.11.1' }
+      - name: Unit tests, lint and native debug build
+        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon
+      - name: Enable emulator acceleration
+        run: sudo chmod 666 /dev/kvm
+      - name: Fixture UI, map, PDF and encrypted-session tests
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          working-directory: erp-foundation/apps/android
+          script: |
+            gradle :app:connectedDebugAndroidTest --no-daemon
+            mkdir -p qa
+            adb pull /sdcard/bhachunda-qa/. qa/
+      - name: Verify and package debug APK
+        run: |
+          mkdir -p validation-output
+          cp app/build/outputs/apk/debug/app-debug.apk validation-output/Bhachunda-ERP-1.0.1-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs validation-output/Bhachunda-ERP-1.0.1-debug.apk > validation-output/signature.txt
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging validation-output/Bhachunda-ERP-1.0.1-debug.apk > validation-output/package-info.txt
+          cd validation-output
+          sha256sum Bhachunda-ERP-1.0.1-debug.apk > SHA256SUMS.txt
+          printf '%s\n' 'Native debug validation build; package com.bhachunda.erp.debug.' 'Uses existing public ERP client configuration. Live authenticated operations have not been tested by this workflow.' 'Installs alongside production; does not update the production app.' 'No folder repair or database deployment ran.' > BUILD-NOTES.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: erp-native-debug-validation
+          path: |
+            erp-foundation/apps/android/validation-output/
+            erp-foundation/apps/android/app/build/reports/
+            erp-foundation/apps/android/qa/
+          retention-days: 30

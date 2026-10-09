@@ -86,10 +86,21 @@ class ErpApi(private val store: SessionStore, private val baseUrl: String = Buil
         val data=json("/rest/v1/profiles?select=full_name,role,is_active,approval_status,email&id=eq."+encode(user.value("id"))).asJsonArray
         return data.firstOrNull()?.let { gson.fromJson(it,Profile::class.java) } ?: Profile()
     }
-    suspend fun parcels(): List<Parcel> = json("/rest/v1/parcel_overview?select=*&order=village_name.asc,survey_number.asc&limit=1000").asJsonArray.map { gson.fromJson(it,Parcel::class.java) }
-    suspend fun mapStatuses(): List<MapStatus> = json("/rest/v1/map_status_summary?select=feature_key,status,linked_parcel_count").asJsonArray.map { gson.fromJson(it,MapStatus::class.java) }
-    suspend fun mapDefinitions(): List<MapDefinition> = json("/rest/v1/map_features?select=feature_key,svg_element_id&limit=2000").asJsonArray.map { gson.fromJson(it,MapDefinition::class.java) }
-    suspend fun mapLinks(): List<MapLink> = json("/rest/v1/map_feature_parcel_links?select=feature_key,svg_element_id,parcel_id,survey_number,village_code,village_name&limit=3000").asJsonArray.map { gson.fromJson(it,MapLink::class.java) }
+    private suspend fun <T> pages(path: String, type: Class<T>): List<T> {
+        val rows = mutableListOf<T>()
+        while (true) {
+            currentCoroutineContext().ensureActive()
+            val page = json("$path&limit=500&offset=${rows.size}").asJsonArray
+            if (page.size() == 0) return rows
+            check(rows.size + page.size() <= 100000) { "Too many survey rows. Contact the administrator." }
+            rows.addAll(page.map { gson.fromJson(it, type) })
+            // Continue even after a short page: the server can impose a lower row cap.
+        }
+    }
+    suspend fun parcels(): List<Parcel> = pages("/rest/v1/parcel_overview?select=*&order=village_name.asc,survey_number.asc,id.asc", Parcel::class.java)
+    suspend fun mapStatuses(): List<MapStatus> = pages("/rest/v1/map_status_summary?select=feature_key,status,linked_parcel_count&order=feature_key.asc", MapStatus::class.java)
+    suspend fun mapDefinitions(): List<MapDefinition> = pages("/rest/v1/map_features?select=feature_key,svg_element_id&order=feature_key.asc", MapDefinition::class.java)
+    suspend fun mapLinks(): List<MapLink> = pages("/rest/v1/map_feature_parcel_links?select=feature_key,svg_element_id,parcel_id,survey_number,village_code,village_name&order=feature_key.asc,parcel_id.asc", MapLink::class.java)
     suspend fun detail(id: String): JsonObject = json("/functions/v1/parcel-detail?parcel_id="+encode(id)).asJsonObject.obj("parcel").also { require(it.value("id")==id) { "The survey could not be loaded." } }
     suspend fun generatedForms():List<FormDraft> {
         val rows=mutableListOf<FormDraft>();var offset=0
