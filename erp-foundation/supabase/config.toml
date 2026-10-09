@@ -40,3 +40,6 @@ verify_jwt = true
 
 [functions.patel-report]
 verify_jwt = true
+
+[functions.legacy-consent-forms]
+verify_jwt = false

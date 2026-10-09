@@ -1,0 +1,36 @@
+name: Validate consent language and history
+on:
+  push:
+    branches: [erp-consent-language-history-20261009]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed
+        with:
+          deno-version: v2.9.7
+      - run: deno check erp-foundation/supabase/functions/*/index.ts
+      - run: npm ci && npm run test:integration && npm run build
+        working-directory: erp-foundation/apps/web
+      - name: Install browser and PDF checks
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          mkdir -p /tmp/consent-browser-qa
+          npm install --prefix /tmp/consent-browser-qa --ignore-scripts playwright@1.62.1
+          /tmp/consent-browser-qa/node_modules/.bin/playwright install --with-deps chromium
+      - name: Verify consent UI and PDFs with isolated data
+        run: node .github/scripts/verify-consent-generator.cjs
+        env:
+          ERP_QA_NODE_MODULES: /tmp/consent-browser-qa/node_modules
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: consent-language-history-verification
+          path: consent-qa/
