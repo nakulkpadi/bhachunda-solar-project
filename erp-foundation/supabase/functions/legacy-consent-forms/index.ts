@@ -17,9 +17,11 @@ Deno.serve(async request => {
     if(data===null)return json({records:[]},200,headers);
     if(typeof data!=="object"||Array.isArray(data)||Object.keys(data).length>2000)throw new Error("Invalid history response");
     const text=(v:unknown,max=200)=>typeof v==="string"||typeof v==="number"?String(v).trim().slice(0,max):"";
+    // The older generator printed DD-MM-YYYY; newer records use ISO dates.
+    const legacyDate=(value:string)=>{const m=/^(\d{2})-(\d{2})-(\d{4})$/.exec(value);return m?`${m[3]}-${m[2]}-${m[1]}`:value};
     const records=Object.entries(data).filter(([,v])=>v&&typeof v==="object"&&!Array.isArray(v)).map(([id,v])=>{
       const old=v as Record<string,unknown>;let fields=null;
-      try {fields=validateDraftFields({date:text(old.dateGenerated,10),survey_number:text(old.surveyNo,80),khata:text(old.khataNo,80),has:text(old.has,20),village_en:text(old.villageEn,100),village_gu:text(old.villageGu,100),taluka:text(old.taluka,100),district:text(old.district,100),mobile:text(old.mobile,20),owners:old.owners})}catch{ /* Incomplete old records remain visible; they cannot be silently imported. */ }
+      try {fields=validateDraftFields({date:legacyDate(text(old.dateGenerated,10)),survey_number:text(old.surveyNo,80),khata:text(old.khataNo,80),has:text(old.has,20),village_en:text(old.villageEn,100),village_gu:text(old.villageGu,100),taluka:text(old.taluka,100),district:text(old.district,100),mobile:text(old.mobile,20),owners:old.owners})}catch{ /* Incomplete old records remain visible; they cannot be silently imported. */ }
       return {id:text(id),survey_number:text(old.surveyNo,80),village_en:text(old.villageEn,100),date:text(old.dateGenerated,20),first_owner:text(old.firstOwner)||text(Array.isArray(old.owners)?old.owners[0]:""),status:old.status==="sent"?"sent":old.status==="received"?"received":"missing",fields};
     });
     return json({records},200,headers);
