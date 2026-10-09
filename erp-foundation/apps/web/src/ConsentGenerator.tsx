@@ -53,7 +53,7 @@ export function ConsentGenerator({rows,canEdit}:{rows:ParcelSummary[];canEdit:bo
   const refresh=async()=>{const drafts=await loadConsentFormDrafts();if(alive.current)setList(drafts)};
   useEffect(()=>{if(!canEdit)return;let cancelled=false;loadConsentFormDrafts().then(d=>{if(!cancelled)setList(d)}).catch(e=>{if(!cancelled)setError(e.message)});const timer=setInterval(()=>{loadConsentFormDrafts().then(d=>{if(!cancelled)setList(d)}).catch(()=>{})},15000);return()=>{cancelled=true;clearInterval(timer)}},[canEdit]);
   const choose=async(id:string)=>{
-    const request=++generation.current;setSelectedId(id);setSaved(null);setFields(null);setBaseline(null);setFormId(crypto.randomUUID());setPreview(null);setLoading(true);setError("");setMessage("");
+    const request=++generation.current;setActionFeedback(null);setSelectedId(id);setSaved(null);setFields(null);setBaseline(null);setFormId(crypto.randomUUID());setPreview(null);setLoading(true);setError("");setMessage("");
     try{const p=await loadParcelDetail(id);if(alive.current&&request===generation.current){const f=prefill(p);setFields(f);setBaseline(f)}}catch(e){if(alive.current&&request===generation.current)setError(e instanceof Error?e.message:"Could not prefill the form.")}finally{if(alive.current&&request===generation.current)setLoading(false)}
   };
   useEffect(()=>{if(canEdit&&selectedId)void choose(selectedId)},[canEdit]);
@@ -63,7 +63,7 @@ export function ConsentGenerator({rows,canEdit}:{rows:ParcelSummary[];canEdit:bo
   const save=()=>run(async()=>{
     const clean=validateDraftFields(fields);if(!selected)throw new Error("Choose a survey.");
     const draft=await saveConsentFormDraft(saved?{id:saved.id,revision:saved.revision,fields:clean}:{id:formId,parcel_id:selected.id,fields:clean});
-    if(!alive.current)return;setFields(draft.fields);setSaved(draft);setMessage("Draft saved. Owner consent has not been recorded.");await refresh();
+    if(!alive.current)return;setFields(draft.fields);setSaved(draft);setMessage("Draft saved. Owner consent has not been recorded.");setActionFeedback({id:draft.id,text:"Draft saved.",error:false});await refresh();
   });
   const edit=(draft:ConsentFormDraft)=>{if(dirty&&!window.confirm("Discard the unsaved changes and open this saved form?"))return false;generation.current++;setSelectedId(draft.parcel_id);setSaved(draft);setFields(draft.fields);setFormId(draft.id);setPreview(null);setLoading(false);setError("");setMessage(draft.state==="archived"?"Archived form opened. Restore it before saving edits.":"Form opened. Review or edit its details below.");setActionFeedback({id:draft.id,text:"Opened in the form above.",error:false});focusEditor();return true};
   const archive=(draft:ConsentFormDraft)=>run(async()=>{const updated=await saveConsentFormDraft({id:draft.id,revision:draft.revision,state:draft.state==="draft"?"archived":"draft"});if(saved?.id===draft.id)setSaved(updated);await refresh();setMessage("Draft list updated. Received consent is unchanged.");setActionFeedback({id:draft.id,text:updated.state==="archived"?"Form archived. Received consent is unchanged.":"Form restored. Received consent is unchanged.",error:false})},draft.id);
