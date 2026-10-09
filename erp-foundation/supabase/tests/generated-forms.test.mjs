@@ -42,7 +42,7 @@ const request=(body={id,parcel_id:parcel,fields},method='POST',token='valid',ori
 test('create and edit generated forms only write drafts; printing is read-only',async()=>{
   const h=await harness();assert.equal((await h.handler(request())).status,201);assert.equal(h.state.row.state,'draft');
   assert.equal((await h.handler(request({id,revision:1,fields:{...fields,khata:'0010'}},'PATCH'))).status,200);assert.equal(h.state.row.revision,2);
-  const before=h.state.writes.length;const html=h.print(h.state.row);assert.match(html,/Unsigned generated form/);assert.match(html,/Owner signature and verification pending/);assert.match(html,/0010/);assert.equal(h.state.writes.length,before);
+  const before=h.state.writes.length;const html=h.print(h.state.row);assert.doesNotMatch(html,/Unsigned generated form|Owner signature and verification pending|<footer/);assert.match(html,/0010/);assert.equal(h.state.writes.length,before);
   assert.ok(h.state.writes.every(w=>w.table==='consent_form_drafts'));assert.equal(Object.hasOwn(h.state.row,'received_on'),false);
 });
 test('generated requests reject received status, receipt dates and changing survey identity',async()=>{
