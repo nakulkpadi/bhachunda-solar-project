@@ -61,7 +61,11 @@ class NativeUiTest {
     @Test fun completeCadGeometryIsPackagedAndRenderedNatively() {
         val geometry=parseSurveyMap(context);assertEquals(990,geometry.boundaries.size);assertEquals(1074,geometry.labels.size);assertEquals(990,geometry.boundaries.map{it.id}.toSet().size);assertTrue(geometry.bounds.width()>7000);assertTrue(geometry.bounds.height()>6800)
         compose.setContent{ErpTheme{MapScreen(UiState(initialLoading=false),{})}}
-        compose.waitUntil(10000){compose.onAllNodesWithText("Fit map").fetchSemanticsNodes().isNotEmpty()}
+        compose.waitUntil(20000){
+            compose.onAllNodesWithText("Fit map").fetchSemanticsNodes().isNotEmpty() &&
+                compose.onAllNodesWithText("Loading the full CAD map…").fetchSemanticsNodes().isEmpty()
+        }
+        compose.waitForIdle()
         compose.onNodeWithText("Green means consent received. Pinch to zoom; drag to pan.").assertExists();screenshot("native-full-cad-map.png")
     }
 
