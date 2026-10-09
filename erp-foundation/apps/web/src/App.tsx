@@ -7,9 +7,6 @@ import {
   isSupabaseConfigured,
   linkExistingDriveFile,
   loadGoogleDriveConnectionStatus,
-  loadMapFeatureDefinitions,
-  loadMapFeatureLinks,
-  loadMapStatuses,
   loadMyProfile,
   loadParcelDetail,
   loadParcels,
@@ -25,12 +22,10 @@ import { AccessLanding } from "./AccessLanding";
 import { UserManagement } from "./UserManagement";
 import { SurveyComments } from "./SurveyComments";
 import { csvValue } from "./csv-export";
-import { attachMapNavigation, zoomMapView } from "./map-interactions";
 import { demoParcels } from "./demo";
 import { ConsentEntry } from "./ConsentEntry";
 import { DriveFolderSetup } from "./DriveFolderSetup";
 import { SurveyDocumentPanel, type ConsentWorkspaceActions } from "./ConsentDocuments";
-import { FullSurveyMap, type LiveMapSelection } from "./FullSurveyMap";
 import { SurveyDetails } from "./SurveyDetails";
 import { ConsentGenerator } from "./ConsentGenerator";
 import { formatSurveyCount, Icon, SurveyPicker, type IconName } from "./ui";
@@ -39,16 +34,13 @@ import type {
   ConsentStatus,
   CurrentProfile,
   DashboardMetrics,
-  MapFeatureDefinition,
-  MapFeatureLink,
-  MapStatus,
   ParcelDetail,
   OwnerDetailsInput,
   ParcelSummary,
   ParcelWorkflowInput
 } from "./types";
 
-type ViewId = "dashboard" | "registry" | "details" | "consent" | "entry" | "documents" | "reports" | "map" | "users" | "generator";
+type ViewId = "dashboard" | "registry" | "details" | "consent" | "entry" | "documents" | "reports" | "users" | "generator";
 type Notice = { kind: "success" | "error" | "info"; text: string } | null;
 
 const viewTitles: Record<ViewId, string> = {
@@ -60,14 +52,12 @@ const viewTitles: Record<ViewId, string> = {
   entry: "Workflow entry",
   documents: "Documents",
   reports: "Reports",
-  map: "Survey map",
   users: "Users & access"
 };
 
 const navItems: Array<{ id: ViewId; icon: IconName; label: string }> = [
   { id: "dashboard", icon: "overview", label: "Overview" },
   { id: "registry", icon: "register", label: "Land register" },
-  { id: "map", icon: "map", label: "Survey map" },
   { id: "consent", icon: "entry", label: "Entries" },
   { id: "generator", icon: "register", label: "Consent generator" },
   { id: "reports", icon: "reports", label: "Reports" }
@@ -104,13 +94,6 @@ function formatAcres(value: number | null): string {
 
 function statusClass(status: ConsentStatus): string {
   return `status status-${status}`;
-}
-
-function mapColors(status: ConsentStatus): { fill: string; stroke: string } {
-  if (status === "received") return { fill: "#6e9d7a", stroke: "#365743" };
-  if (status === "pending") return { fill: "#d6ad63", stroke: "#8d6328" };
-  if (status === "blocked" || status === "rejected") return { fill: "#c38784", stroke: "#803d3a" };
-  return { fill: "#d7ddd7", stroke: "#8b948c" };
 }
 
 function createWorkflow(parcel: ParcelSummary): ParcelWorkflowInput {
@@ -176,9 +159,6 @@ function App() {
   const [profile, setProfile] = useState<CurrentProfile | null>(null);
   const [sessionChecked, setSessionChecked] = useState(!isSupabaseConfigured);
   const [parcels, setParcels] = useState<ParcelSummary[]>([]);
-  const [mapStatuses, setMapStatuses] = useState<MapStatus[]>([]);
-  const [mapDefinitions, setMapDefinitions] = useState<MapFeatureDefinition[]>([]);
-  const [mapLinks, setMapLinks] = useState<MapFeatureLink[]>([]);
   const [isLiveData, setIsLiveData] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
@@ -197,8 +177,6 @@ function App() {
   const [connectingDrive, setConnectingDrive] = useState(false);
   const [driveConnected, setDriveConnected] = useState(false);
   const [generatingReport, setGeneratingReport] = useState(false);
-  const [mapSelection, setMapSelection] = useState<LiveMapSelection>(null);
-  const mapRef = useRef<HTMLObjectElement | null>(null);
 
   const refreshSequence = useRef(0);
   const authIdentity = useRef<string | null>(null);
@@ -220,21 +198,15 @@ function App() {
       setProfile(nextProfile);
       setProfileChecked(true);
       if (!nextProfile?.is_active || nextProfile.approval_status !== "approved") {
-        setParcels([]); setMapStatuses([]); setMapDefinitions([]); setMapLinks([]); setSurveyDetail(null); setIsLiveData(false);
+        setParcels([]); setSurveyDetail(null); setIsLiveData(false);
         return;
       }
-      const [liveParcels, liveStatuses, definitions, links, connected] = await Promise.all([
+      const [liveParcels, connected] = await Promise.all([
         loadParcels(),
-        loadMapStatuses(),
-        loadMapFeatureDefinitions(),
-        loadMapFeatureLinks(),
         loadGoogleDriveConnectionStatus().catch(() => false)
       ]);
       if (attempt !== refreshSequence.current) return;
       setParcels(liveParcels);
-      setMapStatuses(liveStatuses);
-      setMapDefinitions(definitions);
-      setMapLinks(links);
       setProfile(nextProfile);
       setDriveConnected(connected);
       setIsLiveData(true);
@@ -242,8 +214,6 @@ function App() {
       if (attempt !== refreshSequence.current) return;
       setIsLiveData(false);
       setParcels([]);
-      setMapDefinitions([]);
-      setMapLinks([]);
       setProfileChecked(true);
       setNotice({
         kind: "error",
@@ -259,7 +229,7 @@ function App() {
     const { data } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (authIdentity.current !== (nextSession?.user.id || null)) {
         authIdentity.current = nextSession?.user.id || null; refreshSequence.current += 1;
-        setProfile(null); setProfileChecked(false); setParcels([]); setMapStatuses([]); setMapDefinitions([]); setMapLinks([]); setSurveyDetail(null); setIsLiveData(false); setLoading(false);
+        setProfile(null); setProfileChecked(false); setParcels([]); setSurveyDetail(null); setIsLiveData(false); setLoading(false);
       }
       setSession(nextSession); setSessionChecked(true);
       if (event === "PASSWORD_RECOVERY") setPasswordSetup(true);
@@ -482,7 +452,7 @@ function App() {
     setNotice({
       kind: "success",
       text: input.status === "received"
-        ? "Consent received was recorded. The linked map shape is now green."
+        ? "Consent received was recorded."
         : `Consent status was saved as ${consentLabel[input.status]}.`
     });
   };
@@ -524,118 +494,6 @@ function App() {
       setGeneratingReport(false);
     }
   };
-
-  const handleMapFeatureClick = useCallback((featureKey: string) => {
-    const links = mapLinks.filter((link) => link.feature_key === featureKey);
-    setMapSelection({ featureKey, links });
-    if (links.length === 1) {
-      const linkedParcel = parcels.find((parcel) => parcel.id === links[0].parcel_id);
-      if (linkedParcel) chooseParcel(linkedParcel, "details");
-    }
-  }, [mapLinks, parcels]);
-
-  const applyMapStyles = useCallback(() => {
-    const svgDocument = mapRef.current?.contentDocument;
-    if (!svgDocument) return;
-    const root = svgDocument.documentElement;
-    attachMapNavigation(root as unknown as SVGSVGElement);
-    if (!root.dataset.cadViewBox && root.getAttribute("viewBox")) root.dataset.cadViewBox = root.getAttribute("viewBox") ?? "";
-    // The CAD labels sit above their boundaries. Let a click pass through the
-    // text to the linked survey boundary below it.
-    svgDocument.querySelectorAll("text").forEach((label) => { label.style.pointerEvents = "none"; });
-    // Keep the CAD boundary lines readable at every zoom level. Clearing the
-    // base fills also removes live consent colours when a session ends.
-    const cadBoundaries = Array.from(svgDocument.querySelectorAll<SVGPathElement>("path"))
-      .filter((element) => /[Zz]\s*$/.test(element.getAttribute("d") ?? ""));
-    cadBoundaries.forEach((element) => {
-      element.style.fill = "none";
-      element.style.stroke = "#8b9789";
-      element.style.strokeWidth = "0.6px";
-      element.style.vectorEffect = "non-scaling-stroke";
-      element.style.cursor = "default";
-      element.removeAttribute("tabindex");
-      element.removeAttribute("role");
-      element.removeAttribute("aria-label");
-      element.onclick = null;
-      element.onkeydown = null;
-    });
-    const statusByFeature = new Map(mapStatuses.map((item) => [item.feature_key, item.status]));
-    mapDefinitions.forEach((feature) => {
-      if (!feature.svg_element_id) return;
-      const element = svgDocument.getElementById(feature.svg_element_id) as SVGElement | null;
-      if (!element) return;
-      const status = statusByFeature.get(feature.feature_key) ?? "not_ready";
-      const colors = mapColors(status);
-      element.style.fill = colors.fill;
-      element.style.fillOpacity = status === "not_ready" ? "0.52" : "0.84";
-      element.style.stroke = colors.stroke;
-      element.style.strokeWidth = "1.15px";
-      element.style.cursor = "pointer";
-      element.style.pointerEvents = "all";
-      element.setAttribute("tabindex", "0");
-      element.setAttribute("role", "button");
-      const surveyLabels = mapLinks.filter((link) => link.feature_key === feature.feature_key)
-        .map((link) => `${link.village_name} survey ${link.survey_number}`);
-      element.setAttribute("aria-label", `${surveyLabels.join(" or ") || "Unmatched survey boundary"}. ${statusByFeature.has(feature.feature_key) ? consentLabel[status] : "Consent unconfirmed"}.`);
-      element.onclick = () => handleMapFeatureClick(feature.feature_key);
-      element.onkeydown = (event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          handleMapFeatureClick(feature.feature_key);
-        }
-      };
-    });
-
-    // The original DWG viewBox also contains construction marks and empty CAD
-    // canvas. Fit registered boundaries when signed in, and all closed CAD
-    // boundaries in the public preview. The untouched drawing remains in SVG.
-    const fitSource = mapDefinitions.length ? "registered" : "drawing";
-    if (root.dataset.fitSource !== fitSource) {
-      let minX = Number.POSITIVE_INFINITY;
-      let minY = Number.POSITIVE_INFINITY;
-      let maxX = Number.NEGATIVE_INFINITY;
-      let maxY = Number.NEGATIVE_INFINITY;
-      const fitElements = mapDefinitions.length
-        ? mapDefinitions.map((feature) => feature.svg_element_id ? svgDocument.getElementById(feature.svg_element_id) as SVGGraphicsElement | null : null)
-        : cadBoundaries;
-      fitElements.forEach((element) => {
-        if (!element) return;
-        try {
-          const box = element.getBBox();
-          if (box.width <= 0 || box.height <= 0) return;
-          minX = Math.min(minX, box.x);
-          minY = Math.min(minY, box.y);
-          maxX = Math.max(maxX, box.x + box.width);
-          maxY = Math.max(maxY, box.y + box.height);
-        } catch {
-          // A malformed CAD primitive must not stop the rest of the map.
-        }
-      });
-      if (Number.isFinite(minX) && Number.isFinite(minY) && Number.isFinite(maxX) && Number.isFinite(maxY)) {
-        const paddingX = Math.max(24, (maxX - minX) * 0.07);
-        const paddingY = Math.max(24, (maxY - minY) * 0.07);
-        const fitViewBox = [minX - paddingX, minY - paddingY, maxX - minX + paddingX * 2, maxY - minY + paddingY * 2].join(" ");
-        root.dataset.fitViewBox = fitViewBox;
-        root.dataset.fitSource = fitSource;
-        root.setAttribute("viewBox", fitViewBox);
-      }
-    }
-  }, [handleMapFeatureClick, mapDefinitions, mapStatuses, mapLinks]);
-
-  useEffect(() => {
-    applyMapStyles();
-  }, [applyMapStyles]);
-
-  const zoomMap = useCallback((factor: number) => {
-    const root = mapRef.current?.contentDocument?.documentElement;
-    if (root) zoomMapView(root as unknown as SVGSVGElement, factor);
-  }, []);
-
-  const resetMap = useCallback(() => {
-    const root = mapRef.current?.contentDocument?.documentElement;
-    const initial = root?.dataset.fitViewBox ?? root?.dataset.cadViewBox;
-    if (root && initial) root.setAttribute("viewBox", initial);
-  }, []);
 
   const reportRows = useMemo(() => {
     return parcels.filter((row) =>
@@ -812,23 +670,6 @@ function App() {
               canGeneratePatel={isAdmin}
               generating={generatingReport}
               onGeneratePatel={generatePatelReport}
-            />
-          )}
-          {activeView === "map" && (
-            <FullSurveyMap
-              mapRef={mapRef}
-              isLiveData={isLiveData}
-              featureCount={mapDefinitions.length}
-              selection={mapSelection}
-              onLoad={applyMapStyles}
-              onZoomIn={() => zoomMap(0.72)}
-              onZoomOut={() => zoomMap(1.38)}
-              onReset={resetMap}
-              onOpenParcel={(parcelId) => {
-                const parcel = parcels.find((item) => item.id === parcelId);
-                if (parcel) chooseParcel(parcel, "details");
-              }}
-              onGoRegistry={() => setActiveView("registry")}
             />
           )}
           {["details", "consent", "documents"].includes(activeView) && activeDetail && <SurveyComments key={activeDetail.id} parcelId={activeDetail.id} userId={session.user.id} role={profile?.role || "viewer"} />}
