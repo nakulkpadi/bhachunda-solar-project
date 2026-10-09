@@ -28,6 +28,11 @@ function requiredClient(): SupabaseClient {
   return supabase;
 }
 
+export async function loadLegacyConsentForms(): Promise<import("./legacy-consent").LegacyConsentForm[]> {
+  const response=await fetch(`${supabaseUrl}/functions/v1/legacy-consent-forms`,{headers:await sessionHeaders(),cache:"no-store"});
+  const body=await response.json();if(!response.ok)throw new Error(body.error || "Could not load earlier forms.");return body.records;
+}
+
 export async function loadConsentFormDrafts(): Promise<ConsentFormDraft[]> {
   const drafts: ConsentFormDraft[]=[]; let offset: number | null=0;
   while(offset!==null) {

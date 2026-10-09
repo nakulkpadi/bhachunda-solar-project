@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadConsentFormDrafts, loadParcelDetail, saveConsentFormDraft, uploadConsentFormDraftPdf } from "./api";
+import { loadConsentFormDrafts, loadLegacyConsentForms, loadParcelDetail, saveConsentFormDraft, uploadConsentFormDraftPdf } from "./api";
 import { areaFromHas, normalizeHas, validateDraftFields, type ConsentFormDraft, type ConsentFormFields } from "../../../shared/consent-draft";
 import type { ParcelDetail, ParcelSummary } from "./types";
 import { SurveyPicker } from "./ui";
 import { csvValue } from "./csv-export";
+import { nameParts, placeParts, joinNames, printLanguageIssues } from "./consent-language";
+import { legacyDraftId, matchLegacySurvey, type LegacyConsentForm } from "./legacy-consent";
 import { consentPrintHtml } from "./consent-print";
 
 const localDate=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
@@ -18,6 +20,9 @@ export function ConsentGenerator({rows,canEdit}:{rows:ParcelSummary[];canEdit:bo
   const [baseline,setBaseline]=useState<ConsentFormFields|null>(null);
   const [saved,setSaved]=useState<ConsentFormDraft|null>(null);
   const [formId,setFormId]=useState<string>(()=>crypto.randomUUID());
+  const [legacy,setLegacy]=useState<LegacyConsentForm[]>([]);
+  const [legacyError,setLegacyError]=useState("");
+  const [legacyLoading,setLegacyLoading]=useState(false);
   const [list,setList]=useState<ConsentFormDraft[]>([]);
   const [loading,setLoading]=useState(false);const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState("");const [error,setError]=useState("");
@@ -29,6 +34,18 @@ export function ConsentGenerator({rows,canEdit}:{rows:ParcelSummary[];canEdit:bo
   const dirty=!!fields && JSON.stringify(saved?.fields || baseline)!==JSON.stringify(fields);
   const filtered=list.filter(d=>`${d.fields.village_en} ${d.fields.survey_number} ${d.fields.owners.join(' ')} ${d.fields.mobile}`.toLowerCase().includes(search.toLowerCase()));
   const area=useMemo(()=>{try{return fields ? areaFromHas(fields.has) : null}catch{return null}},[fields?.has]);
+  const refreshLegacy=async()=>{setLegacyLoading(true);setLegacyError("");try{const records=await loadLegacyConsentForms();if(alive.current)setLegacy(records)}catch(e){if(alive.current)setLegacyError(e instanceof Error?e.message:"Earlier forms are unavailable.")}finally{if(alive.current)setLegacyLoading(false)}};
+  useEffect(()=>{if(canEdit)void refreshLegacy()},[canEdit]);
+  const previewDraft=(draft:ConsentFormDraft)=>{const problems=printLanguageIssues(draft.fields);if(problems.length){setError(problems.join(" ")+" Open this form to correct the language fields before printing.");return}setError("");setPreview(draft)};
+  const reviewLegacy=(record:LegacyConsentForm)=>run(async()=>{
+    const parcel=matchLegacySurvey(record,rows);if(!parcel)throw new Error("This earlier form has no unique village and survey match. Correct the master link before importing.");
+    if(!record.fields)throw new Error("This earlier form has incomplete details. Review the original before recreating it.");
+    if(dirty&&!window.confirm("Discard the unsaved form and review this earlier form?"))return;
+    const id=await legacyDraftId(record.id);const existing=list.find(d=>d.id===id);if(existing){edit(existing);return}
+    const request=++generation.current;const detail=await loadParcelDetail(parcel.id);if(!alive.current||request!==generation.current)return;const initial=prefill(detail);setSelectedId(parcel.id);setSaved(null);setFormId(id);setPreview(null);setLoading(false);
+    const f={...record.fields,survey_number:parcel.survey_number,village_en:initial.village_en,village_gu:record.fields.village_gu || initial.village_gu};
+    setFields(f);setBaseline(initial);setMessage("Earlier form loaded for review. Save draft to store it in Supabase. Its old Sent/Received label does not record owner consent.");
+  });
   const refresh=async()=>{const drafts=await loadConsentFormDrafts();if(alive.current)setList(drafts)};
   useEffect(()=>{if(!canEdit)return;let cancelled=false;loadConsentFormDrafts().then(d=>{if(!cancelled)setList(d)}).catch(e=>{if(!cancelled)setError(e.message)});const timer=setInterval(()=>{loadConsentFormDrafts().then(d=>{if(!cancelled)setList(d)}).catch(()=>{})},15000);return()=>{cancelled=true;clearInterval(timer)}},[canEdit]);
   const choose=async(id:string)=>{
@@ -62,19 +79,26 @@ export function ConsentGenerator({rows,canEdit}:{rows:ParcelSummary[];canEdit:bo
         <label>Khata number<input value={fields.khata} maxLength={80} disabled={busy} onChange={e=>patch('khata',e.target.value)}/></label>
         <label>H.Are.Sq.Mt.<input required value={fields.has} placeholder="1.60.57" maxLength={20} disabled={busy} onChange={e=>patch('has',e.target.value)}/></label>
         <label>Acres / Guntha<input readOnly value={area?`${area.acres} acres · ${area.guntha} guntha`:"Enter a valid H.Are.Sq.Mt. area"}/></label>
+        <label>Village — English<input readOnly value={fields.village_en}/></label>
         <label>Village — Gujarati<input required value={fields.village_gu} maxLength={100} disabled={busy} onChange={e=>patch('village_gu',e.target.value)}/></label>
-        <label>Taluka<input required value={fields.taluka} maxLength={100} disabled={busy} onChange={e=>patch('taluka',e.target.value)}/></label>
-        <label>District<input required value={fields.district} maxLength={100} disabled={busy} onChange={e=>patch('district',e.target.value)}/></label>
+        <label>Taluka — English<input required value={placeParts(fields.taluka).en} maxLength={100} disabled={busy} onChange={e=>patch('taluka',joinNames(e.target.value,placeParts(fields.taluka).gu))}/></label>
+        <label>Taluka — Gujarati<input required value={placeParts(fields.taluka).gu} maxLength={100} disabled={busy} onChange={e=>patch('taluka',joinNames(placeParts(fields.taluka).en,e.target.value))}/></label>
+        <label>District — English<input required value={placeParts(fields.district).en} maxLength={100} disabled={busy} onChange={e=>patch('district',joinNames(e.target.value,placeParts(fields.district).gu))}/></label>
+        <label>District — Gujarati<input required value={placeParts(fields.district).gu} maxLength={100} disabled={busy} onChange={e=>patch('district',joinNames(placeParts(fields.district).en,e.target.value))}/></label>
         <label>Contact mobile<input type="tel" value={fields.mobile} maxLength={20} disabled={busy} onChange={e=>patch('mobile',e.target.value)} autoComplete="off"/></label>
-      </div><fieldset className="generator-owners"><legend>7/12 owner names / જમીન માલિકો</legend>{fields.owners.map((name,i)=><div className="generator-owner" key={i}><label><span>Owner {i+1}</span><input required value={name} maxLength={200} disabled={busy} onChange={e=>patch('owners',fields.owners.map((n,j)=>j===i?e.target.value:n))}/></label><button type="button" className="button" disabled={busy||fields.owners.length===1} onClick={()=>patch('owners',fields.owners.filter((_,j)=>j!==i))}>Remove</button></div>)}<button type="button" className="button" disabled={busy||fields.owners.length>=50} onClick={()=>patch('owners',[...fields.owners,""])}>Add owner</button></fieldset>
-        <div className="generator-actions"><button className="button button-primary" disabled={busy||!area||saved?.state==="archived"}>{busy?"Saving…":"Save draft"}</button><button type="button" className="button" disabled={!saved||dirty||busy} onClick={()=>setPreview(saved)}>Preview & print</button><button type="button" className="button" disabled={!saved||dirty||busy||saved.state!=="draft"} onClick={()=>upload.current?.click()}>Upload draft PDF to Drive</button></div>
-        <p className="field-hint">Save the form before printing. In the print dialog, choose “Save as PDF”. Upload that unsigned PDF here if you want a Drive copy.</p>
+      </div><fieldset className="generator-owners"><legend>7/12 owner names / જમીન માલિકો</legend>{fields.owners.map((name,i)=><div className="generator-owner" key={i}><label><span>Owner {i+1} — English</span><input aria-label={`Owner ${i+1} — English`} value={nameParts(name).en} maxLength={200} disabled={busy} onChange={e=>patch('owners',fields.owners.map((n,j)=>j===i?joinNames(e.target.value,nameParts(n).gu):n))}/></label><label><span>Owner {i+1} — Gujarati</span><input aria-label={`Owner ${i+1} — Gujarati`} value={nameParts(name).gu} maxLength={200} disabled={busy} onChange={e=>patch('owners',fields.owners.map((n,j)=>j===i?joinNames(nameParts(n).en,e.target.value):n))}/></label><button type="button" className="button" disabled={busy||fields.owners.length===1} onClick={()=>patch('owners',fields.owners.filter((_,j)=>j!==i))}>Remove</button></div>)}<button type="button" className="button" disabled={busy||fields.owners.length>=50} onClick={()=>patch('owners',[...fields.owners,""])}>Add owner</button></fieldset>
+        <div className="generator-actions"><button className="button button-primary" disabled={busy||!area||saved?.state==="archived"}>{busy?"Saving…":"Save draft"}</button><button type="button" className="button" disabled={!saved||dirty||busy} onClick={()=>saved&&previewDraft(saved)}>Preview & print</button><button type="button" className="button" disabled={!saved||dirty||busy||saved.state!=="draft"} onClick={()=>upload.current?.click()}>Upload draft PDF to Drive</button></div>
+        <p className="field-hint">Use the verified 7/12 spellings in both languages; owner names are not guessed or automatically translated. Save the form before printing. In the print dialog, choose “Save as PDF”. Upload that unsigned PDF here if you want a Drive copy.</p>
         {saved?.document_id&&<p className="field-hint">A draft PDF is linked in Documents as “Generated consent form (unsigned draft)”.</p>}
       </form>}
       <input ref={upload} type="file" accept="application/pdf,.pdf" hidden onChange={e=>{const f=e.target.files?.[0];e.target.value="";if(f&&saved)void run(async()=>{await uploadConsentFormDraftPdf(saved,f);await refresh();setMessage("Unsigned draft PDF saved to Drive. Consent status is unchanged.")})}}/>
     </section>
     <section className="panel"><div className="section-heading"><div><h2>Generated forms</h2><p>{list.length} saved forms · separate from received consent</p></div><div className="generator-actions"><button className="button" disabled={busy} onClick={()=>void run(refresh)}>Refresh</button><button className="button" disabled={!filtered.length} onClick={exportList}>Export list</button></div></div><label>Search village, survey or owner<input type="search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search generated forms"/></label>
-      <div className="table-wrap"><table><thead><tr><th>Village / survey</th><th>Form date</th><th>First owner</th><th>Form state</th><th>Actions</th></tr></thead><tbody>{filtered.map(d=><tr key={d.id}><td>{d.fields.village_en}<br/><strong>{d.fields.survey_number}</strong></td><td>{d.fields.date}</td><td>{d.fields.owners[0]}</td><td><span className="draft-label">{d.state==="draft"?"Unsigned draft":"Archived"}</span></td><td><div className="generator-actions"><button className="button" disabled={busy} onClick={()=>edit(d)}>Open</button><button className="button" disabled={busy} onClick={()=>setPreview(d)}>Print</button><button className="button" disabled={busy} onClick={()=>void archive(d)}>{d.state==="draft"?"Archive":"Restore"}</button></div></td></tr>)}</tbody></table>{!filtered.length&&<p className="empty-state">No generated forms match this search.</p>}</div>
+      <div className="table-wrap"><table><thead><tr><th>Village / survey</th><th>Form date</th><th>First owner</th><th>Form state</th><th>Actions</th></tr></thead><tbody>{filtered.map(d=><tr key={d.id}><td>{d.fields.village_en}<br/><strong>{d.fields.survey_number}</strong></td><td>{d.fields.date}</td><td>{d.fields.owners[0]}</td><td><span className="draft-label">{d.state==="draft"?"Unsigned draft":"Archived"}</span></td><td><div className="generator-actions"><button className="button" disabled={busy} onClick={()=>edit(d)}>Open</button><button className="button" disabled={busy} onClick={()=>previewDraft(d)}>Print</button><button className="button" disabled={busy} onClick={()=>void archive(d)}>{d.state==="draft"?"Archive":"Restore"}</button></div></td></tr>)}</tbody></table>{!filtered.length&&<p className="empty-state">No generated forms match this search.</p>}</div>
+    </section>
+    <section className="panel"><div className="section-heading"><div><h2>Earlier forms sent to owners</h2><p>{legacy.length} earlier forms from the old generator. Old delivery labels are shown for reference; consent receipt is recorded separately.</p></div><button className="button" disabled={legacyLoading||busy} onClick={()=>void refreshLegacy()}>{legacyLoading?"Loading earlier forms…":"Refresh earlier forms"}</button></div>
+      {legacyError&&<p role="alert">{legacyError}</p>}
+      <div className="table-wrap"><table><thead><tr><th>Village / survey</th><th>Form date</th><th>First owner</th><th>Earlier status</th><th>ERP action</th></tr></thead><tbody>{legacy.filter(d=>`${d.village_en} ${d.survey_number} ${d.first_owner}`.toLowerCase().includes(search.toLowerCase())).map(d=><tr key={d.id}><td>{d.village_en}<br/><strong>{d.survey_number}</strong></td><td>{d.date}</td><td>{d.first_owner}</td><td>{d.status==="sent"?"Sent for signature":d.status==="received"?"Old system marked received — verify receipt":"Old system marked missing"}</td><td><button className="button" disabled={busy||!d.fields||!matchLegacySurvey(d,rows)} onClick={()=>void reviewLegacy(d)}>Review in ERP</button>{!d.fields&&<small>Original form details are incomplete</small>}{!matchLegacySurvey(d,rows)&&<small>No unique village/survey match</small>}</td></tr>)}</tbody></table>{!legacyLoading&&!legacyError&&!legacy.length&&<p className="empty-state">No earlier forms were returned by the old generator.</p>}</div>
     </section>
     {preview&&<div className="generator-modal" role="dialog" aria-modal="true" aria-label="Unsigned form preview"><div className="generator-preview"><div className="generator-preview-bar"><div><strong>Unsigned generated form</strong><p>Owner signature and verification pending</p></div><button className="button button-primary" onClick={()=>frame.current?.contentWindow?.print()}>Print / save PDF</button><button className="button" onClick={()=>setPreview(null)}>Close</button></div><iframe ref={frame} title="English and Gujarati generated consent form" sandbox="allow-same-origin allow-modals" srcDoc={consentPrintHtml(preview)}/></div></div>}
   </div>;
